@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root:@localhost:3306/hrmpro"
+}
+
+model PlatformAdmin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("platform_admin")
+  createdAt    DateTime @default(now())
+}
+
+model Company {
+  id            String         @id @default(uuid())
+  name          String
+  logo          String?
+  industry      String?
+  address       String?
+  status        String         @default("active")
+  planId        String?
+  createdAt     DateTime       @default(now())
+  users         User[]
+  employees     Employee[]
+  departments   Department[]
+  attendance    Attendance[]
+  leaves        Leave[]
+  leaveBalances LeaveBalance[]
+  payrolls      Payroll[]
+}
+
+model User {
+  id           String    @id @default(uuid())
+  companyId    String
+  name         String
+  email        String
+  passwordHash String
+  role         String
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  company      Company   @relation(fields: [companyId], references: [id])
+  employee     Employee?
+}
+
+model Department {
+  id        String     @id @default(uuid())
+  companyId String
+  name      String
+  headId    String?
+  createdAt DateTime   @default(now())
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+}
+
+model Employee {
+  id            String         @id @default(uuid())
+  companyId     String
+  userId        String         @unique
+  employeeCode  String
+  designation   String?
+  departmentId  String?
+  salary        Float          @default(0)
+  joinDate      DateTime       @default(now())
+  status        String         @default("active")
+  createdAt     DateTime       @default(now())
+  company       Company        @relation(fields: [companyId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  department    Department?    @relation(fields: [departmentId], references: [id])
+  attendance    Attendance[]
+  leaves        Leave[]
+  leaveBalances LeaveBalance[]
+  payrolls      Payroll[]
+}
+
+model Attendance {
+  id         String    @id @default(uuid())
+  companyId  String
+  employeeId String
+  date       DateTime
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     String
+  createdAt  DateTime  @default(now())
+  company    Company   @relation(fields: [companyId], references: [id])
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+}
+
+model Leave {
+  id         String   @id @default(uuid())
+  companyId  String
+  employeeId String
+  leaveType  String
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  reason     String?
+  status     String   @default("pending")
+  approvedBy String?
+  createdAt  DateTime @default(now())
+  company    Company  @relation(fields: [companyId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+}
+
+model LeaveBalance {
+  id         String   @id @default(uuid())
+  companyId  String
+  employeeId String
+  leaveType  String
+  total      Int      @default(0)
+  used       Int      @default(0)
+  remaining  Int      @default(0)
+  year       Int
+  company    Company  @relation(fields: [companyId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Payroll {
+  id         String   @id @default(uuid())
+  companyId  String
+  employeeId String
+  month      Int
+  year       Int
+  basic      Float
+  allowances Float    @default(0)
+  deductions Float    @default(0)
+  netSalary  Float
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  company    Company  @relation(fields: [companyId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+}
