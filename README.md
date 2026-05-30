@@ -167,14 +167,4 @@ Employee
 
 ---
 
-## 👨‍💻 Developer
 
-**Agha Ali**
-BS Software Engineering — Minhaj University Lahore (2026)
-Pakistan 🇵🇰
-
----
-
-## 📄 License
-
-This project is for portfolio and educational purposes.
