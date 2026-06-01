@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManageEmployees } from '@/lib/withAuth';
+import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
   id: string;
   employeeCode: string;
   user: { name: string; email: string };
+}
+
+interface Department {
+  id: string;
+  name: string;
 }
 
 interface AttendanceRecord {
@@ -30,6 +35,17 @@ interface TodaySummary {
   totalEmployees: number;
 }
 
+interface Shift {
+  id: string;
+  name: string;
+  shiftStart: string;
+  shiftEnd: string;
+  gracePeriod: number;
+  departmentId: string | null;
+  department?: { name: string } | null;
+  isActive: boolean;
+}
+
 const STATUS_OPTIONS = ['present', 'absent', 'late', 'half_day'];
 
 const statusColors: Record<string, string> = {
@@ -43,6 +59,8 @@ export default function AttendancePage() {
   const { user } = useAuth(false);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [summary, setSummary] = useState<TodaySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -50,7 +68,7 @@ export default function AttendancePage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'today' | 'history' | 'mark'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'history' | 'mark' | 'shifts'>('today');
 
   const [showMarkModal, setShowMarkModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -74,7 +92,19 @@ export default function AttendancePage() {
   const [bulkDate, setBulkDate] = useState(new Date().toISOString().split('T')[0]);
   const [bulkLoading, setBulkLoading] = useState(false);
 
+  // Shift settings form
+  const [shiftForm, setShiftForm] = useState({
+    name: 'General Shift',
+    shiftStart: '09:00',
+    shiftEnd: '17:00',
+    gracePeriod: '30',
+    departmentId: '',   // empty = company-wide
+  });
+  const [shiftLoading, setShiftLoading] = useState(false);
+  const [shiftError, setShiftError] = useState('');
+
   const canManage = canManageEmployees(user?.role || '');
+  const canSetShifts = isCompanyAdmin(user?.role || '') || isHRManager(user?.role || '');
 
   useEffect(() => {
     if (user) fetchData();
@@ -87,14 +117,21 @@ export default function AttendancePage() {
   const fetchData = async () => {
     const token = getToken() || '';
     try {
-      const [summaryData, empData, recordsData] = await Promise.all([
+      const [summaryData, empData, recordsData, deptData] = await Promise.all([
         apiCall('/attendance/summary/today', {}, token),
         apiCall('/employees', {}, token),
         apiCall(`/attendance/date/${selectedDate}`, {}, token),
+        apiCall('/departments', {}, token).catch(() => []),
       ]);
       setSummary(summaryData);
       setEmployees(empData);
       setRecords(recordsData);
+      setDepartments(deptData || []);
+      // Load shifts only if allowed
+      if (isCompanyAdmin(user?.role || '') || isHRManager(user?.role || '')) {
+        const shiftData = await apiCall('/attendance/shift', {}, token).catch(() => []);
+        setShifts(shiftData || []);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -122,7 +159,7 @@ export default function AttendancePage() {
     if (!markForm.employeeId) { setError('Please select an employee'); return; }
     try {
       const token = getToken() || '';
-      await apiCall('/attendance', {
+      await apiCall('/attendance/manual', {
         method: 'POST',
         body: JSON.stringify({
           employeeId: markForm.employeeId,
@@ -172,7 +209,7 @@ export default function AttendancePage() {
     for (const [employeeId, form] of Object.entries(bulkForms)) {
       if (!form.status) continue;
       try {
-        await apiCall('/attendance', {
+        await apiCall('/attendance/manual', {
           method: 'POST',
           body: JSON.stringify({
             employeeId,
@@ -192,6 +229,35 @@ export default function AttendancePage() {
     setBulkForms({});
     showSuccessMsg(`Marked ${successCount} employees. ${errorCount > 0 ? `${errorCount} failed.` : ''}`);
     fetchData();
+  };
+
+  // ✅ NEW: save office timings / shift schedule
+  const handleSaveShift = async () => {
+    setShiftError('');
+    if (!shiftForm.name.trim()) { setShiftError('Shift name is required'); return; }
+    if (!shiftForm.shiftStart || !shiftForm.shiftEnd) { setShiftError('Start and end time are required'); return; }
+    setShiftLoading(true);
+    try {
+      const token = getToken() || '';
+      await apiCall('/attendance/shift', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: shiftForm.name.trim(),
+          shiftStart: shiftForm.shiftStart,           // "HH:MM"
+          shiftEnd: shiftForm.shiftEnd,               // "HH:MM"
+          gracePeriod: parseInt(shiftForm.gracePeriod) || 30,
+          departmentId: shiftForm.departmentId || null, // null = company-wide
+        }),
+      }, token);
+      showSuccessMsg('Office timings saved! Check-ins will now follow this shift.');
+      // refresh shift list
+      const shiftData = await apiCall('/attendance/shift', {}, token).catch(() => []);
+      setShifts(shiftData || []);
+    } catch (err: any) {
+      setShiftError(err.message || 'Failed to save shift');
+    } finally {
+      setShiftLoading(false);
+    }
   };
 
   const initBulkForms = () => {
@@ -220,7 +286,6 @@ export default function AttendancePage() {
     return matchSearch && matchStatus;
   });
 
-  const todayStr = new Date().toISOString().split('T')[0];
   const attendancePct = summary?.totalEmployees
     ? Math.round((summary.present / summary.totalEmployees) * 100)
     : 0;
@@ -302,11 +367,12 @@ export default function AttendancePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm">
+      <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm flex-wrap">
         {([
           { key: 'today', label: '📅 Today' },
           { key: 'history', label: '📋 By Date' },
           canManage && { key: 'mark', label: '✏️ Bulk Mark' },
+          canSetShifts && { key: 'shifts', label: '⚙️ Shift Settings' },
         ] as any[]).filter(Boolean).map((tab: any) => (
           <button
             key={tab.key}
@@ -597,6 +663,120 @@ export default function AttendancePage() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* ⚙️ SHIFT SETTINGS TAB — Company Admin + HR only */}
+      {activeTab === 'shifts' && canSetShifts && (
+        <div className="space-y-5">
+          {/* Set Office Timings */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900">Set Office Timings</h2>
+            <p className="text-xs text-gray-400 mt-0.5 mb-4">
+              Once set, employees who check in late (after start + grace) are auto-marked <b>late</b>; on-time check-ins are marked <b>present</b>.
+            </p>
+
+            {shiftError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{shiftError}</div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Shift Name *</label>
+                <input
+                  type="text"
+                  value={shiftForm.name}
+                  onChange={e => setShiftForm({ ...shiftForm, name: e.target.value })}
+                  placeholder="e.g. General Shift"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                  <input
+                    type="time"
+                    value={shiftForm.shiftStart}
+                    onChange={e => setShiftForm({ ...shiftForm, shiftStart: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
+                  <input
+                    type="time"
+                    value={shiftForm.shiftEnd}
+                    onChange={e => setShiftForm({ ...shiftForm, shiftEnd: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Grace Period (minutes)</label>
+                  <input
+                    type="number"
+                    value={shiftForm.gracePeriod}
+                    onChange={e => setShiftForm({ ...shiftForm, gracePeriod: e.target.value })}
+                    placeholder="30"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Late only after start + this many minutes</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Applies To</label>
+                  <select
+                    value={shiftForm.departmentId}
+                    onChange={e => setShiftForm({ ...shiftForm, departmentId: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  >
+                    <option value="">Whole Company (default)</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name} only</option>)}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Department shift overrides company default</p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveShift}
+                disabled={shiftLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-medium transition-colors mt-2"
+              >
+                {shiftLoading ? 'Saving...' : '💾 Save Office Timings'}
+              </button>
+            </div>
+          </div>
+
+          {/* Existing Shifts */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-5 border-b border-gray-100">
+              <h2 className="font-semibold text-gray-900">Active Shifts</h2>
+            </div>
+            {shifts.length === 0 ? (
+              <div className="p-12 text-center text-gray-400 text-sm">
+                No shifts configured yet. Set one above to start tracking late arrivals.
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {shifts.map(shift => (
+                  <div key={shift.id} className="px-5 py-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{shift.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {shift.shiftStart} – {shift.shiftEnd} · {shift.gracePeriod} min grace ·{' '}
+                        {shift.departmentId ? (shift.department?.name || 'Department') + ' only' : 'Company-wide'}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${shift.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {shift.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

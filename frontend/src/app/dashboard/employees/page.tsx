@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManageEmployees } from '@/lib/withAuth';
+import { useAuth, canManageEmployees, isDeptManager } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Department {
@@ -13,7 +13,7 @@ interface Employee {
   id: string;
   employeeCode: string;
   designation: string;
-  salary: number;
+  salary?: number;
   status: string;
   joinDate: string;
   department: Department | null;
@@ -50,6 +50,7 @@ export default function EmployeesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const [addForm, setAddForm] = useState({
@@ -61,7 +62,14 @@ export default function EmployeesPage() {
     name: '', designation: '', departmentId: '', salary: '', status: '',
   });
 
+  // ✅ Reset-password modal state
+  const [resetForm, setResetForm] = useState({ newPassword: '', confirm: '' });
+  const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showResetPw, setShowResetPw] = useState(false);
+
   const canManage = canManageEmployees(user?.role || '');
+  const hideSalary = isDeptManager(user?.role || '');
 
   useEffect(() => {
     if (user) fetchData();
@@ -132,6 +140,30 @@ export default function EmployeesPage() {
     }
   };
 
+  // ✅ NEW: admin reset password handler
+  const handleResetPassword = async () => {
+    setResetError('');
+    if (!selectedEmployee) return;
+    if (!resetForm.newPassword) { setResetError('New password is required'); return; }
+    if (resetForm.newPassword.length < 6) { setResetError('Password must be at least 6 characters'); return; }
+    if (resetForm.newPassword !== resetForm.confirm) { setResetError('Passwords do not match'); return; }
+    setResetLoading(true);
+    try {
+      const token = getToken() || '';
+      await apiCall(`/employees/${selectedEmployee.id}/reset-password`, {
+        method: 'PUT',
+        body: JSON.stringify({ newPassword: resetForm.newPassword }),
+      }, token);
+      setShowResetModal(false);
+      setResetForm({ newPassword: '', confirm: '' });
+      showSuccessMsg(`Password reset for ${selectedEmployee.user.name}!`);
+    } catch (err: any) {
+      setResetError(err.message || 'Failed to reset password');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const handleDeactivate = async (emp: Employee) => {
     try {
       const token = getToken() || '';
@@ -171,11 +203,20 @@ export default function EmployeesPage() {
       name: emp.user.name,
       designation: emp.designation || '',
       departmentId: emp.department?.id || '',
-      salary: emp.salary.toString(),
+      salary: emp.salary != null ? emp.salary.toString() : '',
       status: emp.status,
     });
     setShowEditModal(true);
     setError('');
+  };
+
+  // ✅ open reset modal
+  const openResetModal = (emp: Employee) => {
+    setSelectedEmployee(emp);
+    setResetForm({ newPassword: '', confirm: '' });
+    setResetError('');
+    setShowResetPw(false);
+    setShowResetModal(true);
   };
 
   const filtered = employees.filter(emp => {
@@ -275,7 +316,7 @@ export default function EmployeesPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['Employee', 'Code', 'Designation', 'Department', 'Salary', 'Role', 'Status', 'Actions'].map(h => (
+                {['Employee', 'Code', 'Designation', 'Department', ...(!hideSalary ? ['Salary'] : []), 'Role', 'Status', 'Actions'].map(h => (
                   <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -283,7 +324,7 @@ export default function EmployeesPage() {
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center">
+                  <td colSpan={hideSalary ? 7 : 8} className="px-6 py-16 text-center">
                     <div className="text-4xl mb-3">👥</div>
                     <p className="text-gray-500 font-medium">No employees found</p>
                     <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filters</p>
@@ -306,9 +347,11 @@ export default function EmployeesPage() {
                     <td className="px-6 py-4 text-sm font-mono text-gray-600">{emp.employeeCode}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{emp.designation || '—'}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{emp.department?.name || '—'}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      PKR {emp.salary.toLocaleString()}
-                    </td>
+                    {!hideSalary && (
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                        {emp.salary != null ? `PKR ${emp.salary.toLocaleString()}` : '—'}
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${roleColors[emp.user.role] || 'bg-gray-100 text-gray-600'}`}>
                         {emp.user.role.replace(/_/g, ' ')}
@@ -320,7 +363,7 @@ export default function EmployeesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => { setSelectedEmployee(emp); setShowDetailModal(true); }}
                           className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg"
@@ -334,6 +377,13 @@ export default function EmployeesPage() {
                               className="text-xs bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-2.5 py-1.5 rounded-lg"
                             >
                               Edit
+                            </button>
+                            {/* ✅ Reset Password button */}
+                            <button
+                              onClick={() => openResetModal(emp)}
+                              className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg"
+                            >
+                              Reset Pwd
                             </button>
                             <button
                               onClick={() => handleDeactivate(emp)}
@@ -387,9 +437,9 @@ export default function EmployeesPage() {
                 { label: 'Status', value: selectedEmployee.status, badge: true },
                 { label: 'Designation', value: selectedEmployee.designation || '—' },
                 { label: 'Department', value: selectedEmployee.department?.name || '—' },
-                { label: 'Salary', value: `PKR ${selectedEmployee.salary.toLocaleString()}` },
+                ...(!hideSalary ? [{ label: 'Salary', value: selectedEmployee.salary != null ? `PKR ${selectedEmployee.salary.toLocaleString()}` : '—' }] : []),
                 { label: 'Join Date', value: new Date(selectedEmployee.joinDate).toLocaleDateString() },
-              ].map((item, i) => (
+              ].map((item: any, i) => (
                 <div key={i} className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-500 mb-1">{item.label}</p>
                   {item.badge ? (
@@ -510,11 +560,13 @@ export default function EmployeesPage() {
                   <input type="text" value={editForm.designation} onChange={e => setEditForm({ ...editForm, designation: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Salary (PKR)</label>
-                  <input type="number" value={editForm.salary} onChange={e => setEditForm({ ...editForm, salary: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
+                {!hideSalary && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Salary (PKR)</label>
+                    <input type="number" value={editForm.salary} onChange={e => setEditForm({ ...editForm, salary: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -539,6 +591,69 @@ export default function EmployeesPage() {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
               <button onClick={handleEdit} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ RESET PASSWORD MODAL */}
+      {showResetModal && selectedEmployee && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Reset Password</h3>
+              <button onClick={() => setShowResetModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+
+            <div className="bg-indigo-50 rounded-xl p-3 mb-4">
+              <p className="font-semibold text-gray-900 text-sm">{selectedEmployee.user.name}</p>
+              <p className="text-xs text-gray-500">{selectedEmployee.user.email}</p>
+            </div>
+
+            <p className="text-xs text-gray-400 mb-4">
+              You're setting a new password directly. Share it with the employee — they can change it later from their Profile.
+            </p>
+
+            {resetError && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{resetError}</div>}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password *</label>
+                <div className="relative">
+                  <input
+                    type={showResetPw ? 'text' : 'password'}
+                    value={resetForm.newPassword}
+                    onChange={e => setResetForm({ ...resetForm, newPassword: e.target.value })}
+                    placeholder="At least 6 characters"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                  <button type="button" onClick={() => setShowResetPw(!showResetPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-indigo-500 hover:text-indigo-700 font-medium">
+                    {showResetPw ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
+                <input
+                  type={showResetPw ? 'text' : 'password'}
+                  value={resetForm.confirm}
+                  onChange={e => setResetForm({ ...resetForm, confirm: e.target.value })}
+                  placeholder="Re-enter new password"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowResetModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
+              <button
+                onClick={handleResetPassword}
+                disabled={resetLoading}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-medium"
+              >
+                {resetLoading ? 'Resetting...' : 'Reset Password'}
+              </button>
             </div>
           </div>
         </div>

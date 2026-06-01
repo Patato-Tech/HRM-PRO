@@ -10,6 +10,9 @@ export interface AuthUser {
   role: string;
   companyId?: string;
   companyName?: string;
+  employeeId?: string;      // ✅ ADDED — null for Admin/HR/DeptManager
+  departmentId?: string;    // ✅ ADDED — null for Admin/HR
+  designation?: string;     // ✅ ADDED — shown on profile page
 }
 
 export function useAuth(isPlatform = false) {
@@ -39,6 +42,9 @@ export function useAuth(isPlatform = false) {
       const id = localStorage.getItem('user_id');
       const companyId = localStorage.getItem('user_companyId');
       const companyName = localStorage.getItem('user_companyName');
+      const employeeId = localStorage.getItem('user_employeeId');       // ✅ ADDED
+      const departmentId = localStorage.getItem('user_departmentId');   // ✅ ADDED
+      const designation = localStorage.getItem('user_designation');     // ✅ ADDED
 
       if (!token) {
         router.replace('/');
@@ -52,6 +58,9 @@ export function useAuth(isPlatform = false) {
         role: role || '',
         companyId: companyId || '',
         companyName: companyName || '',
+        employeeId: employeeId || undefined,        // ✅ ADDED
+        departmentId: departmentId || undefined,    // ✅ ADDED
+        designation: designation || undefined,      // ✅ ADDED
       });
     }
     setLoading(false);
@@ -73,6 +82,9 @@ export function useAuth(isPlatform = false) {
       localStorage.removeItem('user_id');
       localStorage.removeItem('user_companyId');
       localStorage.removeItem('user_companyName');
+      localStorage.removeItem('user_employeeId');     // ✅ ADDED
+      localStorage.removeItem('user_departmentId');   // ✅ ADDED
+      localStorage.removeItem('user_designation');    // ✅ ADDED
       router.replace('/');
     }
   };

@@ -30,6 +30,9 @@ export default function LoginPage() {
       localStorage.setItem('user_id', data.user.id);
       localStorage.setItem('user_companyId', data.user.companyId);
       localStorage.setItem('user_companyName', data.user.companyName || '');
+      localStorage.setItem('user_employeeId', data.user.employeeId || '');    // ✅ ADDED
+      localStorage.setItem('user_departmentId', data.user.departmentId || ''); // ✅ ADDED
+      localStorage.setItem('user_designation', data.user.designation || '');   // ✅ ADDED
 
       router.replace('/dashboard');
     } catch (err: any) {

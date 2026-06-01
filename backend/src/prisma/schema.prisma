@@ -17,21 +17,23 @@ model PlatformAdmin {
 }
 
 model Company {
-  id            String         @id @default(uuid())
-  name          String
-  logo          String?
-  industry      String?
-  address       String?
-  status        String         @default("active")
-  planId        String?
-  createdAt     DateTime       @default(now())
-  users         User[]
-  employees     Employee[]
-  departments   Department[]
-  attendance    Attendance[]
-  leaves        Leave[]
-  leaveBalances LeaveBalance[]
-  payrolls      Payroll[]
+  id             String          @id @default(uuid())
+  name           String
+  logo           String?
+  industry       String?
+  address        String?
+  status         String          @default("active")
+  planId         String?
+  createdAt      DateTime        @default(now())
+  users          User[]
+  employees      Employee[]
+  departments    Department[]
+  attendance     Attendance[]
+  leaves         Leave[]
+  leaveBalances  LeaveBalance[]
+  payrolls       Payroll[]
+  shiftSchedules ShiftSchedule[]
+  deductionRules DeductionRule[]
 }
 
 model User {
@@ -48,13 +50,14 @@ model User {
 }
 
 model Department {
-  id        String     @id @default(uuid())
-  companyId String
-  name      String
-  headId    String?
-  createdAt DateTime   @default(now())
-  company   Company    @relation(fields: [companyId], references: [id])
-  employees Employee[]
+  id             String          @id @default(uuid())
+  companyId      String
+  name           String
+  headId         String?
+  createdAt      DateTime        @default(now())
+  company        Company         @relation(fields: [companyId], references: [id])
+  employees      Employee[]
+  shiftSchedules ShiftSchedule[]
 }
 
 model Employee {
@@ -75,6 +78,34 @@ model Employee {
   leaves        Leave[]
   leaveBalances LeaveBalance[]
   payrolls      Payroll[]
+}
+
+model ShiftSchedule {
+  id           String      @id @default(uuid())
+  companyId    String
+  departmentId String?
+  name         String
+  shiftStart   String
+  shiftEnd     String
+  gracePeriod  Int         @default(30)
+  isActive     Boolean     @default(true)
+  createdById  String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  company      Company     @relation(fields: [companyId], references: [id])
+  department   Department? @relation(fields: [departmentId], references: [id])
+}
+
+model DeductionRule {
+  id               String   @id @default(uuid())
+  companyId        String
+  type             String   // LATE_ARRIVAL | HALF_DAY | UNAPPROVED_LEAVE
+  deductPercentage Float    @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  company          Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, type])
 }
 
 model Attendance {

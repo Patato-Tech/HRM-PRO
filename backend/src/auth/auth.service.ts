@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
@@ -12,11 +12,10 @@ export class AuthService {
     ) { }
 
     async register(dto: RegisterDto) {
+        // Platform Admin
         if (dto.role === 'PLATFORM_ADMIN') {
-            const existing = await this.prisma.platformAdmin.findUnique({
-                where: { email: dto.email },
-            });
-            if (existing) throw new ConflictException('Admin with this email already exists');
+            const existing = await this.prisma.platformAdmin.findUnique({ where: { email: dto.email } });
+            if (existing) throw new ConflictException('Admin already exists');
 
             const hashedPassword = await bcrypt.hash(dto.password, 10);
             const admin = await this.prisma.platformAdmin.create({
@@ -34,16 +33,28 @@ export class AuthService {
             };
         }
 
+        // Company user registration
         const existingUser = await this.prisma.user.findFirst({
             where: { email: dto.email, companyId: dto.companyId },
         });
         if (existingUser) throw new ConflictException('User already exists');
 
-        const company = await this.prisma.company.findUnique({
-            where: { id: dto.companyId },
-        });
-        if (!company) throw new ConflictException('Company not found. Check your Company ID');
+        const company = await this.prisma.company.findUnique({ where: { id: dto.companyId } });
+        if (!company) throw new ConflictException('Company not found');
         if (company.status === 'inactive') throw new UnauthorizedException('Company is deactivated');
+
+        // Enforce provisioning rules if actorRole is provided
+        if (dto.actorRole) {
+            const allowedCreations: Record<string, string[]> = {
+                COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER'],
+                HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
+                DEPT_MANAGER: ['EMPLOYEE'],
+            };
+            const allowed = allowedCreations[dto.actorRole] || [];
+            if (!allowed.includes(dto.role || 'EMPLOYEE')) {
+                throw new ForbiddenException(`${dto.actorRole} cannot create ${dto.role}`);
+            }
+        }
 
         const hashedPassword = await bcrypt.hash(dto.password, 10);
         const user = await this.prisma.user.create({
@@ -68,15 +79,11 @@ export class AuthService {
     }
 
     async login(dto: LoginDto) {
-        const user = await this.prisma.user.findFirst({
-            where: { email: dto.email },
-        });
+        const user = await this.prisma.user.findFirst({ where: { email: dto.email } });
         if (!user) throw new UnauthorizedException('Invalid credentials');
         if (!user.isActive) throw new UnauthorizedException('Your account is deactivated');
 
-        const company = await this.prisma.company.findUnique({
-            where: { id: user.companyId },
-        });
+        const company = await this.prisma.company.findUnique({ where: { id: user.companyId } });
         if (company && company.status === 'inactive') {
             throw new UnauthorizedException('Your company has been deactivated');
         }
@@ -84,17 +91,31 @@ export class AuthService {
         const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
+        // Get employee record to include employeeId + departmentId + designation in token
+        const employee = await this.prisma.employee.findUnique({ where: { userId: user.id } });
+
         const token = this.jwtService.sign({
-            sub: user.id, email: user.email, role: user.role, companyId: user.companyId,
+            sub: user.id,
+            email: user.email,
+            role: user.role,
+            companyId: user.companyId,
+            employeeId: employee?.id || null,
+            departmentId: employee?.departmentId || null,
         });
 
         return {
             message: 'Login successful',
             access_token: token,
             user: {
-                id: user.id, name: user.name, email: user.email,
-                role: user.role, companyId: user.companyId,
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                companyId: user.companyId,
                 companyName: company?.name || '',
+                employeeId: employee?.id || null,           // already existed
+                departmentId: employee?.departmentId || null, // ✅ ADDED
+                designation: employee?.designation || null,   // ✅ ADDED
             },
         };
     }
@@ -105,7 +126,37 @@ export class AuthService {
             select: { id: true, name: true, email: true, role: true, companyId: true, isActive: true, createdAt: true },
         });
         if (!user) throw new UnauthorizedException('User not found');
-        return user;
+
+        const employee = await this.prisma.employee.findUnique({
+            where: { userId },
+            include: { department: true },
+        });
+
+        return { ...user, employee };
+    }
+
+    async updateProfile(userId: string, name: string) {
+        return this.prisma.user.update({
+            where: { id: userId },
+            data: { name },
+            select: { id: true, name: true, email: true, role: true },
+        });
+    }
+
+    async updatePassword(userId: string, currentPassword: string, newPassword: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new UnauthorizedException('User not found');
+
+        const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+        if (!isValid) throw new UnauthorizedException('Current password is incorrect');
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { passwordHash: hashedPassword },
+        });
+
+        return { message: 'Password updated successfully' };
     }
 
     async getCompanyInfo(companyId: string) {

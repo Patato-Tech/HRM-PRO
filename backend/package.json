@@ -1,6 +1,9 @@
 {
   "name": "backend",
   "version": "0.0.1",
+  "prisma": {
+    "schema": "src/prisma/schema.prisma"
+  },
   "description": "",
   "author": "",
   "private": true,

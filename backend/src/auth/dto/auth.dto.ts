@@ -18,6 +18,10 @@ export class RegisterDto {
     @IsOptional()
     @IsString()
     companyId?: string;
+
+    @IsOptional()
+    @IsString()
+    actorRole?: string;
 }
 
 export class LoginDto {
