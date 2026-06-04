@@ -1,183 +1,104 @@
-import {
-    Injectable,
-    NotFoundException,
-    ForbiddenException,
-    BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import * as bcrypt from 'bcryptjs';
-
-// Who can create which role
-const PROVISIONING_RULES: Record<string, string[]> = {
-    COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER'],
-    HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
-    DEPT_MANAGER: ['EMPLOYEE'],
-};
-
-// Who can reset password of which role
-const PASSWORD_RESET_RULES: Record<string, string[]> = {
-    COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER', 'EMPLOYEE'],
-    HR_MANAGER: ['EMPLOYEE'],
-    DEPT_MANAGER: ['EMPLOYEE'],
-};
-
-// Who can increment salary of which role
-const SALARY_INCREMENT_RULES: Record<string, string[]> = {
-    COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER', 'EMPLOYEE'],
-    HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
-};
-
-const SAFE_USER_SELECT = {
-    id: true,
-    name: true,
-    email: true,
-    role: true,
-    isActive: true,
-};
 
 @Injectable()
 export class EmployeesService {
     constructor(private prisma: PrismaService) { }
 
-    // ─────────────────────────────────────────────
-    // FIND ALL — scoped by role
-    // ─────────────────────────────────────────────
-    async findAll(
-        companyId: string,
-        actorRole: string,
-        actorUserId: string,
-        actorDepartmentId: string | null,
-    ) {
-        // Employee: only own record
+    async findAll(companyId: string, actorRole: string, actorDeptId: string | null, actorEmployeeId: string | null) {
+        // ✅ EMPLOYEE: sees ONLY their own record
         if (actorRole === 'EMPLOYEE') {
+            if (!actorEmployeeId) return [];
             const emp = await this.prisma.employee.findFirst({
-                where: { companyId, userId: actorUserId },
+                where: { id: actorEmployeeId, companyId },
                 include: {
-                    user: { select: { id: true, name: true, email: true, isActive: true } },
-                    department: { select: { id: true, name: true } },
+                    user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+                    department: true,
                 },
             });
+            // Return as array but strip salary (employee sees own record but not salary of others)
             return emp ? [emp] : [];
         }
 
-        // Dept Manager: own department only, no salary
-        if (actorRole === 'DEPT_MANAGER') {
-            if (!actorDepartmentId) return [];
-            const employees = await this.prisma.employee.findMany({
-                where: { companyId, departmentId: actorDepartmentId },
-                include: {
-                    user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
-                    department: { select: { id: true, name: true } },
-                },
-                orderBy: { createdAt: 'desc' },
-            });
-            // Strip salary for dept manager
-            return employees.map(({ salary, ...rest }) => rest);
+        const where: any = { companyId };
+
+        // Dept Manager sees only own department
+        if (actorRole === 'DEPT_MANAGER' && actorDeptId) {
+            where.departmentId = actorDeptId;
         }
 
-        // Company Admin + HR: full company
-        return this.prisma.employee.findMany({
-            where: { companyId },
+        const employees = await this.prisma.employee.findMany({
+            where,
             include: {
-                user: { select: SAFE_USER_SELECT },
+                user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
                 department: true,
             },
             orderBy: { createdAt: 'desc' },
         });
-    }
 
-    // ─────────────────────────────────────────────
-    // GET STATS — scoped by role
-    // ─────────────────────────────────────────────
-    async getStats(
-        companyId: string,
-        actorRole: string,
-        actorDepartmentId: string | null,
-    ) {
-        const where: any = { companyId };
-        if (actorRole === 'DEPT_MANAGER' && actorDepartmentId) {
-            where.departmentId = actorDepartmentId;
+        // Dept Manager cannot see salary
+        if (actorRole === 'DEPT_MANAGER') {
+            return employees.map(emp => ({ ...emp, salary: undefined }));
         }
 
-        const [total, active, inactive] = await Promise.all([
-            this.prisma.employee.count({ where }),
-            this.prisma.employee.count({ where: { ...where, status: 'active' } }),
-            this.prisma.employee.count({ where: { ...where, status: 'inactive' } }),
-        ]);
+        return employees;
+    }
 
+    async getStats(companyId: string) {
+        const [total, active, inactive] = await Promise.all([
+            this.prisma.employee.count({ where: { companyId } }),
+            this.prisma.employee.count({ where: { companyId, status: 'active' } }),
+            this.prisma.employee.count({ where: { companyId, status: 'inactive' } }),
+        ]);
         return { total, active, inactive };
     }
 
-    // ─────────────────────────────────────────────
-    // FIND ONE — scoped by role
-    // ─────────────────────────────────────────────
-    async findOne(
-        id: string,
-        companyId: string,
-        actorRole: string,
-        actorUserId: string,
-        actorDepartmentId: string | null,
-    ) {
+    async findOne(id: string, companyId: string, actorRole: string, actorDeptId: string | null, actorEmployeeId: string | null) {
+        // Employee can only see their own
+        if (actorRole === 'EMPLOYEE' && actorEmployeeId !== id) {
+            throw new ForbiddenException('Access denied');
+        }
+
         const employee = await this.prisma.employee.findFirst({
             where: { id, companyId },
             include: {
-                user: { select: SAFE_USER_SELECT },
+                user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
                 department: true,
             },
         });
         if (!employee) throw new NotFoundException('Employee not found');
 
-        // Employee: own only
-        if (actorRole === 'EMPLOYEE' && employee.userId !== actorUserId) {
-            throw new ForbiddenException('You can only view your own profile.');
+        if (actorRole === 'DEPT_MANAGER' && actorDeptId && employee.departmentId !== actorDeptId) {
+            throw new ForbiddenException('Access denied to this employee');
         }
 
-        // Dept Manager: own department only
-        if (actorRole === 'DEPT_MANAGER' && employee.departmentId !== actorDepartmentId) {
-            throw new ForbiddenException('You can only view employees in your department.');
-        }
-
-        // Strip salary for Dept Manager
         if (actorRole === 'DEPT_MANAGER') {
-            const { salary, ...rest } = employee as any;
-            return rest;
+            return { ...employee, salary: undefined };
         }
 
         return employee;
     }
 
-    // ─────────────────────────────────────────────
-    // CREATE — with provisioning rules
-    // ─────────────────────────────────────────────
-    async create(
-        dto: CreateEmployeeDto,
-        companyId: string,
-        actorRole: string,
-        actorDepartmentId: string | null,
-    ) {
+    async create(dto: CreateEmployeeDto, companyId: string, actorRole: string, actorDeptId: string | null) {
+        // ✅ Dept Manager CANNOT add employees
+        if (actorRole === 'DEPT_MANAGER') {
+            throw new ForbiddenException('Department Managers cannot add new employees');
+        }
+
+        const allowedCreations: Record<string, string[]> = {
+            COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER', 'EMPLOYEE'],
+            HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
+        };
+        const allowed = allowedCreations[actorRole] || [];
         const targetRole = dto.role || 'EMPLOYEE';
 
-        // Provisioning check
-        const allowed = PROVISIONING_RULES[actorRole] ?? [];
         if (!allowed.includes(targetRole)) {
-            throw new ForbiddenException(
-                `A ${actorRole} cannot create a user with role ${targetRole}.`,
-            );
+            throw new ForbiddenException(`${actorRole} cannot create ${targetRole}`);
         }
 
-        // Dept Manager: own department only
-        if (actorRole === 'DEPT_MANAGER') {
-            if (!dto.departmentId || dto.departmentId !== actorDepartmentId) {
-                throw new ForbiddenException(
-                    'Department Managers can only add employees to their own department.',
-                );
-            }
-        }
-
-        const salary = actorRole === 'DEPT_MANAGER' ? 0 : (dto.salary || 0);
         const hashedPassword = await bcrypt.hash(dto.password, 10);
-
         const count = await this.prisma.employee.count({ where: { companyId } });
         const employeeCode = `EMP${String(count + 1).padStart(3, '0')}`;
 
@@ -191,46 +112,33 @@ export class EmployeesService {
             },
         });
 
-        return this.prisma.employee.create({
+        const employee = await this.prisma.employee.create({
             data: {
                 companyId,
                 userId: user.id,
                 employeeCode,
                 designation: dto.designation,
                 departmentId: dto.departmentId,
-                salary,
+                salary: dto.salary || 0,
             },
             include: {
-                user: { select: SAFE_USER_SELECT },
+                user: { select: { id: true, name: true, email: true, role: true } },
                 department: true,
             },
         });
+
+        return employee;
     }
 
-    // ─────────────────────────────────────────────
-    // UPDATE — scoped restrictions
-    // ─────────────────────────────────────────────
-    async update(
-        id: string,
-        dto: UpdateEmployeeDto,
-        companyId: string,
-        actorRole: string,
-        actorDepartmentId: string | null,
-    ) {
+    async update(id: string, dto: UpdateEmployeeDto, companyId: string, actorRole: string, actorDeptId: string | null) {
         const employee = await this.prisma.employee.findFirst({ where: { id, companyId } });
         if (!employee) throw new NotFoundException('Employee not found');
 
-        if (actorRole === 'EMPLOYEE') {
-            throw new ForbiddenException('Employees cannot update records.');
-        }
-
         if (actorRole === 'DEPT_MANAGER') {
-            if (employee.departmentId !== actorDepartmentId) {
-                throw new ForbiddenException('You can only manage employees in your department.');
+            if (employee.departmentId !== actorDeptId) {
+                throw new ForbiddenException('Access denied to this employee');
             }
-            if (dto.salary !== undefined || dto.departmentId !== undefined) {
-                throw new ForbiddenException('Department Managers cannot change salary or department.');
-            }
+            delete dto.salary;
         }
 
         if (dto.name) {
@@ -244,76 +152,20 @@ export class EmployeesService {
             where: { id },
             data: {
                 designation: dto.designation,
-                departmentId: actorRole === 'DEPT_MANAGER' ? undefined : dto.departmentId,
-                salary: actorRole === 'DEPT_MANAGER' ? undefined : dto.salary,
+                departmentId: dto.departmentId,
+                salary: dto.salary,
                 status: dto.status,
             },
             include: {
-                user: { select: SAFE_USER_SELECT },
+                user: { select: { id: true, name: true, email: true, role: true } },
                 department: true,
             },
         });
     }
 
-    // ─────────────────────────────────────────────
-    // INCREMENT SALARY
-    // Company Admin → HR, Dept Manager, Employee
-    // HR Manager    → Dept Manager, Employee only
-    // ─────────────────────────────────────────────
-    async incrementSalary(
-        id: string,
-        amount: number,
-        companyId: string,
-        actorRole: string,
-    ) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
-            throw new ForbiddenException('Only Company Admin and HR can increment salaries.');
-        }
-
-        if (!amount || amount <= 0) {
-            throw new BadRequestException('Increment amount must be a positive number.');
-        }
-
-        const employee = await this.prisma.employee.findFirst({
-            where: { id, companyId },
-            include: { user: { select: { role: true } } },
-        });
-        if (!employee) throw new NotFoundException('Employee not found');
-
-        const targetRole = employee.user.role;
-        const allowed = SALARY_INCREMENT_RULES[actorRole] ?? [];
-
-        if (!allowed.includes(targetRole)) {
-            throw new ForbiddenException(
-                `A ${actorRole} cannot increment salary for a ${targetRole}.`,
-            );
-        }
-
-        return this.prisma.employee.update({
-            where: { id },
-            data: { salary: { increment: amount } },
-            include: {
-                user: { select: SAFE_USER_SELECT },
-                department: { select: { id: true, name: true } },
-            },
-        });
-    }
-
-    // ─────────────────────────────────────────────
-    // RESET PASSWORD
-    // Company Admin → HR, Dept Manager, Employee
-    // HR Manager    → Employee only
-    // Dept Manager  → own dept Employee only
-    // ─────────────────────────────────────────────
-    async resetPassword(
-        id: string,
-        newPassword: string,
-        companyId: string,
-        actorRole: string,
-        actorDepartmentId: string | null,
-    ) {
+    async resetPassword(id: string, newPassword: string, companyId: string, actorRole: string, actorDeptId: string | null) {
         if (!newPassword || newPassword.length < 6) {
-            throw new BadRequestException('Password must be at least 6 characters.');
+            throw new BadRequestException('Password must be at least 6 characters');
         }
 
         const employee = await this.prisma.employee.findFirst({
@@ -322,72 +174,67 @@ export class EmployeesService {
         });
         if (!employee) throw new NotFoundException('Employee not found');
 
-        const targetRole = employee.user.role;
-        const allowed = PASSWORD_RESET_RULES[actorRole] ?? [];
-
-        if (!allowed.includes(targetRole)) {
-            throw new ForbiddenException(
-                `A ${actorRole} cannot reset password for a ${targetRole}.`,
-            );
+        const allowedTargets: Record<string, string[]> = {
+            COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER', 'EMPLOYEE'],
+            HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
+            DEPT_MANAGER: ['EMPLOYEE'],
+        };
+        const allowed = allowedTargets[actorRole] || [];
+        if (!allowed.includes(employee.user.role)) {
+            throw new ForbiddenException(`${actorRole} cannot reset password for ${employee.user.role}`);
         }
 
-        // Dept Manager: own dept only
-        if (actorRole === 'DEPT_MANAGER' && employee.departmentId !== actorDepartmentId) {
-            throw new ForbiddenException('You can only reset passwords for employees in your department.');
+        if (actorRole === 'DEPT_MANAGER' && actorDeptId && employee.departmentId !== actorDeptId) {
+            throw new ForbiddenException('Access denied to this employee');
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-
         await this.prisma.user.update({
             where: { id: employee.userId },
             data: { passwordHash: hashedPassword },
         });
 
-        return { message: 'Password reset successfully.' };
+        return { message: 'Password reset successfully' };
     }
 
-    // ─────────────────────────────────────────────
-    // DEACTIVATE
-    // ─────────────────────────────────────────────
-    async deactivate(
-        id: string,
-        companyId: string,
-        actorRole: string,
-        actorDepartmentId: string | null,
-    ) {
-        if (actorRole === 'EMPLOYEE') {
-            throw new ForbiddenException('Employees cannot deactivate accounts.');
+    // ✅ Salary increment — Company Admin and HR Manager only
+    async incrementSalary(employeeId: string, amount: number, companyId: string, actorRole: string) {
+        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
+            throw new ForbiddenException('Only Company Admin and HR Manager can increment salaries');
         }
+        if (!amount || amount <= 0) throw new BadRequestException('Increment amount must be positive');
 
-        const employee = await this.prisma.employee.findFirst({ where: { id, companyId } });
+        const employee = await this.prisma.employee.findFirst({
+            where: { id: employeeId, companyId },
+            include: { user: { select: { role: true, name: true } } },
+        });
         if (!employee) throw new NotFoundException('Employee not found');
 
-        if (actorRole === 'DEPT_MANAGER' && employee.departmentId !== actorDepartmentId) {
-            throw new ForbiddenException('You can only deactivate employees in your department.');
+        const allowedTargets: Record<string, string[]> = {
+            COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER', 'EMPLOYEE'],
+            HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
+        };
+        if (!allowedTargets[actorRole]?.includes(employee.user.role)) {
+            throw new ForbiddenException(`${actorRole} cannot increment salary for ${employee.user.role}`);
         }
-
-        await this.prisma.user.update({
-            where: { id: employee.userId },
-            data: { isActive: false },
-        });
 
         return this.prisma.employee.update({
-            where: { id },
-            data: { status: 'inactive' },
+            where: { id: employeeId },
+            data: { salary: { increment: amount } },
+            include: { user: { select: { id: true, name: true, role: true } } },
         });
     }
 
-    // ─────────────────────────────────────────────
-    // DELETE — Company Admin + HR only
-    // ─────────────────────────────────────────────
-    async remove(id: string, companyId: string, actorRole: string) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
-            throw new ForbiddenException('Only Company Admin or HR can delete employees.');
-        }
-
+    async deactivate(id: string, companyId: string) {
         const employee = await this.prisma.employee.findFirst({ where: { id, companyId } });
         if (!employee) throw new NotFoundException('Employee not found');
+        await this.prisma.user.update({ where: { id: employee.userId }, data: { isActive: false } });
+        return this.prisma.employee.update({ where: { id }, data: { status: 'inactive' } });
+    }
 
+    async remove(id: string, companyId: string) {
+        const employee = await this.prisma.employee.findFirst({ where: { id, companyId } });
+        if (!employee) throw new NotFoundException('Employee not found');
         await this.prisma.employee.delete({ where: { id } });
         await this.prisma.user.delete({ where: { id: employee.userId } });
         return { message: 'Employee deleted successfully' };

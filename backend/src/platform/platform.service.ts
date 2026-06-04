@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformLoginDto, CreateCompanyDto, UpdateCompanyDto } from './dto/platform.dto';
@@ -9,85 +9,47 @@ export class PlatformService {
     constructor(private prisma: PrismaService, private jwtService: JwtService) { }
 
     async login(dto: PlatformLoginDto) {
-        const admin = await this.prisma.platformAdmin.findUnique({
-            where: { email: dto.email },
-        });
+        const admin = await this.prisma.platformAdmin.findUnique({ where: { email: dto.email } });
         if (!admin) throw new UnauthorizedException('Invalid credentials');
         const isValid = await bcrypt.compare(dto.password, admin.passwordHash);
         if (!isValid) throw new UnauthorizedException('Invalid credentials');
         const token = this.jwtService.sign({
-            sub: admin.id, email: admin.email, role: 'PLATFORM_ADMIN',
+            sub: admin.id, email: admin.email, role: admin.role,
         });
         return {
             access_token: token,
-            admin: { id: admin.id, name: admin.name, email: admin.email, role: 'PLATFORM_ADMIN' },
+            admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role },
         };
     }
 
-    async getStats() {
-        const [totalCompanies, activeCompanies, inactiveCompanies, totalUsers, totalEmployees] = await Promise.all([
-            this.prisma.company.count(),
-            this.prisma.company.count({ where: { status: 'active' } }),
-            this.prisma.company.count({ where: { status: 'inactive' } }),
-            this.prisma.user.count(),
-            this.prisma.employee.count(),
+    async getStats(adminId: string, adminRole: string) {
+        const isSuper = adminRole === 'SUPER_ADMIN';
+        const where = isSuper ? {} : { createdById: adminId };
+        const [totalCompanies, activeCompanies, inactiveCompanies] = await Promise.all([
+            this.prisma.company.count({ where }),
+            this.prisma.company.count({ where: { ...where, status: 'active' } }),
+            this.prisma.company.count({ where: { ...where, status: 'inactive' } }),
         ]);
-        return { totalCompanies, activeCompanies, inactiveCompanies, totalUsers, totalEmployees };
+        return { totalCompanies, activeCompanies, inactiveCompanies };
     }
 
-    async getCompanies() {
+    async getCompanies(adminId: string, adminRole: string) {
+        const isSuper = adminRole === 'SUPER_ADMIN';
+        const where = isSuper ? {} : { createdById: adminId };
         return this.prisma.company.findMany({
+            where,
             include: { _count: { select: { users: true, employees: true } } },
             orderBy: { createdAt: 'desc' },
         });
     }
 
-    async getAnalytics() {
-        const companies = await this.prisma.company.findMany({
-            include: {
-                _count: { select: { employees: true, users: true, attendance: true, leaves: true, payrolls: true } },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        const payrollData = await this.prisma.payroll.groupBy({
-            by: ['companyId'],
-            _sum: { netSalary: true },
-        });
-
-        const attendanceData = await this.prisma.attendance.groupBy({
-            by: ['companyId', 'status'],
-            _count: true,
-        });
-
-        return companies.map(company => {
-            const payroll = payrollData.find(p => p.companyId === company.id);
-            const presentCount = attendanceData
-                .filter(a => a.companyId === company.id && a.status === 'present')
-                .reduce((sum, a) => sum + a._count, 0);
-            const totalAttendance = attendanceData
-                .filter(a => a.companyId === company.id)
-                .reduce((sum, a) => sum + a._count, 0);
-
-            return {
-                id: company.id,
-                name: company.name,
-                industry: company.industry,
-                status: company.status,
-                employees: company._count.employees,
-                users: company._count.users,
-                leaves: company._count.leaves,
-                payrolls: company._count.payrolls,
-                totalPayroll: payroll?._sum?.netSalary || 0,
-                attendanceRate: totalAttendance > 0 ? Math.round((presentCount / totalAttendance) * 100) : 0,
-            };
-        });
-    }
-
-    async getCompanyUsers(companyId: string) {
+    async getCompanyUsers(companyId: string, adminId: string, adminRole: string) {
+        const isSuper = adminRole === 'SUPER_ADMIN';
         const company = await this.prisma.company.findUnique({ where: { id: companyId } });
         if (!company) throw new NotFoundException('Company not found');
-
+        if (!isSuper && company.createdById !== adminId) {
+            throw new ForbiddenException('You can only view users of your own companies');
+        }
         const users = await this.prisma.user.findMany({
             where: { companyId },
             select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
@@ -96,34 +58,7 @@ export class PlatformService {
         return { company, users };
     }
 
-    async transferEmployee(employeeId: string, toCompanyId: string) {
-        const employee = await this.prisma.employee.findUnique({
-            where: { id: employeeId },
-            include: { user: true },
-        });
-        if (!employee) throw new NotFoundException('Employee not found');
-
-        const toCompany = await this.prisma.company.findUnique({ where: { id: toCompanyId } });
-        if (!toCompany) throw new NotFoundException('Target company not found');
-
-        if (employee.companyId === toCompanyId) {
-            throw new BadRequestException('Employee already belongs to this company');
-        }
-
-        await this.prisma.employee.update({
-            where: { id: employeeId },
-            data: { companyId: toCompanyId },
-        });
-
-        await this.prisma.user.update({
-            where: { id: employee.userId },
-            data: { companyId: toCompanyId },
-        });
-
-        return { message: `Employee transferred to ${toCompany.name} successfully` };
-    }
-
-    async createCompany(dto: CreateCompanyDto) {
+    async createCompany(dto: CreateCompanyDto, adminId: string) {
         const company = await this.prisma.company.create({
             data: {
                 name: dto.name,
@@ -131,6 +66,7 @@ export class PlatformService {
                 address: dto.address,
                 planId: dto.planId,
                 status: 'active',
+                createdById: adminId,
             },
         });
         const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
@@ -150,15 +86,81 @@ export class PlatformService {
         };
     }
 
-    async updateCompany(id: string, dto: UpdateCompanyDto) {
+    async updateCompany(id: string, dto: UpdateCompanyDto, adminId: string, adminRole: string) {
+        const isSuper = adminRole === 'SUPER_ADMIN';
         const company = await this.prisma.company.findUnique({ where: { id } });
         if (!company) throw new NotFoundException('Company not found');
+        if (!isSuper && company.createdById !== adminId) {
+            throw new ForbiddenException('You can only update your own companies');
+        }
         return this.prisma.company.update({ where: { id }, data: dto });
     }
 
-    async deleteCompany(id: string) {
+    // ✅ HARD DELETE — completely wipes company and all related data from DB
+    async deleteCompany(id: string, adminId: string, adminRole: string) {
+        const isSuper = adminRole === 'SUPER_ADMIN';
         const company = await this.prisma.company.findUnique({ where: { id } });
         if (!company) throw new NotFoundException('Company not found');
-        return this.prisma.company.update({ where: { id }, data: { status: 'inactive' } });
+        if (!isSuper && company.createdById !== adminId) {
+            throw new ForbiddenException('You can only delete your own companies');
+        }
+
+        // Delete in correct order to respect foreign key constraints
+        await this.prisma.shiftSchedule.deleteMany({ where: { companyId: id } });
+        await this.prisma.deductionRule.deleteMany({ where: { companyId: id } });
+        await this.prisma.payroll.deleteMany({ where: { companyId: id } });
+        await this.prisma.leaveBalance.deleteMany({ where: { companyId: id } });
+        await this.prisma.leave.deleteMany({ where: { companyId: id } });
+        await this.prisma.attendance.deleteMany({ where: { companyId: id } });
+        await this.prisma.employee.deleteMany({ where: { companyId: id } });
+        await this.prisma.department.deleteMany({ where: { companyId: id } });
+        await this.prisma.user.deleteMany({ where: { companyId: id } });
+        await this.prisma.company.delete({ where: { id } });
+
+        return { message: 'Company permanently deleted' };
+    }
+
+    // ✅ Reset Company Admin password — platform admin can reset anytime
+    async resetCompanyAdminPassword(companyId: string, newPassword: string, adminId: string, adminRole: string) {
+        if (!newPassword || newPassword.length < 6) {
+            throw new BadRequestException('Password must be at least 6 characters');
+        }
+
+        const isSuper = adminRole === 'SUPER_ADMIN';
+        const company = await this.prisma.company.findUnique({ where: { id: companyId } });
+        if (!company) throw new NotFoundException('Company not found');
+        if (!isSuper && company.createdById !== adminId) {
+            throw new ForbiddenException('You can only reset passwords for your own companies');
+        }
+
+        // Find the Company Admin for this company
+        const companyAdmin = await this.prisma.user.findFirst({
+            where: { companyId, role: 'COMPANY_ADMIN' },
+        });
+        if (!companyAdmin) throw new NotFoundException('No Company Admin found for this company');
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.prisma.user.update({
+            where: { id: companyAdmin.id },
+            data: { passwordHash: hashedPassword },
+        });
+
+        return { message: `Password reset for ${companyAdmin.name} (${companyAdmin.email})` };
+    }
+
+    async transferEmployee(employeeId: string, toCompanyId: string) {
+        const employee = await this.prisma.employee.findUnique({
+            where: { id: employeeId },
+            include: { user: true },
+        });
+        if (!employee) throw new NotFoundException('Employee not found');
+        const toCompany = await this.prisma.company.findUnique({ where: { id: toCompanyId } });
+        if (!toCompany) throw new NotFoundException('Target company not found');
+        if (employee.companyId === toCompanyId) {
+            throw new BadRequestException('Employee already belongs to this company');
+        }
+        await this.prisma.employee.update({ where: { id: employeeId }, data: { companyId: toCompanyId } });
+        await this.prisma.user.update({ where: { id: employee.userId }, data: { companyId: toCompanyId } });
+        return { message: `Employee transferred to ${toCompany.name} successfully` };
     }
 }

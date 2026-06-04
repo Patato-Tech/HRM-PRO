@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { PlatformService } from './platform.service';
 import { PlatformLoginDto, CreateCompanyDto, UpdateCompanyDto, TransferEmployeeDto } from './dto/platform.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,44 +14,52 @@ export class PlatformController {
 
     @UseGuards(JwtAuthGuard)
     @Get('stats')
-    getStats() {
-        return this.platformService.getStats();
+    getStats(@Request() req) {
+        return this.platformService.getStats(req.user.sub, req.user.role);
     }
 
     @UseGuards(JwtAuthGuard)
     @Get('companies')
-    getCompanies() {
-        return this.platformService.getCompanies();
-    }
-
-    @UseGuards(JwtAuthGuard)
-    @Get('analytics')
-    getAnalytics() {
-        return this.platformService.getAnalytics();
+    getCompanies(@Request() req) {
+        return this.platformService.getCompanies(req.user.sub, req.user.role);
     }
 
     @UseGuards(JwtAuthGuard)
     @Get('companies/:id/users')
-    getCompanyUsers(@Param('id') id: string) {
-        return this.platformService.getCompanyUsers(id);
+    getCompanyUsers(@Param('id') id: string, @Request() req) {
+        return this.platformService.getCompanyUsers(id, req.user.sub, req.user.role);
     }
 
     @UseGuards(JwtAuthGuard)
     @Post('companies')
-    createCompany(@Body() dto: CreateCompanyDto) {
-        return this.platformService.createCompany(dto);
+    createCompany(@Body() dto: CreateCompanyDto, @Request() req) {
+        return this.platformService.createCompany(dto, req.user.sub);
     }
 
     @UseGuards(JwtAuthGuard)
     @Put('companies/:id')
-    updateCompany(@Param('id') id: string, @Body() dto: UpdateCompanyDto) {
-        return this.platformService.updateCompany(id, dto);
+    updateCompany(@Param('id') id: string, @Body() dto: UpdateCompanyDto, @Request() req) {
+        return this.platformService.updateCompany(id, dto, req.user.sub, req.user.role);
     }
 
+    // ✅ Hard delete endpoint
     @UseGuards(JwtAuthGuard)
     @Delete('companies/:id')
-    deleteCompany(@Param('id') id: string) {
-        return this.platformService.deleteCompany(id);
+    deleteCompany(@Param('id') id: string, @Request() req) {
+        return this.platformService.deleteCompany(id, req.user.sub, req.user.role);
+    }
+
+    // ✅ Reset Company Admin password
+    @UseGuards(JwtAuthGuard)
+    @Put('companies/:id/reset-password')
+    resetCompanyAdminPassword(
+        @Param('id') id: string,
+        @Body() body: { newPassword: string },
+        @Request() req,
+    ) {
+        return this.platformService.resetCompanyAdminPassword(
+            id, body.newPassword, req.user.sub, req.user.role,
+        );
     }
 
     @UseGuards(JwtAuthGuard)
