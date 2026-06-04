@@ -1,0 +1,7 @@
+﻿hrmpro/
+hrmpro.zip
+node_modules/
+.next/
+dist/
+*.zip
+.env
