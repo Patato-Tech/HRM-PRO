@@ -7,6 +7,7 @@ import { apiCall, getToken } from '@/lib/api';
 interface Department {
   id: string;
   name: string;
+  status: string;
 }
 
 interface Employee {
@@ -264,11 +265,14 @@ export default function EmployeesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
         {[
-          { label: 'Total', value: employees.length, color: 'text-gray-900', bg: 'bg-blue-50' },
+          { label: 'Total Staff', value: employees.length, color: 'text-gray-900', bg: 'bg-blue-50' },
           { label: 'Active', value: employees.filter(e => e.status === 'active').length, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Inactive', value: employees.filter(e => e.status === 'inactive').length, color: 'text-red-500', bg: 'bg-red-50' },
+          { label: 'HR Manager', value: employees.filter(e => e.user.role === 'HR_MANAGER').length, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Dept Managers', value: employees.filter(e => e.user.role === 'DEPT_MANAGER').length, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+          { label: 'Employees', value: employees.filter(e => e.user.role === 'EMPLOYEE').length, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Departments', value: departments.length, color: 'text-purple-600', bg: 'bg-purple-50' },
         ].map((s, i) => (
           <div key={i} className={`${s.bg} rounded-2xl p-4 text-center`}>
@@ -346,7 +350,7 @@ export default function EmployeesPage() {
                     </td>
                     <td className="px-6 py-4 text-sm font-mono text-gray-600">{emp.employeeCode}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{emp.designation || '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{emp.department?.name || '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{emp.user.role === 'HR_MANAGER' ? <span className="text-blue-600 font-medium">All Departments</span> : (emp.department?.name || '—')}</td>
                     {!hideSalary && (
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900">
                         {emp.salary != null ? `PKR ${emp.salary.toLocaleString()}` : '—'}
@@ -436,7 +440,7 @@ export default function EmployeesPage() {
                 { label: 'Employee Code', value: selectedEmployee.employeeCode },
                 { label: 'Status', value: selectedEmployee.status, badge: true },
                 { label: 'Designation', value: selectedEmployee.designation || '—' },
-                { label: 'Department', value: selectedEmployee.department?.name || '—' },
+                { label: 'Department', value: selectedEmployee.user.role === 'HR_MANAGER' ? 'All Departments' : (selectedEmployee.department?.name || '—') },
                 ...(!hideSalary ? [{ label: 'Salary', value: selectedEmployee.salary != null ? `PKR ${selectedEmployee.salary.toLocaleString()}` : '—' }] : []),
                 { label: 'Join Date', value: new Date(selectedEmployee.joinDate).toLocaleDateString() },
               ].map((item: any, i) => (
@@ -505,14 +509,16 @@ export default function EmployeesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {addForm.role !== 'HR_MANAGER' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                   <select value={addForm.departmentId} onChange={e => setAddForm({ ...addForm, departmentId: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
                     <option value="">No Department</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    {departments.filter(d => d.status === 'active').map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Salary (PKR)</label>
                   <input type="number" value={addForm.salary} onChange={e => setAddForm({ ...addForm, salary: e.target.value })}
@@ -569,14 +575,16 @@ export default function EmployeesPage() {
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
+                {selectedEmployee?.user?.role !== 'HR_MANAGER' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                   <select value={editForm.departmentId} onChange={e => setEditForm({ ...editForm, departmentId: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
                     <option value="">No Department</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    {departments.filter(d => d.status === 'active').map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}

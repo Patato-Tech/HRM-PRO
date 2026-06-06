@@ -56,6 +56,7 @@ model Department {
   companyId      String
   name           String
   headId         String?
+  status         String          @default("active")
   createdAt      DateTime        @default(now())
   company        Company         @relation(fields: [companyId], references: [id])
   employees      Employee[]

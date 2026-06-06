@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
 
@@ -48,6 +48,17 @@ export class LeavesService {
     }
 
     async create(dto: CreateLeaveDto, companyId: string) {
+        // ✅ Check if employee's department is active
+        const employee = await this.prisma.employee.findFirst({
+            where: { id: dto.employeeId, companyId },
+        });
+        if (employee?.departmentId) {
+            const department = await this.prisma.department.findUnique({ where: { id: employee.departmentId } });
+            if (department && department.status === 'inactive') {
+                throw new BadRequestException('Your department is currently inactive. Please contact your administrator.');
+            }
+        }
+
         return this.prisma.leave.create({
             data: {
                 companyId,

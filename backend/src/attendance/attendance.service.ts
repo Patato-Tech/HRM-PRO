@@ -6,14 +6,12 @@ export class AttendanceService {
     constructor(private prisma: PrismaService) { }
 
     private async getShiftForEmployee(companyId: string, departmentId: string | null) {
-        // Try department-specific shift first
         if (departmentId) {
             const deptShift = await this.prisma.shiftSchedule.findFirst({
                 where: { companyId, departmentId, isActive: true },
             });
             if (deptShift) return deptShift;
         }
-        // Fall back to company-wide shift
         return this.prisma.shiftSchedule.findFirst({
             where: { companyId, departmentId: null, isActive: true },
         });
@@ -32,27 +30,32 @@ export class AttendanceService {
         });
         if (!employee) throw new NotFoundException('Employee not found');
 
+        // ✅ Check if employee's department is active
+        if (employee.departmentId) {
+            const department = await this.prisma.department.findUnique({ where: { id: employee.departmentId } });
+            if (department && department.status === 'inactive') {
+                throw new BadRequestException('Your department is currently inactive. Please contact your administrator.');
+            }
+        }
+
         const now = new Date();
         const today = new Date(now);
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        // Check if already checked in today
         const existing = await this.prisma.attendance.findFirst({
             where: { employeeId, companyId, date: { gte: today, lt: tomorrow } },
         });
         if (existing) throw new BadRequestException('Already checked in today');
 
-        // Get shift schedule
         const shift = await this.getShiftForEmployee(companyId, employee.departmentId);
         let status = 'present';
 
         if (shift) {
             const shiftStart = this.parseTime(shift.shiftStart, now);
             const gracePeriodMs = (shift.gracePeriod || 30) * 60 * 1000;
-            const tooEarlyTime = new Date(shiftStart.getTime() - 60 * 60 * 1000); // 1 hour before
-
+            const tooEarlyTime = new Date(shiftStart.getTime() - 60 * 60 * 1000);
             if (now < tooEarlyTime) {
                 throw new BadRequestException('Too early to check in');
             }
@@ -62,13 +65,7 @@ export class AttendanceService {
         }
 
         return this.prisma.attendance.create({
-            data: {
-                companyId,
-                employeeId,
-                date: today,
-                checkIn: now,
-                status,
-            },
+            data: { companyId, employeeId, date: today, checkIn: now, status },
             include: {
                 employee: {
                     include: { user: { select: { id: true, name: true, email: true } } },
@@ -78,6 +75,15 @@ export class AttendanceService {
     }
 
     async checkOut(employeeId: string, companyId: string) {
+        // ✅ Check if employee's department is active
+        const employee = await this.prisma.employee.findFirst({ where: { id: employeeId, companyId } });
+        if (employee?.departmentId) {
+            const department = await this.prisma.department.findUnique({ where: { id: employee.departmentId } });
+            if (department && department.status === 'inactive') {
+                throw new BadRequestException('Your department is currently inactive. Please contact your administrator.');
+            }
+        }
+
         const now = new Date();
         const today = new Date(now);
         today.setHours(0, 0, 0, 0);
@@ -100,7 +106,6 @@ export class AttendanceService {
         if (!['COMPANY_ADMIN', 'HR_MANAGER', 'DEPT_MANAGER'].includes(actorRole)) {
             throw new ForbiddenException('Not authorized to manually mark attendance');
         }
-
         return this.prisma.attendance.create({
             data: {
                 companyId,
@@ -120,11 +125,9 @@ export class AttendanceService {
 
     async findAll(companyId: string, actorRole: string, actorDeptId: string | null) {
         const where: any = { companyId };
-
         if (actorRole === 'DEPT_MANAGER' && actorDeptId) {
             where.employee = { departmentId: actorDeptId };
         }
-
         return this.prisma.attendance.findMany({
             where,
             include: {
@@ -141,14 +144,12 @@ export class AttendanceService {
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-
         const [present, absent, late, totalEmployees] = await Promise.all([
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'present' } }),
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'absent' } }),
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'late' } }),
             this.prisma.employee.count({ where: { companyId, status: 'active' } }),
         ]);
-
         return { present, absent, late, totalEmployees };
     }
 
@@ -157,7 +158,6 @@ export class AttendanceService {
         start.setHours(0, 0, 0, 0);
         const end = new Date(date);
         end.setHours(23, 59, 59, 999);
-
         return this.prisma.attendance.findMany({
             where: { companyId, date: { gte: start, lte: end } },
             include: {
@@ -178,7 +178,6 @@ export class AttendanceService {
     async update(id: string, dto: any, companyId: string) {
         const record = await this.prisma.attendance.findFirst({ where: { id, companyId } });
         if (!record) throw new NotFoundException('Attendance record not found');
-
         return this.prisma.attendance.update({
             where: { id },
             data: {
@@ -190,12 +189,10 @@ export class AttendanceService {
     }
 
     async setShift(dto: any, companyId: string, createdById: string) {
-        // Deactivate existing shift for same dept (or company-wide)
         await this.prisma.shiftSchedule.updateMany({
             where: { companyId, departmentId: dto.departmentId || null, isActive: true },
             data: { isActive: false },
         });
-
         return this.prisma.shiftSchedule.create({
             data: {
                 companyId,

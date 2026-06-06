@@ -32,4 +32,10 @@ export class DepartmentsController {
     remove(@Param('id') id: string, @Request() req) {
         return this.departmentsService.remove(id, req.user.companyId);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Put(':id/toggle-status')
+    toggleStatus(@Param('id') id: string, @Request() req) {
+        return this.departmentsService.toggleStatus(id, req.user.companyId);
+    }
 }

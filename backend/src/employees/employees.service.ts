@@ -10,7 +10,7 @@ import * as bcrypt from 'bcryptjs';
 
 // Who can create which role
 const PROVISIONING_RULES: Record<string, string[]> = {
-    COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER'],
+    COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER', 'EMPLOYEE'],
     HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
     DEPT_MANAGER: ['EMPLOYEE'],
 };
@@ -100,13 +100,15 @@ export class EmployeesService {
             where.departmentId = actorDepartmentId;
         }
 
-        const [total, active, inactive] = await Promise.all([
+        const [total, active, inactive, hrManagers, deptManagers, employees] = await Promise.all([
             this.prisma.employee.count({ where }),
             this.prisma.employee.count({ where: { ...where, status: 'active' } }),
             this.prisma.employee.count({ where: { ...where, status: 'inactive' } }),
+            this.prisma.user.count({ where: { companyId, role: 'HR_MANAGER' } }),
+            this.prisma.user.count({ where: { companyId, role: 'DEPT_MANAGER' } }),
+            this.prisma.user.count({ where: { companyId, role: 'EMPLOYEE' } }),
         ]);
-
-        return { total, active, inactive };
+        return { total, active, inactive, hrManagers, deptManagers, employees };
     }
 
     // ─────────────────────────────────────────────
@@ -166,6 +168,33 @@ export class EmployeesService {
             );
         }
 
+        // ✅ Only one HR Manager allowed per company
+        if (targetRole === 'HR_MANAGER') {
+            const existingHR = await this.prisma.user.findFirst({
+                where: { companyId, role: 'HR_MANAGER' },
+            });
+            if (existingHR) {
+                throw new ForbiddenException('A company can only have one HR Manager. An HR Manager already exists.');
+            }
+            // HR Manager cannot belong to any department
+            dto.departmentId = undefined;
+        }
+
+        // ✅ Only one Dept Manager allowed per department
+        if (targetRole === 'DEPT_MANAGER' && dto.departmentId) {
+            const existingDeptManager = await this.prisma.user.findFirst({
+                where: {
+                    companyId,
+                    role: 'DEPT_MANAGER',
+                    employee: { departmentId: dto.departmentId },
+                },
+                include: { employee: true },
+            });
+            if (existingDeptManager) {
+                throw new ForbiddenException('This department already has a Department Manager.');
+            }
+        }
+
         // Dept Manager: own department only
         if (actorRole === 'DEPT_MANAGER') {
             if (!dto.departmentId || dto.departmentId !== actorDepartmentId) {
@@ -197,7 +226,7 @@ export class EmployeesService {
                 userId: user.id,
                 employeeCode,
                 designation: dto.designation,
-                departmentId: dto.departmentId,
+                departmentId: dto.departmentId || null,
                 salary,
             },
             include: {

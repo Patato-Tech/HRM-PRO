@@ -8,6 +8,9 @@ interface DashboardStats {
   total: number;
   active: number;
   inactive: number;
+  hrManagers: number;
+  deptManagers: number;
+  employees: number;
 }
 
 interface AttendanceSummary {
@@ -119,11 +122,17 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-gray-500">Total Employees</p>
+            <p className="text-xs font-medium text-gray-500">Total Staff</p>
             <span className="bg-blue-100 text-blue-600 text-xl w-9 h-9 rounded-xl flex items-center justify-center">👥</span>
           </div>
           <p className="text-3xl font-bold text-gray-900">{empStats?.total ?? 0}</p>
-          <p className="text-xs text-green-500 mt-1">{empStats?.active ?? 0} active</p>
+          <div className="flex flex-wrap gap-1 mt-2">
+            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Active: {empStats?.active ?? 0}</span>
+            <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">Inactive: {empStats?.inactive ?? 0}</span>
+            {(empStats?.hrManagers ?? 0) > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">HR: {empStats?.hrManagers}</span>}
+            {(empStats?.deptManagers ?? 0) > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">DM: {empStats?.deptManagers}</span>}
+            {(empStats?.employees ?? 0) > 0 && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Emp: {empStats?.employees}</span>}
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -263,9 +272,21 @@ export default function DashboardPage() {
                     <p className="font-semibold text-gray-900 text-sm truncate">{emp.user?.name}</p>
                     <p className="text-xs text-gray-400">{emp.designation || 'No designation'} {emp.department ? `• ${emp.department.name}` : ''}</p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 ${emp.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {emp.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      emp.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                      emp.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                      emp.user?.role === 'COMPANY_ADMIN' ? 'bg-purple-100 text-purple-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      {emp.user?.role === 'HR_MANAGER' ? 'HR Manager' :
+                       emp.user?.role === 'DEPT_MANAGER' ? 'Dept Manager' :
+                       emp.user?.role === 'COMPANY_ADMIN' ? 'Admin' : 'Employee'}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${emp.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {emp.status}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

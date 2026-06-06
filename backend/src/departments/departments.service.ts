@@ -11,6 +11,11 @@ export class DepartmentsService {
             where: { companyId },
             include: {
                 _count: { select: { employees: true } },
+                employees: {
+                    include: {
+                        user: { select: { id: true, name: true, email: true, role: true } },
+                    },
+                },
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -22,7 +27,7 @@ export class DepartmentsService {
             include: {
                 employees: {
                     include: {
-                        user: { select: { id: true, name: true, email: true } },
+                        user: { select: { id: true, name: true, email: true, role: true } },
                     },
                 },
             },
@@ -58,4 +63,13 @@ export class DepartmentsService {
         await this.prisma.department.delete({ where: { id } });
         return { message: 'Department deleted successfully' };
     }
+
+    async toggleStatus(id: string, companyId: string) {
+        const department = await this.prisma.department.findFirst({ where: { id, companyId } });
+        if (!department) throw new NotFoundException('Department not found');
+        const newStatus = department.status === 'active' ? 'inactive' : 'active';
+        await this.prisma.department.update({ where: { id }, data: { status: newStatus } });
+        return { message: `Department ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`, status: newStatus };
+    }
 }
+
