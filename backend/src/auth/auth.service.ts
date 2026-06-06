@@ -41,7 +41,8 @@ export class AuthService {
 
         const company = await this.prisma.company.findUnique({ where: { id: dto.companyId } });
         if (!company) throw new ConflictException('Company not found');
-        if (company.status === 'inactive') throw new UnauthorizedException('Company is deactivated');
+        if (company.status === 'pending') throw new UnauthorizedException('Your account is pending approval by the platform administrator.');
+        if (company.status === 'inactive') throw new UnauthorizedException('Your company account has been deactivated.');
 
         // Enforce provisioning rules if actorRole is provided
         if (dto.actorRole) {
@@ -84,10 +85,17 @@ export class AuthService {
         if (!user.isActive) throw new UnauthorizedException('Your account is deactivated');
 
         const company = await this.prisma.company.findUnique({ where: { id: user.companyId } });
+        if (company && company.status === 'pending') {
+            throw new UnauthorizedException('Your account is pending approval by the platform administrator.');
+        }
         if (company && company.status === 'inactive') {
             throw new UnauthorizedException('Your company has been deactivated');
         }
 
+        // ✅ Check if user was deactivated (name prefixed with DELETED: by platform)
+        if (user.name && user.name.startsWith('DELETED:')) {
+            throw new UnauthorizedException('COMPANY_DELETED: Your company account has been permanently deleted. Please contact the platform administrator.');
+        }
         const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
@@ -120,12 +128,27 @@ export class AuthService {
         };
     }
 
-    async getProfile(userId: string) {
+    async getProfile(userId: string, tokenIat?: number) {
+        const iat = tokenIat;
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
-            select: { id: true, name: true, email: true, role: true, companyId: true, isActive: true, createdAt: true },
+            select: { id: true, name: true, email: true, role: true, companyId: true, isActive: true, createdAt: true, sessionInvalidatedAt: true },
         });
         if (!user) throw new UnauthorizedException('User not found');
+        if (!user.isActive) throw new UnauthorizedException('Your account is deactivated');
+        // ✅ Check if session was invalidated after token was issued (password reset)
+        if (iat && user.sessionInvalidatedAt) {
+            const tokenIssuedAt = new Date(iat * 1000);
+            if (user.sessionInvalidatedAt > tokenIssuedAt) {
+                throw new UnauthorizedException('SESSION_INVALIDATED: Your password has been changed by the platform administrator.');
+            }
+        }
+        if (user.companyId) {
+            const company = await this.prisma.company.findUnique({ where: { id: user.companyId } });
+            if (!company || company.status === 'deleted') throw new UnauthorizedException('COMPANY_DELETED: Your company has been permanently deleted.');
+            if (company.status === 'inactive') throw new UnauthorizedException('COMPANY_DEACTIVATED: Your company has been deactivated by the platform administrator.');
+            if (company.status === 'pending') throw new UnauthorizedException('Your account is pending approval.');
+        }
 
         const employee = await this.prisma.employee.findUnique({
             where: { userId },

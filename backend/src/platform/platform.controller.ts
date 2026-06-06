@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { PlatformService } from './platform.service';
-import { PlatformLoginDto, CreateCompanyDto, UpdateCompanyDto, TransferEmployeeDto } from './dto/platform.dto';
+import { PlatformLoginDto, UpdateCompanyDto } from './dto/platform.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('platform')
@@ -12,35 +12,33 @@ export class PlatformController {
         return this.platformService.login(dto);
     }
 
+    @Post('register')
+    registerCompany(@Body() body: {
+        companyName: string; industry?: string; address?: string;
+        adminName: string; adminEmail: string; adminPassword: string;
+    }) {
+        return this.platformService.registerCompany(body);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Get('stats')
-    getStats() {
-        return this.platformService.getStats();
-    }
+    getStats() { return this.platformService.getStats(); }
 
     @UseGuards(JwtAuthGuard)
     @Get('companies')
-    getCompanies() {
-        return this.platformService.getCompanies();
-    }
+    getCompanies() { return this.platformService.getCompanies(); }
 
     @UseGuards(JwtAuthGuard)
-    @Get('analytics')
-    getAnalytics() {
-        return this.platformService.getAnalytics();
-    }
+    @Get('companies/pending')
+    getPendingCompanies() { return this.platformService.getPendingCompanies(); }
 
     @UseGuards(JwtAuthGuard)
-    @Get('companies/:id/users')
-    getCompanyUsers(@Param('id') id: string) {
-        return this.platformService.getCompanyUsers(id);
-    }
+    @Put('companies/:id/approve')
+    approveCompany(@Param('id') id: string) { return this.platformService.approveCompany(id); }
 
     @UseGuards(JwtAuthGuard)
-    @Post('companies')
-    createCompany(@Body() dto: CreateCompanyDto) {
-        return this.platformService.createCompany(dto);
-    }
+    @Delete('companies/:id/reject')
+    rejectCompany(@Param('id') id: string) { return this.platformService.rejectCompany(id); }
 
     @UseGuards(JwtAuthGuard)
     @Put('companies/:id')
@@ -50,13 +48,11 @@ export class PlatformController {
 
     @UseGuards(JwtAuthGuard)
     @Delete('companies/:id')
-    deleteCompany(@Param('id') id: string) {
-        return this.platformService.deleteCompany(id);
-    }
+    deleteCompany(@Param('id') id: string) { return this.platformService.deleteCompany(id); }
 
     @UseGuards(JwtAuthGuard)
-    @Post('transfer')
-    transferEmployee(@Body() dto: TransferEmployeeDto) {
-        return this.platformService.transferEmployee(dto.employeeId, dto.toCompanyId);
+    @Put('companies/:id/reset-password')
+    resetCompanyAdminPassword(@Param('id') id: string, @Body() body: { newPassword: string }) {
+        return this.platformService.resetCompanyAdminPassword(id, body.newPassword);
     }
 }

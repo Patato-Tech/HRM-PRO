@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://root:@localhost:3306/hrmpro"
+  url      = env("DATABASE_URL")
 }
 
 model PlatformAdmin {
@@ -24,6 +24,7 @@ model Company {
   address        String?
   status         String          @default("active")
   planId         String?
+  createdById    String?
   createdAt      DateTime        @default(now())
   users          User[]
   employees      Employee[]
@@ -44,6 +45,7 @@ model User {
   passwordHash String
   role         String
   isActive     Boolean   @default(true)
+  sessionInvalidatedAt DateTime?
   createdAt    DateTime  @default(now())
   company      Company   @relation(fields: [companyId], references: [id])
   employee     Employee?
