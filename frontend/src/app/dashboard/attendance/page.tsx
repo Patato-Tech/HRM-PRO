@@ -24,7 +24,7 @@ interface AttendanceRecord {
   employee: {
     id: string;
     employeeCode: string;
-    user: { name: string; email: string };
+    user: { name: string; email: string; role: string };
   };
 }
 
@@ -68,7 +68,7 @@ export default function AttendancePage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'today' | 'history' | 'mark' | 'shifts'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'history' | 'shifts'>('today');
 
   const [showMarkModal, setShowMarkModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -101,10 +101,14 @@ export default function AttendancePage() {
     departmentId: '',   // empty = company-wide
   });
   const [shiftLoading, setShiftLoading] = useState(false);
+  const [workingDays, setWorkingDays] = useState<string[]>(['1','2','3','4','5']);
+  const [holidays, setHolidays] = useState<{id:string;name:string;startDate:string;endDate:string}[]>([]);
+  const [holidayForm, setHolidayForm] = useState({ name: '', startDate: '', endDate: '' });
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const [shiftError, setShiftError] = useState('');
 
   const canManage = canManageEmployees(user?.role || '');
-  const canSetShifts = isCompanyAdmin(user?.role || '') || isHRManager(user?.role || '');
+  const canSetShifts = isCompanyAdmin(user?.role || '');
 
   useEffect(() => {
     if (user) fetchData();
@@ -128,6 +132,16 @@ export default function AttendancePage() {
       setRecords(recordsData);
       setDepartments(deptData || []);
       // Load shifts only if allowed
+      if (isCompanyAdmin(user?.role || '')) {
+        // Load working days settings
+        apiCall('/attendance/company-settings', {}, token).then(s => {
+          if (s?.workingDays) setWorkingDays(s.workingDays.split(','));
+        }).catch(() => {});
+        // Load holidays
+        apiCall('/attendance/company-holidays', {}, token).then(h => {
+          setHolidays(h || []);
+        }).catch(() => {});
+      }
       if (isCompanyAdmin(user?.role || '') || isHRManager(user?.role || '')) {
         const shiftData = await apiCall('/attendance/shift', {}, token).catch(() => []);
         setShifts(shiftData || []);
@@ -286,6 +300,53 @@ export default function AttendancePage() {
     return matchSearch && matchStatus;
   });
 
+  const handleSaveWorkingDays = async () => {
+    setSettingsLoading(true);
+    try {
+      const token = getToken();
+      await apiCall('/attendance/company-settings', { method: 'PUT', body: JSON.stringify({ workingDays: workingDays.join(',') }) }, token || '');
+      showSuccessMsg('Working days saved successfully!');
+    } catch (err: any) {
+      showSuccessMsg('Error: ' + (err.message || 'Failed to save'));
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleAddHoliday = async () => {
+    if (!holidayForm.name || !holidayForm.startDate || !holidayForm.endDate) return;
+    try {
+      const token = getToken();
+      const h = await apiCall('/attendance/company-holidays', { method: 'POST', body: JSON.stringify(holidayForm) }, token || '');
+      setHolidays(prev => [...prev, h]);
+      setHolidayForm({ name: '', startDate: '', endDate: '' });
+      showSuccessMsg('Holiday added!');
+    } catch (err: any) {
+      showSuccessMsg('Error: ' + (err.message || 'Failed to add holiday'));
+    }
+  };
+
+  const handleDeleteHoliday = async (id: string) => {
+    try {
+      const token = getToken();
+      await apiCall(`/attendance/company-holidays/${id}`, { method: 'DELETE' }, token || '');
+      setHolidays(prev => prev.filter(h => h.id !== id));
+      showSuccessMsg('Holiday deleted!');
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const DAYS = [
+    { value: '0', label: 'Sun' },
+    { value: '1', label: 'Mon' },
+    { value: '2', label: 'Tue' },
+    { value: '3', label: 'Wed' },
+    { value: '4', label: 'Thu' },
+    { value: '5', label: 'Fri' },
+    { value: '6', label: 'Sat' },
+  ];
+
   const attendancePct = summary?.totalEmployees
     ? Math.round((summary.present / summary.totalEmployees) * 100)
     : 0;
@@ -316,14 +377,7 @@ export default function AttendancePage() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        {canManage && (
-          <button
-            onClick={() => { setShowMarkModal(true); setError(''); }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium"
-          >
-            + Mark Attendance
-          </button>
-        )}
+
       </div>
 
       {/* Today Summary Cards */}
@@ -371,7 +425,6 @@ export default function AttendancePage() {
         {([
           { key: 'today', label: '📅 Today' },
           { key: 'history', label: '📋 By Date' },
-          canManage && { key: 'mark', label: '✏️ Bulk Mark' },
           canSetShifts && { key: 'shifts', label: '⚙️ Shift Settings' },
         ] as any[]).filter(Boolean).map((tab: any) => (
           <button
@@ -413,7 +466,7 @@ export default function AttendancePage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Employee', 'Code', 'Status', 'Check In', 'Check Out', canManage && 'Actions'].filter(Boolean).map(h => (
+                  {['Employee', 'Code', 'Status', 'Check In', 'Check Out'].map(h => (
                     <th key={h as string} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -440,7 +493,19 @@ export default function AttendancePage() {
                             {record.employee?.user?.name?.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900 text-sm">{record.employee?.user?.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-gray-900 text-sm">{record.employee?.user?.name}</p>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                                record.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                record.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                                record.employee?.user?.role === 'COMPANY_ADMIN' ? 'bg-purple-100 text-purple-700' :
+                                'bg-green-100 text-green-700'
+                              }`}>
+                                {record.employee?.user?.role === 'HR_MANAGER' ? 'HR' :
+                                 record.employee?.user?.role === 'DEPT_MANAGER' ? 'DM' :
+                                 record.employee?.user?.role === 'COMPANY_ADMIN' ? 'Admin' : 'Emp'}
+                              </span>
+                            </div>
                             <p className="text-xs text-gray-400">{record.employee?.user?.email}</p>
                           </div>
                         </div>
@@ -457,16 +522,7 @@ export default function AttendancePage() {
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
-                      {canManage && (
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => openEditModal(record)}
-                            className="text-xs bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-2.5 py-1.5 rounded-lg"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      )}
+
                     </tr>
                   ))
                 )}
@@ -566,107 +622,6 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* BULK MARK TAB */}
-      {activeTab === 'mark' && canManage && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-          <div className="p-5 border-b border-gray-100">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="font-semibold text-gray-900">Bulk Mark Attendance</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Mark attendance for all employees at once</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="date"
-                  value={bulkDate}
-                  onChange={e => setBulkDate(e.target.value)}
-                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                />
-                <button
-                  onClick={initBulkForms}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium"
-                >
-                  Load Employees
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {Object.keys(bulkForms).length === 0 ? (
-            <div className="p-16 text-center">
-              <p className="text-3xl mb-3">✏️</p>
-              <p className="text-gray-500 font-medium">Click "Load Employees" to start bulk marking</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      {['Employee', 'Status', 'Check In', 'Check Out'].map(h => (
-                        <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {employees.map(emp => (
-                      <tr key={emp.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-blue-100 text-blue-700 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0">
-                              {emp.user.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm">{emp.user.name}</p>
-                              <p className="text-xs text-gray-400">{emp.employeeCode}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-3">
-                          <select
-                            value={bulkForms[emp.id]?.status || 'present'}
-                            onChange={e => setBulkForms(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], status: e.target.value } }))}
-                            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                          >
-                            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                          </select>
-                        </td>
-                        <td className="px-6 py-3">
-                          <input
-                            type="time"
-                            value={bulkForms[emp.id]?.checkIn || ''}
-                            onChange={e => setBulkForms(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], checkIn: e.target.value } }))}
-                            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                          />
-                        </td>
-                        <td className="px-6 py-3">
-                          <input
-                            type="time"
-                            value={bulkForms[emp.id]?.checkOut || ''}
-                            onChange={e => setBulkForms(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], checkOut: e.target.value } }))}
-                            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="p-5 border-t border-gray-100">
-                <button
-                  onClick={handleBulkMark}
-                  disabled={bulkLoading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-medium transition-colors"
-                >
-                  {bulkLoading ? 'Marking...' : `✅ Submit Attendance for ${Object.keys(bulkForms).length} Employees`}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ⚙️ SHIFT SETTINGS TAB — Company Admin + HR only */}
       {activeTab === 'shifts' && canSetShifts && (
         <div className="space-y-5">
           {/* Set Office Timings */}
@@ -777,110 +732,77 @@ export default function AttendancePage() {
               </div>
             )}
           </div>
+          {/* Working Days */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900 mb-1">Working Days</h2>
+            <p className="text-xs text-gray-400 mb-4">Select which days employees are expected to work</p>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {DAYS.map(day => (
+                <button key={day.value} onClick={() => {
+                  setWorkingDays(prev =>
+                    prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
+                  );
+                }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
+                    workingDays.includes(day.value)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                  }`}>
+                  {day.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={handleSaveWorkingDays} disabled={settingsLoading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-medium">
+              {settingsLoading ? 'Saving...' : '💾 Save Working Days'}
+            </button>
+          </div>
+
+          {/* Public Holidays */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900 mb-1">Public Holidays</h2>
+            <p className="text-xs text-gray-400 mb-4">No attendance required on these days</p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+              <input type="text" value={holidayForm.name} onChange={e => setHolidayForm({...holidayForm, name: e.target.value})}
+                placeholder="Holiday name (e.g. Eid ul Fitr)"
+                className="sm:col-span-2 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+              <div className="flex items-center gap-1">
+                <input type="date" value={holidayForm.startDate} onChange={e => setHolidayForm({...holidayForm, startDate: e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+              </div>
+              <div className="flex items-center gap-1">
+                <input type="date" value={holidayForm.endDate} onChange={e => setHolidayForm({...holidayForm, endDate: e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+              </div>
+            </div>
+            <button onClick={handleAddHoliday}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium mb-4">
+              + Add Holiday
+            </button>
+            {holidays.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-4">No public holidays added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {holidays.map(h => (
+                  <div key={h.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{h.name}</p>
+                      <p className="text-xs text-gray-400">{new Date(h.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{h.endDate && h.endDate !== h.startDate ? ` → ${new Date(h.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</p>
+                    </div>
+                    <button onClick={() => handleDeleteHoliday(h.id)}
+                      className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50">
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* MARK SINGLE MODAL */}
-      {showMarkModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Mark Attendance</h3>
-              <button onClick={() => { setShowMarkModal(false); setError(''); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
 
-            {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-                <select value={markForm.employeeId} onChange={e => setMarkForm({ ...markForm, employeeId: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                  <option value="">Select employee</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                  <input type="date" value={markForm.date} onChange={e => setMarkForm({ ...markForm, date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
-                  <select value={markForm.status} onChange={e => setMarkForm({ ...markForm, status: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check In</label>
-                  <input type="time" value={markForm.checkIn} onChange={e => setMarkForm({ ...markForm, checkIn: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check Out</label>
-                  <input type="time" value={markForm.checkOut} onChange={e => setMarkForm({ ...markForm, checkOut: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowMarkModal(false); setError(''); }} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleMarkSingle} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Mark Attendance</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT MODAL */}
-      {showEditModal && selectedRecord && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Edit Attendance</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-
-            {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
-
-            <div className="bg-blue-50 rounded-xl p-3 mb-4">
-              <p className="font-semibold text-gray-900 text-sm">{selectedRecord.employee?.user?.name}</p>
-              <p className="text-xs text-gray-500">{new Date(selectedRecord.date).toLocaleDateString()}</p>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check In</label>
-                  <input type="time" value={editForm.checkIn} onChange={e => setEditForm({ ...editForm, checkIn: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check Out</label>
-                  <input type="time" value={editForm.checkOut} onChange={e => setEditForm({ ...editForm, checkOut: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleEdit} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Save Changes</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

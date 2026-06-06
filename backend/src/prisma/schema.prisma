@@ -34,6 +34,8 @@ model Company {
   leaveBalances  LeaveBalance[]
   payrolls       Payroll[]
   shiftSchedules ShiftSchedule[]
+  settings       CompanySettings?
+  publicHolidays PublicHoliday[]
   deductionRules DeductionRule[]
 }
 
@@ -81,6 +83,26 @@ model Employee {
   leaves        Leave[]
   leaveBalances LeaveBalance[]
   payrolls      Payroll[]
+}
+
+model CompanySettings {
+  id           String   @id @default(uuid())
+  companyId    String   @unique
+  workingDays  String   @default("1,2,3,4,5") // 0=Sun,1=Mon,...,6=Sat
+  timezone     String   @default("Asia/Karachi")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  company      Company  @relation(fields: [companyId], references: [id])
+}
+
+model PublicHoliday {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id])
 }
 
 model ShiftSchedule {

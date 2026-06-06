@@ -68,7 +68,7 @@ export class AttendanceService {
             data: { companyId, employeeId, date: today, checkIn: now, status },
             include: {
                 employee: {
-                    include: { user: { select: { id: true, name: true, email: true } } },
+                    include: { user: { select: { id: true, name: true, email: true, role: true } } },
                 },
             },
         });
@@ -117,7 +117,7 @@ export class AttendanceService {
             },
             include: {
                 employee: {
-                    include: { user: { select: { id: true, name: true, email: true } } },
+                    include: { user: { select: { id: true, name: true, email: true, role: true } } },
                 },
             },
         });
@@ -132,7 +132,7 @@ export class AttendanceService {
             where,
             include: {
                 employee: {
-                    include: { user: { select: { id: true, name: true, email: true } } },
+                    include: { user: { select: { id: true, name: true, email: true, role: true } } },
                 },
             },
             orderBy: { date: 'desc' },
@@ -162,7 +162,7 @@ export class AttendanceService {
             where: { companyId, date: { gte: start, lte: end } },
             include: {
                 employee: {
-                    include: { user: { select: { id: true, name: true, email: true } } },
+                    include: { user: { select: { id: true, name: true, email: true, role: true } } },
                 },
             },
         });

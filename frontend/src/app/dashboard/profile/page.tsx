@@ -221,7 +221,7 @@ export default function ProfilePage() {
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'info', label: 'My Info' },
     { key: 'password', label: 'Security' },
-    { key: 'attendance', label: 'Attendance' },
+    ...(user?.role !== 'COMPANY_ADMIN' ? [{ key: 'attendance' as TabKey, label: 'Attendance' }] : []),
     ...(isEmployee ? [{ key: 'payroll' as TabKey, label: 'Payroll History' }] : []),
   ];
 
@@ -377,6 +377,7 @@ export default function ProfilePage() {
                   <p className="text-xs text-gray-400 mt-0.5">Check-in and check-out are recorded by the server</p>
                 </div>
                 {/* ✅ Shows Check-In or Check-Out depending on today's state */}
+                {user?.role !== 'COMPANY_ADMIN' && (
                 <div className="flex gap-2">
                   {!checkedInToday ? (
                     <button
@@ -396,6 +397,7 @@ export default function ProfilePage() {
                     </button>
                   )}
                 </div>
+                )}
               </div>
 
               <div className="border-t border-gray-100 pt-4">
