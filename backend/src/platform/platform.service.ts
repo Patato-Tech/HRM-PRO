@@ -49,6 +49,7 @@ export class PlatformService {
     }) {
         const existingUser = await this.prisma.user.findFirst({ where: { email: dto.adminEmail } });
         if (existingUser) throw new BadRequestException('An account with this email already exists');
+
         const company = await this.prisma.company.create({
             data: { name: dto.companyName, industry: dto.industry, address: dto.address, status: 'pending' },
         });
@@ -59,7 +60,7 @@ export class PlatformService {
         return { message: 'Registration submitted. Pending approval by platform administrator.' };
     }
 
-    async approveCompany(id: string) {
+    async approveCompany(id: number) {
         const company = await this.prisma.company.findUnique({ where: { id } });
         if (!company) throw new NotFoundException('Company not found');
         if (company.status !== 'pending') throw new BadRequestException('Company is not pending');
@@ -67,7 +68,7 @@ export class PlatformService {
         return { message: `${company.name} approved and activated` };
     }
 
-    async rejectCompany(id: string) {
+    async rejectCompany(id: number) {
         const company = await this.prisma.company.findUnique({ where: { id } });
         if (!company) throw new NotFoundException('Company not found');
         await this.prisma.user.deleteMany({ where: { companyId: id } });
@@ -75,18 +76,16 @@ export class PlatformService {
         return { message: 'Company registration rejected and removed' };
     }
 
-    async updateCompany(id: string, dto: UpdateCompanyDto) {
+    async updateCompany(id: number, dto: UpdateCompanyDto) {
         const company = await this.prisma.company.findUnique({ where: { id } });
         if (!company) throw new NotFoundException('Company not found');
         return this.prisma.company.update({ where: { id }, data: dto });
     }
 
-    async deleteCompany(id: string) {
+    async deleteCompany(id: number) {
         const company = await this.prisma.company.findUnique({ where: { id } });
         if (!company) throw new NotFoundException('Company not found');
-        // ✅ Mark company as deleted first so active sessions get force-logged out
         await this.prisma.company.update({ where: { id }, data: { status: 'deleted' } });
-        // Wait 2 seconds for active sessions to detect deletion via profile poll
         await new Promise(resolve => setTimeout(resolve, 2000));
         await this.prisma.shiftSchedule.deleteMany({ where: { companyId: id } });
         await this.prisma.deductionRule.deleteMany({ where: { companyId: id } });
@@ -101,7 +100,7 @@ export class PlatformService {
         return { message: 'Company permanently deleted' };
     }
 
-    async resetCompanyAdminPassword(companyId: string, newPassword: string) {
+    async resetCompanyAdminPassword(companyId: number, newPassword: string) {
         if (!newPassword || newPassword.length < 6) throw new BadRequestException('Password must be at least 6 characters');
         const company = await this.prisma.company.findUnique({ where: { id: companyId } });
         if (!company) throw new NotFoundException('Company not found');

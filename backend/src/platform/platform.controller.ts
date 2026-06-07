@@ -34,25 +34,25 @@ export class PlatformController {
 
     @UseGuards(JwtAuthGuard)
     @Put('companies/:id/approve')
-    approveCompany(@Param('id') id: string) { return this.platformService.approveCompany(id); }
+    approveCompany(@Param('id') id: string) { return this.platformService.approveCompany(parseInt(id)); }
 
     @UseGuards(JwtAuthGuard)
     @Delete('companies/:id/reject')
-    rejectCompany(@Param('id') id: string) { return this.platformService.rejectCompany(id); }
+    rejectCompany(@Param('id') id: string) { return this.platformService.rejectCompany(parseInt(id)); }
 
     @UseGuards(JwtAuthGuard)
     @Put('companies/:id')
     updateCompany(@Param('id') id: string, @Body() dto: UpdateCompanyDto) {
-        return this.platformService.updateCompany(id, dto);
+        return this.platformService.updateCompany(parseInt(id), dto);
     }
 
     @UseGuards(JwtAuthGuard)
     @Delete('companies/:id')
-    deleteCompany(@Param('id') id: string) { return this.platformService.deleteCompany(id); }
+    deleteCompany(@Param('id') id: string) { return this.platformService.deleteCompany(parseInt(id)); }
 
     @UseGuards(JwtAuthGuard)
     @Put('companies/:id/reset-password')
     resetCompanyAdminPassword(@Param('id') id: string, @Body() body: { newPassword: string }) {
-        return this.platformService.resetCompanyAdminPassword(id, body.newPassword);
+        return this.platformService.resetCompanyAdminPassword(parseInt(id), body.newPassword);
     }
 }

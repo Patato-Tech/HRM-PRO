@@ -10,32 +10,31 @@ export class DepartmentsController {
 
     @Get()
     findAll(@Request() req) {
-        return this.departmentsService.findAll(req.user.companyId);
+        return this.departmentsService.findAll(Number(req.user.companyId));
     }
 
     @Get(':id')
     findOne(@Param('id') id: string, @Request() req) {
-        return this.departmentsService.findOne(id, req.user.companyId);
+        return this.departmentsService.findOne(parseInt(id), Number(req.user.companyId));
     }
 
     @Post()
     create(@Body() dto: CreateDepartmentDto, @Request() req) {
-        return this.departmentsService.create(dto, req.user.companyId);
+        return this.departmentsService.create(dto, Number(req.user.companyId));
     }
 
     @Put(':id')
     update(@Param('id') id: string, @Body() dto: UpdateDepartmentDto, @Request() req) {
-        return this.departmentsService.update(id, dto, req.user.companyId);
+        return this.departmentsService.update(parseInt(id), dto, Number(req.user.companyId));
     }
 
     @Delete(':id')
     remove(@Param('id') id: string, @Request() req) {
-        return this.departmentsService.remove(id, req.user.companyId);
+        return this.departmentsService.remove(parseInt(id), Number(req.user.companyId));
     }
 
-    @UseGuards(JwtAuthGuard)
     @Put(':id/toggle-status')
     toggleStatus(@Param('id') id: string, @Request() req) {
-        return this.departmentsService.toggleStatus(id, req.user.companyId);
+        return this.departmentsService.toggleStatus(parseInt(id), Number(req.user.companyId));
     }
 }

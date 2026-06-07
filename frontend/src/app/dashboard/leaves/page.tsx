@@ -7,7 +7,8 @@ import { apiCall, getToken } from '@/lib/api';
 interface Employee {
   id: string;
   employeeCode: string;
-  user: { name: string; email: string };
+  department?: { name: string } | null;
+  user: { name: string; email: string; role: string };
 }
 
 interface LeaveBalance {
@@ -32,7 +33,8 @@ interface Leave {
   employee: {
     id: string;
     employeeCode: string;
-    user: { name: string; email: string };
+    department?: { name: string } | null;
+    user: { name: string; email: string; role: string };
   };
 }
 
@@ -322,7 +324,17 @@ export default function LeavesPage() {
                             {leave.employee?.user?.name?.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900 text-sm">{leave.employee?.user?.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-gray-900 text-sm">{leave.employee?.user?.name}</p>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                                leave.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                leave.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-green-100 text-green-700'
+                              }`}>
+                                {leave.employee?.user?.role === 'HR_MANAGER' ? 'HR' :
+                                 leave.employee?.user?.role === 'DEPT_MANAGER' ? 'DM' : 'Emp'}
+                              </span>
+                            </div>
                             <p className="text-xs text-gray-400">{leave.employee?.employeeCode}</p>
                           </div>
                         </div>
@@ -386,7 +398,17 @@ export default function LeavesPage() {
                       {leave.employee?.user?.name?.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-bold text-gray-900">{leave.employee?.user?.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-gray-900">{leave.employee?.user?.name}</p>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                          leave.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                          leave.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {leave.employee?.user?.role === 'HR_MANAGER' ? 'HR Manager' :
+                           leave.employee?.user?.role === 'DEPT_MANAGER' ? 'Dept Manager' : 'Employee'}
+                        </span>
+                      </div>
                       <p className="text-sm text-gray-500">{leave.employee?.user?.email}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{leave.leaveType}</span>
@@ -488,6 +510,19 @@ export default function LeavesPage() {
             <div className="space-y-3">
               <div className="bg-blue-50 rounded-xl p-4">
                 <p className="font-bold text-gray-900 text-lg">{selectedLeave.employee?.user?.name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                    selectedLeave.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                    selectedLeave.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    {selectedLeave.employee?.user?.role === 'HR_MANAGER' ? 'HR Manager' :
+                     selectedLeave.employee?.user?.role === 'DEPT_MANAGER' ? 'Dept Manager' : 'Employee'}
+                  </span>
+                  {selectedLeave.employee?.department?.name && (
+                    <span className="text-xs text-gray-500">· {selectedLeave.employee.department.name}</span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500">{selectedLeave.employee?.user?.email}</p>
               </div>
 

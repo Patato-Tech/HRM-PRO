@@ -13,71 +13,75 @@ export class AttendanceController {
 
     @Get('summary/today')
     getTodaySummary(@Request() req) {
-        return this.attendanceService.getTodaySummary(req.user.companyId);
+        return this.attendanceService.getTodaySummary(Number(req.user.companyId));
     }
 
     @Get('company-settings')
     getSettings(@Request() req) {
-        return this.settingsService.getSettings(req.user.companyId);
+        return this.settingsService.getSettings(Number(req.user.companyId));
     }
 
     @Put('company-settings')
     updateSettings(@Body() dto: any, @Request() req) {
-        return this.settingsService.updateSettings(req.user.companyId, dto.workingDays, dto.timezone);
+        return this.settingsService.updateSettings(Number(req.user.companyId), dto.workingDays, dto.timezone);
     }
 
     @Get('company-holidays')
     getHolidays(@Request() req) {
-        return this.settingsService.getHolidays(req.user.companyId);
+        return this.settingsService.getHolidays(Number(req.user.companyId));
     }
 
     @Post('company-holidays')
     addHoliday(@Body() dto: any, @Request() req) {
-        return this.settingsService.addHoliday(req.user.companyId, dto.name, dto.startDate, dto.endDate);
+        return this.settingsService.addHoliday(Number(req.user.companyId), dto.name, dto.startDate, dto.endDate);
     }
 
     @Delete('company-holidays/:id')
     deleteHoliday(@Param('id') id: string, @Request() req) {
-        return this.settingsService.deleteHoliday(id, req.user.companyId);
+        return this.settingsService.deleteHoliday(parseInt(id), Number(req.user.companyId));
     }
 
     @Get('shift')
     getShift(@Request() req, @Query('departmentId') departmentId?: string) {
-        return this.attendanceService.getShift(req.user.companyId, departmentId);
+        return this.attendanceService.getShift(Number(req.user.companyId), departmentId);
     }
 
     @Get('date/:date')
     findByDate(@Param('date') date: string, @Request() req) {
-        return this.attendanceService.findByDate(date, req.user.companyId);
+        return this.attendanceService.findByDate(date, Number(req.user.companyId));
     }
 
     @Get('employee/:id')
     findByEmployee(@Param('id') id: string, @Request() req) {
-        return this.attendanceService.findByEmployee(id, req.user.companyId);
+        return this.attendanceService.findByEmployee(parseInt(id), Number(req.user.companyId));
     }
 
     @Get()
     findAll(@Request() req) {
-        return this.attendanceService.findAll(req.user.companyId, req.user.role, req.user.departmentId);
+        return this.attendanceService.findAll(
+            Number(req.user.companyId),
+            req.user.role,
+            req.user.departmentId ? Number(req.user.departmentId) : null,
+        );
     }
 
     @Post('checkin')
     checkIn(@Request() req) {
-        return this.attendanceService.checkIn(req.user.employeeId, req.user.companyId);
+        return this.attendanceService.checkIn(Number(req.user.employeeId), Number(req.user.companyId));
     }
 
     @Post('checkout')
     checkOut(@Request() req) {
-        return this.attendanceService.checkOut(req.user.employeeId, req.user.companyId);
+        return this.attendanceService.checkOut(Number(req.user.employeeId), Number(req.user.companyId));
     }
 
     @Post('shift')
     setShift(@Body() dto: any, @Request() req) {
-        return this.attendanceService.setShift(dto, req.user.companyId, req.user.userId);
+        return this.attendanceService.setShift(dto, Number(req.user.companyId), Number(req.user.userId));
     }
 
     @Put(':id')
     update(@Param('id') id: string, @Body() dto: any, @Request() req) {
-        return this.attendanceService.update(id, dto, req.user.companyId);
+        return this.attendanceService.update(parseInt(id), dto, Number(req.user.companyId));
     }
 }

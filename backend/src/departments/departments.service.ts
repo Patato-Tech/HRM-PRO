@@ -6,7 +6,7 @@ import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
 export class DepartmentsService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(companyId: string) {
+    async findAll(companyId: number) {
         return this.prisma.department.findMany({
             where: { companyId },
             include: {
@@ -21,7 +21,7 @@ export class DepartmentsService {
         });
     }
 
-    async findOne(id: string, companyId: string) {
+    async findOne(id: number, companyId: number) {
         const department = await this.prisma.department.findFirst({
             where: { id, companyId },
             include: {
@@ -36,35 +36,36 @@ export class DepartmentsService {
         return department;
     }
 
-    async create(dto: CreateDepartmentDto, companyId: string) {
+    async create(dto: CreateDepartmentDto, companyId: number) {
         return this.prisma.department.create({
             data: {
                 name: dto.name,
-                headId: dto.headId,
+                headId: dto.headId ? Number(dto.headId) : null,
                 companyId,
             },
         });
     }
 
-    async update(id: string, dto: UpdateDepartmentDto, companyId: string) {
+    async update(id: number, dto: UpdateDepartmentDto, companyId: number) {
         const department = await this.prisma.department.findFirst({ where: { id, companyId } });
         if (!department) throw new NotFoundException('Department not found');
-
         return this.prisma.department.update({
             where: { id },
-            data: dto,
+            data: {
+                name: dto.name,
+                headId: dto.headId ? Number(dto.headId) : null,
+            },
         });
     }
 
-    async remove(id: string, companyId: string) {
+    async remove(id: number, companyId: number) {
         const department = await this.prisma.department.findFirst({ where: { id, companyId } });
         if (!department) throw new NotFoundException('Department not found');
-
         await this.prisma.department.delete({ where: { id } });
         return { message: 'Department deleted successfully' };
     }
 
-    async toggleStatus(id: string, companyId: string) {
+    async toggleStatus(id: number, companyId: number) {
         const department = await this.prisma.department.findFirst({ where: { id, companyId } });
         if (!department) throw new NotFoundException('Department not found');
         const newStatus = department.status === 'active' ? 'inactive' : 'active';
@@ -72,4 +73,3 @@ export class DepartmentsService {
         return { message: `Department ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`, status: newStatus };
     }
 }
-
