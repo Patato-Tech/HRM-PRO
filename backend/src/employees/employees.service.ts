@@ -23,48 +23,69 @@ const SAFE_USER_SELECT = { id: true, name: true, email: true, role: true, isActi
 export class EmployeesService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(companyId: number, actorRole: string, actorUserId: number, actorDepartmentId: number | null) {
-        if (actorRole === 'EMPLOYEE') {
-            const emp = await this.prisma.employee.findFirst({
-                where: { companyId, userId: actorUserId },
-                include: {
-                    user: { select: { id: true, name: true, email: true, isActive: true } },
-                    department: { select: { id: true, name: true } },
-                },
+    async findAll(
+        companyId: number,
+        actorRole: string,
+        actorUserId: number,
+        actorDepartmentId: number | null,
+        customRoleScope?: string | null,
+    ) {
+        // ✅ Company Admin — full access
+        if (actorRole === 'COMPANY_ADMIN') {
+            return this.prisma.employee.findMany({
+                where: { companyId },
+                include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
+                orderBy: { createdAt: 'desc' },
             });
-            return emp ? [emp] : [];
         }
-        if (actorRole === 'DEPT_MANAGER') {
-            if (!actorDepartmentId) return [];
+
+        // ✅ Custom role with scope "own_department" — own department only, no salary
+        if (customRoleScope === 'own_department' && actorDepartmentId) {
             const employees = await this.prisma.employee.findMany({
                 where: { companyId, departmentId: actorDepartmentId },
                 include: {
-                    user: { select: { id: true, name: true, email: true, role: true, isActive: true } },
+                    user: { select: SAFE_USER_SELECT },
                     department: { select: { id: true, name: true } },
+                    customRole: true,
                 },
                 orderBy: { createdAt: 'desc' },
             });
             return employees.map(({ salary, ...rest }) => rest);
         }
-        return this.prisma.employee.findMany({
-            where: { companyId },
-            include: { user: { select: SAFE_USER_SELECT }, department: true },
-            orderBy: { createdAt: 'desc' },
+
+        // ✅ Custom role with scope "all" — full company view
+        if (customRoleScope === 'all') {
+            return this.prisma.employee.findMany({
+                where: { companyId },
+                include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
+                orderBy: { createdAt: 'desc' },
+            });
+        }
+
+        // ✅ Plain employee (no custom role) — own record only
+        const emp = await this.prisma.employee.findFirst({
+            where: { companyId, userId: actorUserId },
+            include: {
+                user: { select: { id: true, name: true, email: true, isActive: true } },
+                department: { select: { id: true, name: true } },
+                customRole: true,
+            },
         });
+        return emp ? [emp] : [];
     }
 
-    async getStats(companyId: number, actorRole: string, actorDepartmentId: number | null) {
+    async getStats(companyId: number, actorRole: string, actorDepartmentId: number | null, customRoleScope?: string | null) {
         const where: any = { companyId };
-        if (actorRole === 'DEPT_MANAGER' && actorDepartmentId) where.departmentId = actorDepartmentId;
-        const [total, active, inactive, hrManagers, deptManagers, employees] = await Promise.all([
+        if (customRoleScope === 'own_department' && actorDepartmentId) where.departmentId = actorDepartmentId;
+        if (actorRole !== 'COMPANY_ADMIN' && !customRoleScope && actorDepartmentId) where.departmentId = actorDepartmentId;
+        const [total, active, inactive, withRoles] = await Promise.all([
             this.prisma.employee.count({ where }),
             this.prisma.employee.count({ where: { ...where, status: 'active' } }),
             this.prisma.employee.count({ where: { ...where, status: 'inactive' } }),
-            this.prisma.user.count({ where: { companyId, role: 'HR_MANAGER' } }),
-            this.prisma.user.count({ where: { companyId, role: 'DEPT_MANAGER' } }),
-            this.prisma.user.count({ where: { companyId, role: 'EMPLOYEE' } }),
+            this.prisma.employee.count({ where: { ...where, roleId: { not: null } } }),
         ]);
-        return { total, active, inactive, hrManagers, deptManagers, employees };
+        const withoutRoles = total - withRoles;
+        return { total, active, inactive, withRoles, withoutRoles };
     }
 
     async findOne(id: number, companyId: number, actorRole: string, actorUserId: number, actorDepartmentId: number | null) {
@@ -114,9 +135,10 @@ export class EmployeesService {
         });
 
         const deptId = dto.departmentId ? Number(dto.departmentId) : null;
+        const roleId = dto.roleId ? Number(dto.roleId) : null;
         return this.prisma.employee.create({
-            data: { companyId, userId: user.id, employeeCode, designation: dto.designation, departmentId: deptId, salary },
-            include: { user: { select: SAFE_USER_SELECT }, department: true },
+            data: { companyId, userId: user.id, employeeCode, designation: dto.designation, departmentId: deptId, salary, roleId },
+            include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
         });
     }
 
@@ -130,6 +152,7 @@ export class EmployeesService {
         }
         if (dto.name) await this.prisma.user.update({ where: { id: employee.userId }, data: { name: dto.name } });
         const deptId = dto.departmentId ? Number(dto.departmentId) : undefined;
+        const updateRoleId = dto.roleId !== undefined ? (dto.roleId ? Number(dto.roleId) : null) : undefined;
         return this.prisma.employee.update({
             where: { id },
             data: {
@@ -137,8 +160,9 @@ export class EmployeesService {
                 departmentId: actorRole === 'DEPT_MANAGER' ? undefined : (deptId !== undefined ? deptId : null),
                 salary: actorRole === 'DEPT_MANAGER' ? undefined : dto.salary,
                 status: dto.status,
+                roleId: actorRole === 'COMPANY_ADMIN' ? updateRoleId : undefined,
             },
-            include: { user: { select: SAFE_USER_SELECT }, department: true },
+            include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
         });
     }
 

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canApproveLeaves } from '@/lib/withAuth';
+import { useRouter } from 'next/navigation';
+import { useAuth, canApproveLeaves , hasPermission } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -47,7 +48,8 @@ const statusColors: Record<string, string> = {
 };
 
 export default function LeavesPage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<Leave[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -83,6 +85,13 @@ export default function LeavesPage() {
 
   const canApprove = canApproveLeaves(user?.role || '');
 
+
+  // ✅ Page permission guard
+  useEffect(() => {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'leaves', 'view')) {
+      router.replace('/dashboard');
+    }
+  }, [user]);
   useEffect(() => {
     if (user) fetchData();
   }, [user]);

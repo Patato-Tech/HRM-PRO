@@ -25,6 +25,7 @@ export class CreateEmployeeDto {
     @IsOptional()
     @IsString()
     role?: string;
+    roleId?: number;
 }
 
 export class UpdateEmployeeDto {
@@ -47,4 +48,6 @@ export class UpdateEmployeeDto {
     @IsOptional()
     @IsString()
     status?: string;
+    @IsOptional()
+    roleId?: number;
 }

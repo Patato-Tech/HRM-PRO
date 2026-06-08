@@ -14,6 +14,9 @@ export interface AuthUser {
   employeeId?: string;
   departmentId?: string;
   designation?: string;
+  customRoleName?: string;
+  permissions?: any;
+  customRoleScope?: string;
 }
 
 export function useAuth(isPlatform = false) {
@@ -53,11 +56,18 @@ export function useAuth(isPlatform = false) {
     const employeeId = localStorage.getItem('user_employeeId') || undefined;
     const departmentId = localStorage.getItem('user_departmentId') || undefined;
     const designation = localStorage.getItem('user_designation') || undefined;
+    const customRoleName = localStorage.getItem('user_customRoleName') || undefined;
+    const permissionsRaw = localStorage.getItem('user_permissions');
+    let permissions = undefined;
+    try {
+      permissions = permissionsRaw && permissionsRaw !== '' ? JSON.parse(permissionsRaw) : undefined;
+    } catch { permissions = undefined; }
+    const customRoleScope = localStorage.getItem('user_customRoleScope') || undefined;
 
     // ✅ Initial session check
     apiCall('/auth/profile', {}, token)
       .then(() => {
-        setUser({ id, name, email, role, companyId, companyName, employeeId, departmentId, designation });
+        setUser({ id, name, email, role, companyId, companyName, employeeId, departmentId, designation, customRoleName, permissions, customRoleScope });
         setLoading(false);
       })
       .catch(() => {
@@ -109,6 +119,9 @@ export function useAuth(isPlatform = false) {
       localStorage.removeItem('user_employeeId');
       localStorage.removeItem('user_departmentId');
       localStorage.removeItem('user_designation');
+      localStorage.removeItem('user_customRoleName');
+      localStorage.removeItem('user_permissions');
+      localStorage.removeItem('user_customRoleScope');
       router.replace('/');
     }
   };
@@ -134,6 +147,14 @@ export function withAuth<T extends object>(
     return <Component {...props} user={user} logout={logout} />;
   };
 }
+
+// ✅ Permission checker — works for both Company Admin (full access) and custom roles
+export const hasPermission = (user: AuthUser | null, module: string, action: string): boolean => {
+  if (!user) return false;
+  if (user.role === 'COMPANY_ADMIN') return true; // Company Admin has full access
+  if (!user.permissions) return false;
+  return user.permissions?.[module]?.[action] === true;
+};
 
 export const isCompanyAdmin = (role: string) => role === 'COMPANY_ADMIN';
 export const isHRManager = (role: string) => role === 'HR_MANAGER';

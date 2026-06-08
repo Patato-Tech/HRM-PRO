@@ -37,6 +37,7 @@ model Company {
   settings       CompanySettings?
   publicHolidays PublicHoliday[]
   deductionRules DeductionRule[]
+  roles          Role[]
 }
 
 model User {
@@ -72,6 +73,7 @@ model Employee {
   employeeCode  String
   designation   String?
   departmentId  Int?
+  roleId        Int?
   salary        Float          @default(0)
   joinDate      DateTime       @default(now())
   status        String         @default("active")
@@ -79,10 +81,27 @@ model Employee {
   company       Company        @relation(fields: [companyId], references: [id])
   user          User           @relation(fields: [userId], references: [id])
   department    Department?    @relation(fields: [departmentId], references: [id])
+  customRole    Role?          @relation(fields: [roleId], references: [id])
   attendance    Attendance[]
   leaves        Leave[]
   leaveBalances LeaveBalance[]
   payrolls      Payroll[]
+}
+
+model Role {
+  id          Int        @id @default(autoincrement())
+  companyId   Int
+  name        String
+  description String?
+  isDefault   Boolean    @default(false)
+  scope       String     @default("all") // all | own_department
+  permissions Json       // stores permission object
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     Company    @relation(fields: [companyId], references: [id])
+  employees   Employee[]
+
+  @@unique([companyId, name])
 }
 
 model CompanySettings {

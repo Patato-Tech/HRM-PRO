@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManagePayroll } from '@/lib/withAuth';
+import { useRouter } from 'next/navigation';
+import { useAuth, canManagePayroll , hasPermission } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -45,7 +46,8 @@ const statusColors: Record<string, string> = {
 };
 
 export default function PayrollPage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [summary, setSummary] = useState<PayrollSummary | null>(null);
@@ -88,6 +90,13 @@ export default function PayrollPage() {
 
   const canManage = canManagePayroll(user?.role || '');
 
+
+  // ✅ Page permission guard
+  useEffect(() => {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'payroll', 'view')) {
+      router.replace('/dashboard');
+    }
+  }, [user]);
   useEffect(() => {
     if (user) fetchData();
   }, [user]);

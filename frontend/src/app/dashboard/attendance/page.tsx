@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager } from '@/lib/withAuth';
+import { useRouter } from 'next/navigation';
+import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager , hasPermission } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -56,7 +57,8 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AttendancePage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -110,6 +112,13 @@ export default function AttendancePage() {
   const canManage = canManageEmployees(user?.role || '');
   const canSetShifts = isCompanyAdmin(user?.role || '');
 
+
+  // ✅ Page permission guard
+  useEffect(() => {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'attendance', 'view')) {
+      router.replace('/dashboard');
+    }
+  }, [user]);
   useEffect(() => {
     if (user) fetchData();
   }, [user]);

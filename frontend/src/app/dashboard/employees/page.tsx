@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManageEmployees, isDeptManager } from '@/lib/withAuth';
+import { useRouter } from 'next/navigation';
+import { useAuth, hasPermission, isCompanyAdmin } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Department {
@@ -17,7 +18,9 @@ interface Employee {
   salary?: number;
   status: string;
   joinDate: string;
+  roleId?: number;
   department: Department | null;
+  customRole?: { id: number; name: string; scope: string; permissions: any; } | null;
   user: {
     id: string;
     name: string;
@@ -27,7 +30,7 @@ interface Employee {
   };
 }
 
-const ROLES = ['EMPLOYEE', 'HR_MANAGER', 'DEPT_MANAGER', 'COMPANY_ADMIN'];
+const ROLES = ['EMPLOYEE'];
 
 const roleColors: Record<string, string> = {
   COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
@@ -37,7 +40,8 @@ const roleColors: Record<string, string> = {
 };
 
 export default function EmployeesPage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,14 +57,15 @@ export default function EmployeesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
 
   const [addForm, setAddForm] = useState({
     name: '', email: '', password: '', designation: '',
-    departmentId: '', salary: '', role: 'EMPLOYEE',
+    departmentId: '', salary: '', role: 'EMPLOYEE', roleId: '',
   });
 
   const [editForm, setEditForm] = useState({
-    name: '', designation: '', departmentId: '', salary: '', status: '',
+    name: '', designation: '', departmentId: '', salary: '', status: '', roleId: '',
   });
 
   // ✅ Reset-password modal state
@@ -69,27 +74,44 @@ export default function EmployeesPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [showResetPw, setShowResetPw] = useState(false);
 
-  const canManage = canManageEmployees(user?.role || '');
-  const hideSalary = isDeptManager(user?.role || '');
+  const canView = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'view');
+  const canCreate = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'create');
+  const canEdit = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'edit');
+  const canDelete = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'delete');
+  const canManage = canCreate || canEdit || canDelete;
+  const hideSalary = !isCompanyAdmin(user?.role || '') && !hasPermission(user, 'payroll', 'view');
 
   useEffect(() => {
-    if (user) fetchData();
-  }, [user]);
+    if (authLoading || !user) return;
+    if (user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'employees', 'view')) {
+      router.replace('/dashboard');
+      return;
+    }
+    fetchData();
+  }, [user, authLoading]);
+
 
   const fetchData = async () => {
     const token = getToken() || '';
     try {
-      const [empData, deptData] = await Promise.all([
-        apiCall('/employees', {}, token),
-        apiCall('/departments', {}, token),
-      ]);
+      const empData = await apiCall('/employees', {}, token);
       setEmployees(empData);
-      setDepartments(deptData);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error('employees error:', err);
     }
+    try {
+      const deptData = await apiCall('/departments', {}, token);
+      setDepartments(deptData);
+    } catch {
+      setDepartments([]);
+    }
+    try {
+      const rolesData = await apiCall('/roles', {}, token);
+      setRoles(rolesData || []);
+    } catch {
+      setRoles([]);
+    }
+    setLoading(false);
   };
 
   const showSuccessMsg = (msg: string) => {
@@ -110,10 +132,11 @@ export default function EmployeesPage() {
         body: JSON.stringify({
           ...addForm,
           salary: parseFloat(addForm.salary) || 0,
+          roleId: addForm.roleId ? parseInt(addForm.roleId) : null,
         }),
       }, token);
       setShowAddModal(false);
-      setAddForm({ name: '', email: '', password: '', designation: '', departmentId: '', salary: '', role: 'EMPLOYEE' });
+      setAddForm({ name: '', email: '', password: '', designation: '', departmentId: '', salary: '', role: 'EMPLOYEE', roleId: '' });
       showSuccessMsg('Employee added successfully!');
       fetchData();
     } catch (err: any) {
@@ -206,6 +229,7 @@ export default function EmployeesPage() {
       departmentId: emp.department?.id || '',
       salary: emp.salary != null ? emp.salary.toString() : '',
       status: emp.status,
+      roleId: (emp as any).customRole?.id?.toString() || '',
     });
     setShowEditModal(true);
     setError('');
@@ -254,7 +278,7 @@ export default function EmployeesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
           <p className="text-gray-500 text-sm mt-1">{employees.length} total employees</p>
         </div>
-        {canManage && (
+        {canCreate && (
           <button
             onClick={() => { setShowAddModal(true); setError(''); }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
@@ -270,8 +294,8 @@ export default function EmployeesPage() {
           { label: 'Total Staff', value: employees.length, color: 'text-gray-900', bg: 'bg-blue-50' },
           { label: 'Active', value: employees.filter(e => e.status === 'active').length, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Inactive', value: employees.filter(e => e.status === 'inactive').length, color: 'text-red-500', bg: 'bg-red-50' },
-          { label: 'HR Manager', value: employees.filter(e => e.user.role === 'HR_MANAGER').length, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Dept Managers', value: employees.filter(e => e.user.role === 'DEPT_MANAGER').length, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+          { label: 'With Custom Role', value: employees.filter(e => (e as any).customRole).length, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'No Role Assigned', value: employees.filter(e => !(e as any).customRole).length, color: 'text-yellow-600', bg: 'bg-yellow-50' },
           { label: 'Employees', value: employees.filter(e => e.user.role === 'EMPLOYEE').length, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Departments', value: departments.length, color: 'text-purple-600', bg: 'bg-purple-50' },
         ].map((s, i) => (
@@ -357,8 +381,8 @@ export default function EmployeesPage() {
                       </td>
                     )}
                     <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${roleColors[emp.user.role] || 'bg-gray-100 text-gray-600'}`}>
-                        {emp.user.role.replace(/_/g, ' ')}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${(emp as any).customRole ? 'bg-blue-100 text-blue-700' : (roleColors[emp.user?.role] || 'bg-gray-100 text-gray-600')}`}>
+                        {(emp as any).customRole?.name || emp.user?.role?.replace(/_/g, ' ') || 'Employee'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -389,18 +413,22 @@ export default function EmployeesPage() {
                             >
                               Reset Pwd
                             </button>
+                            {emp.user.id !== user?.id && (
                             <button
                               onClick={() => handleDeactivate(emp)}
                               className={`text-xs px-2.5 py-1.5 rounded-lg ${emp.status === 'active' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
                             >
                               {emp.status === 'active' ? 'Deactivate' : 'Activate'}
                             </button>
+                            )}
+                            {canDelete && emp.user.id !== user?.id && (
                             <button
                               onClick={() => { setSelectedEmployee(emp); setShowDeleteModal(true); }}
                               className="text-xs bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 px-2.5 py-1.5 rounded-lg"
                             >
                               Delete
                             </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -429,12 +457,11 @@ export default function EmployeesPage() {
               <div>
                 <p className="font-bold text-gray-900 text-lg">{selectedEmployee.user.name}</p>
                 <p className="text-sm text-gray-500">{selectedEmployee.user.email}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${roleColors[selectedEmployee.user.role] || 'bg-gray-100 text-gray-600'}`}>
-                  {selectedEmployee.user.role.replace(/_/g, ' ')}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${selectedEmployee.customRole ? 'bg-blue-100 text-blue-700' : (roleColors[selectedEmployee.user.role] || 'bg-gray-100 text-gray-600')}`}>
+                  {selectedEmployee.customRole?.name || selectedEmployee.user.role.replace(/_/g, ' ')}
                 </span>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Employee Code', value: selectedEmployee.employeeCode },
@@ -462,7 +489,9 @@ export default function EmployeesPage() {
               {canManage && (
                 <>
                   <button onClick={() => { setShowDetailModal(false); openEditModal(selectedEmployee); }} className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2.5 rounded-xl text-sm font-medium">Edit</button>
+                  {selectedEmployee.user.id !== user?.id && canDelete && (
                   <button onClick={() => { setShowDetailModal(false); setShowDeleteModal(true); }} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium">Delete</button>
+                  )}
                 </>
               )}
             </div>
@@ -526,11 +555,13 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select value={addForm.role} onChange={e => setAddForm({ ...addForm, role: e.target.value })}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assign Custom Role <span className="text-gray-400 font-normal">(optional)</span></label>
+                <select value={addForm.roleId} onChange={e => setAddForm({ ...addForm, roleId: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                  {ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
+                  <option value="">No Custom Role</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { EmployeesModule } from './employees/employees.module';
 import { DepartmentsModule } from './departments/departments.module';
@@ -7,6 +8,8 @@ import { LeavesModule } from './leaves/leaves.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { PlatformModule } from './platform/platform.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RolesModule } from './roles/roles.module';
+import { PermissionsGuard } from './auth/permissions.guard';
 
 @Module({
   imports: [
@@ -18,6 +21,13 @@ import { PrismaModule } from './prisma/prisma.module';
     LeavesModule,
     PayrollModule,
     PlatformModule,
+    RolesModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
+    },
   ],
 })
 export class AppModule { }

@@ -2,21 +2,22 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useAuth, canManageEmployees, canManageDepartments, canManagePayroll } from '@/lib/withAuth';
+import { useAuth, canManageEmployees, canManageDepartments, canManagePayroll, hasPermission } from '@/lib/withAuth';
 
 const allNavItems = [
   { href: '/dashboard',             label: 'Dashboard',    icon: '📊', roles: 'all',               soon: false },
   { href: '/dashboard/employees',   label: 'Employees',    icon: '👥', roles: 'manage_employees',  soon: false },
   { href: '/dashboard/departments', label: 'Departments',  icon: '🏢', roles: 'manage_departments',soon: false },
-  { href: '/dashboard/attendance',  label: 'Attendance',   icon: '📅', roles: 'all',               soon: false },
-  { href: '/dashboard/leaves',      label: 'Leaves',       icon: '🌿', roles: 'all',               soon: false },
+  { href: '/dashboard/attendance',  label: 'Attendance',   icon: '📅', roles: 'attendance',        soon: false },
+  { href: '/dashboard/leaves',      label: 'Leaves',       icon: '🌿', roles: 'leaves',             soon: false },
   { href: '/dashboard/payroll',     label: 'Payroll',      icon: '💰', roles: 'manage_payroll',    soon: false },
-  { href: '/dashboard/reports',     label: 'Reports',      icon: '📈', roles: 'all',               soon: false },
+  { href: '/dashboard/reports',     label: 'Reports',      icon: '📈', roles: 'reports',            soon: false },
+  { href: '/dashboard/roles',       label: 'Roles',        icon: '🔐', roles: 'company_admin',     soon: false },
   { href: '/dashboard/profile',     label: 'Profile',      icon: '👤', roles: 'all',               soon: false },
-  { href: '/dashboard/performance', label: 'Performance',  icon: '⭐', roles: 'all',               soon: true  },
-  { href: '/dashboard/recruitment', label: 'Recruitment',  icon: '🎯', roles: 'manage_employees',  soon: true  },
-  { href: '/dashboard/training',    label: 'Training',     icon: '📚', roles: 'all',               soon: true  },
-  { href: '/dashboard/documents',   label: 'Documents',    icon: '📄', roles: 'all',               soon: true  },
+  { href: '/dashboard/performance', label: 'Performance',  icon: '⭐', roles: 'performance',       soon: true  },
+  { href: '/dashboard/recruitment', label: 'Recruitment',  icon: '🎯', roles: 'recruitment',        soon: true  },
+  { href: '/dashboard/training',    label: 'Training',     icon: '📚', roles: 'training',           soon: true  },
+  { href: '/dashboard/documents',   label: 'Documents',    icon: '📄', roles: 'documents',          soon: true  },
 ];
 
 const roleColors: Record<string, string> = {
@@ -43,9 +44,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const isAllowed = (roles: string) => {
     if (roles === 'all') return true;
-    if (roles === 'manage_employees')  return canManageEmployees(user.role);
-    if (roles === 'manage_departments') return canManageDepartments(user.role);
-    if (roles === 'manage_payroll')    return canManagePayroll(user.role);
+    if (roles === 'company_admin') return user.role === 'COMPANY_ADMIN';
+    if (roles === 'manage_employees') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'view');
+    if (roles === 'manage_departments') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'departments', 'view');
+    if (roles === 'manage_payroll') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'payroll', 'view');
+    if (roles === 'attendance') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'attendance', 'view');
+    if (roles === 'leaves') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'leaves', 'view');
+    if (roles === 'reports') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'reports', 'view');
+    if (roles === 'performance') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'performance', 'view');
+    if (roles === 'recruitment') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'recruitment', 'view');
+    if (roles === 'training') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'training', 'view');
+    if (roles === 'documents') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'documents', 'view');
     return false;
   };
 
@@ -117,8 +126,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <p className="text-xs text-gray-400 truncate">{user.email}</p>
           </div>
         </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${roleColors[user.role] || 'bg-gray-100 text-gray-600'}`}>
-          {user.role.replace(/_/g, ' ')}
+        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${user.customRoleName ? 'bg-blue-100 text-blue-700' : (roleColors[user.role] || 'bg-gray-100 text-gray-600')}`}>
+          {user.customRoleName || user.role.replace(/_/g, ' ')}
         </span>
         <button
           onClick={logout}

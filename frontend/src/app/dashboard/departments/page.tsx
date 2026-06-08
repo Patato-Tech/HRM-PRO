@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManageDepartments } from '@/lib/withAuth';
+import { useRouter } from 'next/navigation';
+import { useAuth, canManageDepartments , hasPermission } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -36,7 +37,8 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,6 +57,13 @@ export default function DepartmentsPage() {
 
   const canManage = canManageDepartments(user?.role || '');
 
+
+  // ✅ Page permission guard
+  useEffect(() => {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'departments', 'view')) {
+      router.replace('/dashboard');
+    }
+  }, [user]);
   useEffect(() => {
     if (user) fetchData();
   }, [user]);

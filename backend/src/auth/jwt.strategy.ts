@@ -21,6 +21,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             companyId: payload.companyId,
             employeeId: payload.employeeId || null,
             departmentId: payload.departmentId || null,
+            permissions: payload.permissions || null,
+            customRoleScope: payload.customRoleScope || null,
         };
     }
 }

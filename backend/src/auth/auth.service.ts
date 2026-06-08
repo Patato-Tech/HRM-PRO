@@ -96,7 +96,14 @@ export class AuthService {
         const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
-        const employee = await this.prisma.employee.findUnique({ where: { userId: user.id } });
+        const employee = await this.prisma.employee.findUnique({
+            where: { userId: user.id },
+            include: { customRole: true },
+        });
+
+        const permissions = employee?.customRole?.permissions || null;
+        const customRoleName = employee?.customRole?.name || null;
+        const customRoleScope = employee?.customRole?.scope || null;
 
         const token = this.jwtService.sign({
             sub: user.id,
@@ -105,6 +112,8 @@ export class AuthService {
             companyId: user.companyId,
             employeeId: employee?.id || null,
             departmentId: employee?.departmentId || null,
+            permissions,
+            customRoleScope,
         });
 
         return {
@@ -120,6 +129,9 @@ export class AuthService {
                 employeeId: employee?.id || null,
                 departmentId: employee?.departmentId || null,
                 designation: employee?.designation || null,
+                customRoleName,
+                permissions,
+                customRoleScope,
             },
         };
     }

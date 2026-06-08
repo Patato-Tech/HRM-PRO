@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManageEmployees, canManagePayroll, canApproveLeaves } from '@/lib/withAuth';
+import { useAuth, hasPermission, canManageEmployees, canManagePayroll, canApproveLeaves } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface DashboardStats {

@@ -65,6 +65,7 @@ export class PlatformService {
         if (!company) throw new NotFoundException('Company not found');
         if (company.status !== 'pending') throw new BadRequestException('Company is not pending');
         await this.prisma.company.update({ where: { id }, data: { status: 'active' } });
+
         return { message: `${company.name} approved and activated` };
     }
 

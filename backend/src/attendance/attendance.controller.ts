@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Request, UseGua
 import { AttendanceService } from './attendance.service';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RequirePermission } from '../auth/permissions.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('attendance')
@@ -47,6 +48,7 @@ export class AttendanceController {
     }
 
     @Get('date/:date')
+    @RequirePermission('attendance', 'view')
     findByDate(@Param('date') date: string, @Request() req) {
         return this.attendanceService.findByDate(date, Number(req.user.companyId));
     }
@@ -57,6 +59,7 @@ export class AttendanceController {
     }
 
     @Get()
+    @RequirePermission('attendance', 'view')
     findAll(@Request() req) {
         return this.attendanceService.findAll(
             Number(req.user.companyId),
