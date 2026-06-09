@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager, isEmployee } from '@/lib/withAuth';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager , hasPermission } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -24,7 +25,7 @@ interface AttendanceRecord {
   employee: {
     id: string;
     employeeCode: string;
-    user: { name: string; email: string };
+    user: { name: string; email: string; role: string };
   };
 }
 
@@ -56,7 +57,8 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AttendancePage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -70,41 +72,63 @@ export default function AttendancePage() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'today' | 'history' | 'shifts'>('today');
 
-  // Check-in/out state
-  const [checkInLoading, setCheckInLoading] = useState(false);
-  const [checkedInToday, setCheckedInToday] = useState(false);
-  const [checkedOutToday, setCheckedOutToday] = useState(false);
-  const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
-
-  // Edit modal (managers only)
+  const [showMarkModal, setShowMarkModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
-  const [editForm, setEditForm] = useState({ status: '', checkIn: '', checkOut: '' });
 
-  // Shift settings
+  const [markForm, setMarkForm] = useState({
+    employeeId: '',
+    date: new Date().toISOString().split('T')[0],
+    status: 'present',
+    checkIn: '',
+    checkOut: '',
+  });
+
+  const [editForm, setEditForm] = useState({
+    status: '',
+    checkIn: '',
+    checkOut: '',
+  });
+
+  const [bulkForms, setBulkForms] = useState<Record<string, { status: string; checkIn: string; checkOut: string }>>({});
+  const [bulkDate, setBulkDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Shift settings form
   const [shiftForm, setShiftForm] = useState({
     name: 'General Shift',
     shiftStart: '09:00',
     shiftEnd: '17:00',
     gracePeriod: '30',
-    departmentId: '',
+    departmentId: '',   // empty = company-wide
   });
   const [shiftLoading, setShiftLoading] = useState(false);
+  const [workingDays, setWorkingDays] = useState<string[]>(['1','2','3','4','5']);
+  const [holidays, setHolidays] = useState<{id:string;name:string;startDate:string;endDate:string}[]>([]);
+  const [holidayForm, setHolidayForm] = useState({ name: '', startDate: '', endDate: '' });
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const [shiftError, setShiftError] = useState('');
 
-  const token = getToken() || '';
-  const role = user?.role || '';
-  const isEmp = isEmployee(role);
-  const canManage = canManageEmployees(role);
-  const canSetShifts = isCompanyAdmin(role) || isHRManager(role);
+  const canManage = canManageEmployees(user?.role || '');
+  const canSetShifts = isCompanyAdmin(user?.role || '');
 
-  const showSuccessMsg = (msg: string) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(''), 3000);
-  };
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
+  // ✅ Page permission guard
+  useEffect(() => {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'attendance', 'view')) {
+      router.replace('/dashboard');
+    }
+  }, [user]);
+  useEffect(() => {
+    if (user) fetchData();
+  }, [user]);
+
+  useEffect(() => {
+    if (user) fetchByDate();
+  }, [selectedDate]);
+
+  const fetchData = async () => {
+    const token = getToken() || '';
     try {
       const [summaryData, empData, recordsData, deptData] = await Promise.all([
         apiCall('/attendance/summary/today', {}, token),
@@ -113,27 +137,21 @@ export default function AttendancePage() {
         apiCall('/departments', {}, token).catch(() => []),
       ]);
       setSummary(summaryData);
-      setEmployees(empData || []);
-      setRecords(recordsData || []);
+      setEmployees(empData);
+      setRecords(recordsData);
       setDepartments(deptData || []);
-
-      // Check today's attendance for current employee
-      if (user.employeeId) {
-        const today = new Date().toISOString().split('T')[0];
-        const todayRecords: AttendanceRecord[] = await apiCall(`/attendance/date/${today}`, {}, token).catch(() => []);
-        const myRecord = todayRecords.find((r: AttendanceRecord) => r.employee?.id === user.employeeId || r.employee?.user?.email === user.email);
-        if (myRecord) {
-          setTodayRecord(myRecord);
-          setCheckedInToday(!!myRecord.checkIn);
-          setCheckedOutToday(!!myRecord.checkOut);
-        } else {
-          setTodayRecord(null);
-          setCheckedInToday(false);
-          setCheckedOutToday(false);
-        }
+      // Load shifts only if allowed
+      if (isCompanyAdmin(user?.role || '')) {
+        // Load working days settings
+        apiCall('/attendance/company-settings', {}, token).then(s => {
+          if (s?.workingDays) setWorkingDays(s.workingDays.split(','));
+        }).catch(() => {});
+        // Load holidays
+        apiCall('/attendance/company-holidays', {}, token).then(h => {
+          setHolidays(h || []);
+        }).catch(() => {});
       }
-
-      if (canSetShifts) {
+      if (isCompanyAdmin(user?.role || '') || isHRManager(user?.role || '')) {
         const shiftData = await apiCall('/attendance/shift', {}, token).catch(() => []);
         setShifts(shiftData || []);
       }
@@ -142,65 +160,44 @@ export default function AttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, [user, token, selectedDate, canSetShifts]);
+  };
 
-  const fetchByDate = useCallback(async () => {
-    if (!user) return;
+  const fetchByDate = async () => {
+    const token = getToken() || '';
     try {
       const data = await apiCall(`/attendance/date/${selectedDate}`, {}, token);
-      setRecords(data || []);
+      setRecords(data);
     } catch (err) {
       console.error(err);
     }
-  }, [user, token, selectedDate]);
-
-  useEffect(() => {
-    if (user) fetchData();
-  }, [user, fetchData]);
-
-  useEffect(() => {
-    if (user) fetchByDate();
-  }, [selectedDate, fetchByDate]);
-
-  // ✅ Check-In — moved from Profile page
-  const handleCheckIn = async () => {
-    if (!user?.employeeId) return;
-    setCheckInLoading(true);
-    try {
-      const res = await apiCall('/attendance/checkin', {
-        method: 'POST',
-        body: JSON.stringify({ employeeId: user.employeeId }),
-      }, token);
-      showSuccessMsg(`Checked in! Status: ${res.status}`);
-      setCheckedInToday(true);
-      setTodayRecord(res);
-      fetchData();
-    } catch (e: any) {
-      setError(e.message || 'Check-in failed');
-      setTimeout(() => setError(''), 4000);
-    } finally {
-      setCheckInLoading(false);
-    }
   };
 
-  // ✅ Check-Out — moved from Profile page
-  const handleCheckOut = async () => {
-    if (!user?.employeeId) return;
-    setCheckInLoading(true);
+  const showSuccessMsg = (msg: string) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
+  const handleMarkSingle = async () => {
+    setError('');
+    if (!markForm.employeeId) { setError('Please select an employee'); return; }
     try {
-      const res = await apiCall('/attendance/checkout', {
+      const token = getToken() || '';
+      await apiCall('/attendance/manual', {
         method: 'POST',
-        body: JSON.stringify({ employeeId: user.employeeId }),
+        body: JSON.stringify({
+          employeeId: markForm.employeeId,
+          date: markForm.date,
+          status: markForm.status,
+          checkIn: markForm.checkIn ? new Date(`${markForm.date}T${markForm.checkIn}`).toISOString() : undefined,
+          checkOut: markForm.checkOut ? new Date(`${markForm.date}T${markForm.checkOut}`).toISOString() : undefined,
+        }),
       }, token);
-      showSuccessMsg('Checked out successfully!');
-      setCheckedOutToday(true);
-      setTodayRecord(res);
+      setShowMarkModal(false);
+      setMarkForm({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'present', checkIn: '', checkOut: '' });
+      showSuccessMsg('Attendance marked successfully!');
       fetchData();
-    } catch (e: any) {
-      setError(e.message || 'Check-out failed');
-      setTimeout(() => setError(''), 4000);
-    } finally {
-      setCheckInLoading(false);
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
@@ -208,6 +205,7 @@ export default function AttendancePage() {
     setError('');
     if (!selectedRecord) return;
     try {
+      const token = getToken() || '';
       await apiCall(`/attendance/${selectedRecord.id}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -224,25 +222,58 @@ export default function AttendancePage() {
     }
   };
 
+  const handleBulkMark = async () => {
+    setError('');
+    setBulkLoading(true);
+    const token = getToken() || '';
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const [employeeId, form] of Object.entries(bulkForms)) {
+      if (!form.status) continue;
+      try {
+        await apiCall('/attendance/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            employeeId,
+            date: bulkDate,
+            status: form.status,
+            checkIn: form.checkIn ? new Date(`${bulkDate}T${form.checkIn}`).toISOString() : undefined,
+            checkOut: form.checkOut ? new Date(`${bulkDate}T${form.checkOut}`).toISOString() : undefined,
+          }),
+        }, token);
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+    }
+
+    setBulkLoading(false);
+    setBulkForms({});
+    showSuccessMsg(`Marked ${successCount} employees. ${errorCount > 0 ? `${errorCount} failed.` : ''}`);
+    fetchData();
+  };
+
+  // ✅ NEW: save office timings / shift schedule
   const handleSaveShift = async () => {
     setShiftError('');
-    if (!shiftForm.name.trim() || !shiftForm.shiftStart || !shiftForm.shiftEnd) {
-      setShiftError('Name, start time and end time are required');
-      return;
-    }
+    if (!shiftForm.name.trim()) { setShiftError('Shift name is required'); return; }
+    if (!shiftForm.shiftStart || !shiftForm.shiftEnd) { setShiftError('Start and end time are required'); return; }
     setShiftLoading(true);
     try {
+      const token = getToken() || '';
       await apiCall('/attendance/shift', {
         method: 'POST',
         body: JSON.stringify({
           name: shiftForm.name.trim(),
-          shiftStart: shiftForm.shiftStart,
-          shiftEnd: shiftForm.shiftEnd,
+          shiftStart: shiftForm.shiftStart,           // "HH:MM"
+          shiftEnd: shiftForm.shiftEnd,               // "HH:MM"
           gracePeriod: parseInt(shiftForm.gracePeriod) || 30,
-          departmentId: shiftForm.departmentId || null,
+          departmentId: shiftForm.departmentId || null, // null = company-wide
         }),
       }, token);
-      showSuccessMsg('Office timings saved!');
+      showSuccessMsg('Office timings saved! Check-ins will now follow this shift.');
+      // refresh shift list
       const shiftData = await apiCall('/attendance/shift', {}, token).catch(() => []);
       setShifts(shiftData || []);
     } catch (err: any) {
@@ -250,6 +281,14 @@ export default function AttendancePage() {
     } finally {
       setShiftLoading(false);
     }
+  };
+
+  const initBulkForms = () => {
+    const forms: Record<string, { status: string; checkIn: string; checkOut: string }> = {};
+    employees.forEach(emp => {
+      forms[emp.id] = { status: 'present', checkIn: '09:00', checkOut: '17:00' };
+    });
+    setBulkForms(forms);
   };
 
   const openEditModal = (record: AttendanceRecord) => {
@@ -270,6 +309,53 @@ export default function AttendancePage() {
     return matchSearch && matchStatus;
   });
 
+  const handleSaveWorkingDays = async () => {
+    setSettingsLoading(true);
+    try {
+      const token = getToken();
+      await apiCall('/attendance/company-settings', { method: 'PUT', body: JSON.stringify({ workingDays: workingDays.join(',') }) }, token || '');
+      showSuccessMsg('Working days saved successfully!');
+    } catch (err: any) {
+      showSuccessMsg('Error: ' + (err.message || 'Failed to save'));
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleAddHoliday = async () => {
+    if (!holidayForm.name || !holidayForm.startDate || !holidayForm.endDate) return;
+    try {
+      const token = getToken();
+      const h = await apiCall('/attendance/company-holidays', { method: 'POST', body: JSON.stringify(holidayForm) }, token || '');
+      setHolidays(prev => [...prev, h]);
+      setHolidayForm({ name: '', startDate: '', endDate: '' });
+      showSuccessMsg('Holiday added!');
+    } catch (err: any) {
+      showSuccessMsg('Error: ' + (err.message || 'Failed to add holiday'));
+    }
+  };
+
+  const handleDeleteHoliday = async (id: string) => {
+    try {
+      const token = getToken();
+      await apiCall(`/attendance/company-holidays/${id}`, { method: 'DELETE' }, token || '');
+      setHolidays(prev => prev.filter(h => h.id !== id));
+      showSuccessMsg('Holiday deleted!');
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const DAYS = [
+    { value: '0', label: 'Sun' },
+    { value: '1', label: 'Mon' },
+    { value: '2', label: 'Tue' },
+    { value: '3', label: 'Wed' },
+    { value: '4', label: 'Thu' },
+    { value: '5', label: 'Fri' },
+    { value: '6', label: 'Sat' },
+  ];
+
   const attendancePct = summary?.totalEmployees
     ? Math.round((summary.present / summary.totalEmployees) * 100)
     : 0;
@@ -277,7 +363,7 @@ export default function AttendancePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -285,15 +371,10 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6">
 
+      {/* Success Toast */}
       {success && (
         <div className="fixed top-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">
           ✅ {success}
-        </div>
-      )}
-
-      {error && (
-        <div className="fixed top-6 right-6 bg-red-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">
-          ❌ {error}
         </div>
       )}
 
@@ -305,205 +386,135 @@ export default function AttendancePage() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
+
       </div>
 
-      {/* ✅ CHECK-IN / CHECK-OUT CARD — visible to all users who have employeeId */}
-      {user?.employeeId && (
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-sm font-medium">Today's Attendance</p>
-              <p className="text-2xl font-bold mt-1">{user.name}</p>
-              {todayRecord ? (
-                <div className="mt-2 space-y-1">
-                  <p className="text-blue-100 text-sm">
-                    Check-in: <span className="text-white font-semibold">
-                      {todayRecord.checkIn
-                        ? new Date(todayRecord.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '—'}
-                    </span>
-                  </p>
-                  {todayRecord.checkOut && (
-                    <p className="text-blue-100 text-sm">
-                      Check-out: <span className="text-white font-semibold">
-                        {new Date(todayRecord.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </p>
-                  )}
-                  <span className={`inline-block text-xs px-2.5 py-0.5 rounded-full font-semibold mt-1 ${
-                    todayRecord.status === 'present' ? 'bg-green-400 text-green-900'
-                    : todayRecord.status === 'late' ? 'bg-yellow-400 text-yellow-900'
-                    : 'bg-red-400 text-red-900'
-                  }`}>
-                    {todayRecord.status}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-blue-200 text-sm mt-2">Not checked in yet</p>
-              )}
+      {/* Today Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Present', value: summary?.present ?? 0, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
+          { label: 'Absent', value: summary?.absent ?? 0, color: 'text-red-500', bg: 'bg-red-50', icon: '❌' },
+          { label: 'Late', value: summary?.late ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏰' },
+          { label: 'Total Employees', value: summary?.totalEmployees ?? 0, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👥' },
+        ].map((s, i) => (
+          <div key={i} className={`${s.bg} rounded-2xl p-5`}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+              <span className="text-xl">{s.icon}</span>
             </div>
-            <div className="flex flex-col gap-2">
-              {!checkedInToday ? (
-                <button
-                  onClick={handleCheckIn}
-                  disabled={checkInLoading}
-                  className="bg-white text-blue-700 hover:bg-blue-50 font-bold px-6 py-3 rounded-xl text-sm disabled:opacity-50 shadow transition-all"
-                >
-                  {checkInLoading ? 'Recording...' : '⚡ Check In'}
-                </button>
-              ) : !checkedOutToday ? (
-                <button
-                  onClick={handleCheckOut}
-                  disabled={checkInLoading}
-                  className="bg-orange-400 hover:bg-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm disabled:opacity-50 shadow transition-all"
-                >
-                  {checkInLoading ? 'Recording...' : '🔴 Check Out'}
-                </button>
-              ) : (
-                <div className="bg-white/20 rounded-xl px-6 py-3 text-center">
-                  <p className="text-white font-semibold text-sm">✅ Done for today</p>
-                </div>
-              )}
-            </div>
+            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Attendance Rate Bar */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-semibold text-gray-900">Today's Attendance Rate</p>
+          <p className={`text-lg font-bold ${attendancePct >= 80 ? 'text-green-600' : attendancePct >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>
+            {attendancePct}%
+          </p>
+        </div>
+        <div className="bg-gray-100 rounded-full h-3 overflow-hidden">
+          <div className="flex h-full rounded-full overflow-hidden">
+            <div className="bg-green-500 transition-all" style={{ width: `${summary?.totalEmployees ? (summary.present / summary.totalEmployees) * 100 : 0}%` }} />
+            <div className="bg-yellow-400 transition-all" style={{ width: `${summary?.totalEmployees ? (summary.late / summary.totalEmployees) * 100 : 0}%` }} />
+            <div className="bg-red-400 transition-all" style={{ width: `${summary?.totalEmployees ? (summary.absent / summary.totalEmployees) * 100 : 0}%` }} />
           </div>
         </div>
-      )}
-
-      {/* Summary Cards — managers/admins */}
-      {!isEmp && (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Present', value: summary?.present ?? 0, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
-              { label: 'Absent', value: summary?.absent ?? 0, color: 'text-red-500', bg: 'bg-red-50', icon: '❌' },
-              { label: 'Late', value: summary?.late ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏰' },
-              { label: 'Total Employees', value: summary?.totalEmployees ?? 0, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👥' },
-            ].map((s, i) => (
-              <div key={i} className={`${s.bg} rounded-2xl p-5`}>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-                  <span className="text-xl">{s.icon}</span>
-                </div>
-                <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold text-gray-900">Today's Attendance Rate</p>
-              <p className={`text-lg font-bold ${attendancePct >= 80 ? 'text-green-600' : attendancePct >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>
-                {attendancePct}%
-              </p>
-            </div>
-            <div className="bg-gray-100 rounded-full h-3 overflow-hidden">
-              <div className="flex h-full rounded-full overflow-hidden">
-                <div className="bg-green-500" style={{ width: `${summary?.totalEmployees ? (summary.present / summary.totalEmployees) * 100 : 0}%` }} />
-                <div className="bg-yellow-400" style={{ width: `${summary?.totalEmployees ? (summary.late / summary.totalEmployees) * 100 : 0}%` }} />
-                <div className="bg-red-400" style={{ width: `${summary?.totalEmployees ? (summary.absent / summary.totalEmployees) * 100 : 0}%` }} />
-              </div>
-            </div>
-            <div className="flex gap-4 mt-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full inline-block" />Present</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-400 rounded-full inline-block" />Late</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded-full inline-block" />Absent</span>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Tabs — managers and above only */}
-      {!isEmp && (
-        <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm flex-wrap">
-          {([
-            { key: 'today', label: '📅 Today' },
-            { key: 'history', label: '📋 By Date' },
-            canSetShifts && { key: 'shifts', label: '⚙️ Shift Settings' },
-          ] as any[]).filter(Boolean).map((tab: any) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.key ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex gap-4 mt-2 text-xs text-gray-500">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full inline-block"></span>Present</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-400 rounded-full inline-block"></span>Late</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded-full inline-block"></span>Absent</span>
         </div>
-      )}
+      </div>
 
-      {/* EMPLOYEE — show their own history only */}
-      {isEmp && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-5 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">My Attendance History</h2>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {records.filter(r => r.employee?.user?.email === user?.email).length === 0 ? (
-              <div className="p-12 text-center text-gray-400 text-sm">No attendance records yet.</div>
-            ) : (
-              records
-                .filter(r => r.employee?.user?.email === user?.email)
-                .slice(0, 30)
-                .map(record => (
-                  <div key={record.id} className="px-5 py-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {new Date(record.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {record.checkIn ? `In: ${new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'No check-in'}
-                        {record.checkOut ? ` · Out: ${new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
-                      </p>
-                    </div>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
-                      {record.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                ))
-            )}
-          </div>
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm flex-wrap">
+        {([
+          { key: 'today', label: '📅 Today' },
+          { key: 'history', label: '📋 By Date' },
+          canSetShifts && { key: 'shifts', label: '⚙️ Shift Settings' },
+        ] as any[]).filter(Boolean).map((tab: any) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === tab.key ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* TODAY TAB */}
-      {!isEmp && activeTab === 'today' && (
+      {activeTab === 'today' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100">
             <div className="flex flex-col sm:flex-row gap-3">
-              <input type="text" placeholder="Search by name or code..."
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+              <input
+                type="text"
+                placeholder="Search by name or code..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              />
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              >
                 <option value="all">All Status</option>
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
               </select>
             </div>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Employee', 'Code', 'Status', 'Check In', 'Check Out', canManage && 'Actions'].filter(Boolean).map(h => (
+                  {['Employee', 'Code', 'Status', 'Check In', 'Check Out'].map(h => (
                     <th key={h as string} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">No attendance records for today.</td></tr>
+                  <tr>
+                    <td colSpan={6} className="px-6 py-16 text-center">
+                      <p className="text-3xl mb-3">📅</p>
+                      <p className="text-gray-500 font-medium">No attendance records for today</p>
+                      {canManage && (
+                        <button onClick={() => setShowMarkModal(true)} className="mt-3 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm">
+                          Mark Now
+                        </button>
+                      )}
+                    </td>
+                  </tr>
                 ) : (
                   filtered.map(record => (
-                    <tr key={record.id} className="hover:bg-gray-50">
+                    <tr key={record.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="bg-blue-100 text-blue-700 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0">
                             {record.employee?.user?.name?.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900 text-sm">{record.employee?.user?.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-gray-900 text-sm">{record.employee?.user?.name}</p>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                                record.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                record.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                                record.employee?.user?.role === 'COMPANY_ADMIN' ? 'bg-purple-100 text-purple-700' :
+                                'bg-green-100 text-green-700'
+                              }`}>
+                                {record.employee?.user?.role === 'HR_MANAGER' ? 'HR' :
+                                 record.employee?.user?.role === 'DEPT_MANAGER' ? 'DM' :
+                                 record.employee?.user?.role === 'COMPANY_ADMIN' ? 'Admin' : 'Emp'}
+                              </span>
+                            </div>
                             <p className="text-xs text-gray-400">{record.employee?.user?.email}</p>
                           </div>
                         </div>
@@ -520,14 +531,7 @@ export default function AttendancePage() {
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
-                      {canManage && (
-                        <td className="px-6 py-4">
-                          <button onClick={() => openEditModal(record)}
-                            className="text-xs bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-2.5 py-1.5 rounded-lg">
-                            Edit
-                          </button>
-                        </td>
-                      )}
+
                     </tr>
                   ))
                 )}
@@ -538,25 +542,37 @@ export default function AttendancePage() {
       )}
 
       {/* BY DATE TAB */}
-      {!isEmp && activeTab === 'history' && (
+      {activeTab === 'history' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Date:</label>
-                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
               </div>
-              <input type="text" placeholder="Search..." value={searchQuery}
+              <input
+                type="text"
+                placeholder="Search by name or code..."
+                value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              />
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              >
                 <option value="all">All Status</option>
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
               </select>
             </div>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
@@ -568,10 +584,15 @@ export default function AttendancePage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">No records for {selectedDate}.</td></tr>
+                  <tr>
+                    <td colSpan={7} className="px-6 py-16 text-center">
+                      <p className="text-3xl mb-3">📋</p>
+                      <p className="text-gray-500 font-medium">No records for {selectedDate}</p>
+                    </td>
+                  </tr>
                 ) : (
                   filtered.map(record => (
-                    <tr key={record.id} className="hover:bg-gray-50">
+                    <tr key={record.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="bg-blue-100 text-blue-700 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0">
@@ -610,62 +631,97 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* SHIFT SETTINGS TAB */}
-      {!isEmp && activeTab === 'shifts' && canSetShifts && (
+      {activeTab === 'shifts' && canSetShifts && (
         <div className="space-y-5">
+          {/* Set Office Timings */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 className="font-semibold text-gray-900">Set Office Timings</h2>
             <p className="text-xs text-gray-400 mt-0.5 mb-4">
-              Employees who check in after start + grace period are auto-marked <strong>late</strong>.
+              Once set, employees who check in late (after start + grace) are auto-marked <b>late</b>; on-time check-ins are marked <b>present</b>.
             </p>
-            {shiftError && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{shiftError}</div>}
+
+            {shiftError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{shiftError}</div>
+            )}
+
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Shift Name *</label>
-                <input type="text" value={shiftForm.name} onChange={e => setShiftForm({ ...shiftForm, name: e.target.value })}
+                <input
+                  type="text"
+                  value={shiftForm.name}
+                  onChange={e => setShiftForm({ ...shiftForm, name: e.target.value })}
                   placeholder="e.g. General Shift"
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
-                  <input type="time" value={shiftForm.shiftStart} onChange={e => setShiftForm({ ...shiftForm, shiftStart: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                  <input
+                    type="time"
+                    value={shiftForm.shiftStart}
+                    onChange={e => setShiftForm({ ...shiftForm, shiftStart: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
-                  <input type="time" value={shiftForm.shiftEnd} onChange={e => setShiftForm({ ...shiftForm, shiftEnd: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                  <input
+                    type="time"
+                    value={shiftForm.shiftEnd}
+                    onChange={e => setShiftForm({ ...shiftForm, shiftEnd: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Grace Period (minutes)</label>
-                  <input type="number" value={shiftForm.gracePeriod} onChange={e => setShiftForm({ ...shiftForm, gracePeriod: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                  <input
+                    type="number"
+                    value={shiftForm.gracePeriod}
+                    onChange={e => setShiftForm({ ...shiftForm, gracePeriod: e.target.value })}
+                    placeholder="30"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Late only after start + this many minutes</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Applies To</label>
-                  <select value={shiftForm.departmentId} onChange={e => setShiftForm({ ...shiftForm, departmentId: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                    <option value="">Whole Company</option>
+                  <select
+                    value={shiftForm.departmentId}
+                    onChange={e => setShiftForm({ ...shiftForm, departmentId: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  >
+                    <option value="">Whole Company (default)</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name} only</option>)}
                   </select>
+                  <p className="text-xs text-gray-400 mt-1">Department shift overrides company default</p>
                 </div>
               </div>
-              <button onClick={handleSaveShift} disabled={shiftLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-medium">
+
+              <button
+                onClick={handleSaveShift}
+                disabled={shiftLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-medium transition-colors mt-2"
+              >
                 {shiftLoading ? 'Saving...' : '💾 Save Office Timings'}
               </button>
             </div>
           </div>
 
+          {/* Existing Shifts */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-5 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900">Active Shifts</h2>
             </div>
             {shifts.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 text-sm">No shifts configured yet.</div>
+              <div className="p-12 text-center text-gray-400 text-sm">
+                No shifts configured yet. Set one above to start tracking late arrivals.
+              </div>
             ) : (
               <div className="divide-y divide-gray-50">
                 {shifts.map(shift => (
@@ -685,50 +741,77 @@ export default function AttendancePage() {
               </div>
             )}
           </div>
-        </div>
-      )}
+          {/* Working Days */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900 mb-1">Working Days</h2>
+            <p className="text-xs text-gray-400 mb-4">Select which days employees are expected to work</p>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {DAYS.map(day => (
+                <button key={day.value} onClick={() => {
+                  setWorkingDays(prev =>
+                    prev.includes(day.value) ? prev.filter(d => d !== day.value) : [...prev, day.value]
+                  );
+                }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
+                    workingDays.includes(day.value)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                  }`}>
+                  {day.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={handleSaveWorkingDays} disabled={settingsLoading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-medium">
+              {settingsLoading ? 'Saving...' : '💾 Save Working Days'}
+            </button>
+          </div>
 
-      {/* EDIT MODAL */}
-      {showEditModal && selectedRecord && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Edit Attendance</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
-            <div className="bg-blue-50 rounded-xl p-3 mb-4">
-              <p className="font-semibold text-gray-900 text-sm">{selectedRecord.employee?.user?.name}</p>
-              <p className="text-xs text-gray-500">{new Date(selectedRecord.date).toLocaleDateString()}</p>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                </select>
+          {/* Public Holidays */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900 mb-1">Public Holidays</h2>
+            <p className="text-xs text-gray-400 mb-4">No attendance required on these days</p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+              <input type="text" value={holidayForm.name} onChange={e => setHolidayForm({...holidayForm, name: e.target.value})}
+                placeholder="Holiday name (e.g. Eid ul Fitr)"
+                className="sm:col-span-2 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+              <div className="flex items-center gap-1">
+                <input type="date" value={holidayForm.startDate} onChange={e => setHolidayForm({...holidayForm, startDate: e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check In</label>
-                  <input type="time" value={editForm.checkIn} onChange={e => setEditForm({ ...editForm, checkIn: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check Out</label>
-                  <input type="time" value={editForm.checkOut} onChange={e => setEditForm({ ...editForm, checkOut: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                </div>
+              <div className="flex items-center gap-1">
+                <input type="date" value={holidayForm.endDate} onChange={e => setHolidayForm({...holidayForm, endDate: e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
               </div>
             </div>
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleEdit} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Save Changes</button>
-            </div>
+            <button onClick={handleAddHoliday}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium mb-4">
+              + Add Holiday
+            </button>
+            {holidays.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-4">No public holidays added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {holidays.map(h => (
+                  <div key={h.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{h.name}</p>
+                      <p className="text-xs text-gray-400">{new Date(h.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{h.endDate && h.endDate !== h.startDate ? ` → ${new Date(h.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</p>
+                    </div>
+                    <button onClick={() => handleDeleteHoliday(h.id)}
+                      className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50">
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      {/* MARK SINGLE MODAL */}
+
     </div>
   );
 }

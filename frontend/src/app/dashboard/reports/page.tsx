@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth, canManagePayroll, isDeptManager, isEmployee } from '@/lib/withAuth';
+import { useRouter } from 'next/navigation';
+import { useAuth, canManagePayroll, isDeptManager, isEmployee , hasPermission } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface AttendanceSummary {
@@ -69,7 +70,15 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ReportsPage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
+
+  // ✅ Page permission guard
+  useEffect(() => {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'reports', 'view')) {
+      router.replace('/dashboard');
+    }
+  }, [user]);
   const [activeTab, setActiveTab] = useState<ReportTab>('attendance');
   const [loading, setLoading] = useState(false);
 
@@ -151,7 +160,7 @@ export default function ReportsPage() {
 
   // ✅ All deps now satisfied — no warnings
   useEffect(() => {
-    if (!user) return;
+    if (authLoading || !user) return;
     if (isEmp) {
       fetchEmployeeData();
     } else {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
 
@@ -6,13 +6,14 @@ import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
 export class LeavesService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(companyId: string) {
+    async findAll(companyId: number) {
         return this.prisma.leave.findMany({
             where: { companyId },
             include: {
                 employee: {
                     include: {
-                        user: { select: { id: true, name: true, email: true } },
+                        user: { select: { id: true, name: true, email: true, role: true } },
+                        department: { select: { name: true } },
                     },
                 },
             },
@@ -20,13 +21,14 @@ export class LeavesService {
         });
     }
 
-    async findPending(companyId: string) {
+    async findPending(companyId: number) {
         return this.prisma.leave.findMany({
             where: { companyId, status: 'pending' },
             include: {
                 employee: {
                     include: {
-                        user: { select: { id: true, name: true, email: true } },
+                        user: { select: { id: true, name: true, email: true, role: true } },
+                        department: { select: { name: true } },
                     },
                 },
             },
@@ -34,24 +36,35 @@ export class LeavesService {
         });
     }
 
-    async findByEmployee(employeeId: string, companyId: string) {
+    async findByEmployee(employeeId: number, companyId: number) {
         return this.prisma.leave.findMany({
             where: { employeeId, companyId },
             orderBy: { createdAt: 'desc' },
         });
     }
 
-    async getBalance(employeeId: string, companyId: string) {
+    async getBalance(employeeId: number, companyId: number) {
         return this.prisma.leaveBalance.findMany({
             where: { employeeId, companyId },
         });
     }
 
-    async create(dto: CreateLeaveDto, companyId: string) {
+    async create(dto: CreateLeaveDto, companyId: number) {
+        const empId = Number(dto.employeeId);
+        const employee = await this.prisma.employee.findFirst({
+            where: { id: empId, companyId },
+        });
+        if (employee?.departmentId) {
+            const department = await this.prisma.department.findUnique({ where: { id: employee.departmentId } });
+            if (department && department.status === 'inactive') {
+                throw new BadRequestException('Your department is currently inactive. Please contact your administrator.');
+            }
+        }
+
         return this.prisma.leave.create({
             data: {
                 companyId,
-                employeeId: dto.employeeId,
+                employeeId: empId,
                 leaveType: dto.leaveType,
                 startDate: new Date(dto.startDate),
                 endDate: new Date(dto.endDate),
@@ -62,14 +75,15 @@ export class LeavesService {
             include: {
                 employee: {
                     include: {
-                        user: { select: { id: true, name: true, email: true } },
+                        user: { select: { id: true, name: true, email: true, role: true } },
+                        department: { select: { name: true } },
                     },
                 },
             },
         });
     }
 
-    async approve(id: string, companyId: string, approvedBy: string) {
+    async approve(id: number, companyId: number, approvedBy: number) {
         const leave = await this.prisma.leave.findFirst({ where: { id, companyId } });
         if (!leave) throw new NotFoundException('Leave not found');
 
@@ -78,7 +92,6 @@ export class LeavesService {
             data: { status: 'approved', approvedBy },
         });
 
-        // Update leave balance
         const balance = await this.prisma.leaveBalance.findFirst({
             where: {
                 employeeId: leave.employeeId,
@@ -101,21 +114,20 @@ export class LeavesService {
         return updated;
     }
 
-    async reject(id: string, companyId: string) {
+    async reject(id: number, companyId: number) {
         const leave = await this.prisma.leave.findFirst({ where: { id, companyId } });
         if (!leave) throw new NotFoundException('Leave not found');
-
         return this.prisma.leave.update({
             where: { id },
             data: { status: 'rejected' },
         });
     }
 
-    async createBalance(dto: CreateLeaveBalanceDto, companyId: string) {
+    async createBalance(dto: CreateLeaveBalanceDto, companyId: number) {
         return this.prisma.leaveBalance.create({
             data: {
                 companyId,
-                employeeId: dto.employeeId,
+                employeeId: Number(dto.employeeId),
                 leaveType: dto.leaveType,
                 total: dto.total,
                 used: 0,

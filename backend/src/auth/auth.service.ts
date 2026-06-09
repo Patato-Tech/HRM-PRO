@@ -12,7 +12,6 @@ export class AuthService {
     ) { }
 
     async register(dto: RegisterDto) {
-        // Platform Admin
         if (dto.role === 'PLATFORM_ADMIN') {
             const existing = await this.prisma.platformAdmin.findUnique({ where: { email: dto.email } });
             if (existing) throw new ConflictException('Admin already exists');
@@ -33,17 +32,17 @@ export class AuthService {
             };
         }
 
-        // Company user registration
+        const companyId = Number(dto.companyId);
         const existingUser = await this.prisma.user.findFirst({
-            where: { email: dto.email, companyId: dto.companyId },
+            where: { email: dto.email, companyId },
         });
         if (existingUser) throw new ConflictException('User already exists');
 
-        const company = await this.prisma.company.findUnique({ where: { id: dto.companyId } });
+        const company = await this.prisma.company.findUnique({ where: { id: companyId } });
         if (!company) throw new ConflictException('Company not found');
-        if (company.status === 'inactive') throw new UnauthorizedException('Company is deactivated');
+        if (company.status === 'pending') throw new UnauthorizedException('Your account is pending approval by the platform administrator.');
+        if (company.status === 'inactive') throw new UnauthorizedException('Your company account has been deactivated.');
 
-        // Enforce provisioning rules if actorRole is provided
         if (dto.actorRole) {
             const allowedCreations: Record<string, string[]> = {
                 COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER'],
@@ -63,7 +62,7 @@ export class AuthService {
                 email: dto.email,
                 passwordHash: hashedPassword,
                 role: dto.role || 'EMPLOYEE',
-                companyId: dto.companyId,
+                companyId,
             },
         });
 
@@ -84,15 +83,27 @@ export class AuthService {
         if (!user.isActive) throw new UnauthorizedException('Your account is deactivated');
 
         const company = await this.prisma.company.findUnique({ where: { id: user.companyId } });
+        if (company && company.status === 'pending') {
+            throw new UnauthorizedException('Your account is pending approval by the platform administrator.');
+        }
         if (company && company.status === 'inactive') {
             throw new UnauthorizedException('Your company has been deactivated');
+        }
+        if (user.name && user.name.startsWith('DELETED:')) {
+            throw new UnauthorizedException('COMPANY_DELETED: Your company account has been permanently deleted. Please contact the platform administrator.');
         }
 
         const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
 
-        // Get employee record to include employeeId + departmentId + designation in token
-        const employee = await this.prisma.employee.findUnique({ where: { userId: user.id } });
+        const employee = await this.prisma.employee.findUnique({
+            where: { userId: user.id },
+            include: { customRole: true },
+        });
+
+        const permissions = employee?.customRole?.permissions || null;
+        const customRoleName = employee?.customRole?.name || null;
+        const customRoleScope = employee?.customRole?.scope || null;
 
         const token = this.jwtService.sign({
             sub: user.id,
@@ -101,6 +112,8 @@ export class AuthService {
             companyId: user.companyId,
             employeeId: employee?.id || null,
             departmentId: employee?.departmentId || null,
+            permissions,
+            customRoleScope,
         });
 
         return {
@@ -113,19 +126,36 @@ export class AuthService {
                 role: user.role,
                 companyId: user.companyId,
                 companyName: company?.name || '',
-                employeeId: employee?.id || null,           // already existed
-                departmentId: employee?.departmentId || null, // ✅ ADDED
-                designation: employee?.designation || null,   // ✅ ADDED
+                employeeId: employee?.id || null,
+                departmentId: employee?.departmentId || null,
+                designation: employee?.designation || null,
+                customRoleName,
+                permissions,
+                customRoleScope,
             },
         };
     }
 
-    async getProfile(userId: string) {
+    async getProfile(userId: number, tokenIat?: number) {
+        const iat = tokenIat;
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
-            select: { id: true, name: true, email: true, role: true, companyId: true, isActive: true, createdAt: true },
+            select: { id: true, name: true, email: true, role: true, companyId: true, isActive: true, createdAt: true, sessionInvalidatedAt: true },
         });
         if (!user) throw new UnauthorizedException('User not found');
+        if (!user.isActive) throw new UnauthorizedException('Your account is deactivated');
+        if (iat && user.sessionInvalidatedAt) {
+            const tokenIssuedAt = new Date(iat * 1000);
+            if (user.sessionInvalidatedAt > tokenIssuedAt) {
+                throw new UnauthorizedException('SESSION_INVALIDATED: Your password has been changed by the platform administrator.');
+            }
+        }
+        if (user.companyId) {
+            const company = await this.prisma.company.findUnique({ where: { id: user.companyId } });
+            if (!company || company.status === 'deleted') throw new UnauthorizedException('COMPANY_DELETED: Your company has been permanently deleted.');
+            if (company.status === 'inactive') throw new UnauthorizedException('COMPANY_DEACTIVATED: Your company has been deactivated by the platform administrator.');
+            if (company.status === 'pending') throw new UnauthorizedException('Your account is pending approval.');
+        }
 
         const employee = await this.prisma.employee.findUnique({
             where: { userId },
@@ -135,7 +165,7 @@ export class AuthService {
         return { ...user, employee };
     }
 
-    async updateProfile(userId: string, name: string) {
+    async updateProfile(userId: number, name: string) {
         return this.prisma.user.update({
             where: { id: userId },
             data: { name },
@@ -143,7 +173,7 @@ export class AuthService {
         });
     }
 
-    async updatePassword(userId: string, currentPassword: string, newPassword: string) {
+    async updatePassword(userId: number, currentPassword: string, newPassword: string) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new UnauthorizedException('User not found');
 
@@ -159,7 +189,7 @@ export class AuthService {
         return { message: 'Password updated successfully' };
     }
 
-    async getCompanyInfo(companyId: string) {
+    async getCompanyInfo(companyId: number) {
         const company = await this.prisma.company.findUnique({
             where: { id: companyId },
             select: { id: true, name: true, industry: true, address: true, status: true, createdAt: true },

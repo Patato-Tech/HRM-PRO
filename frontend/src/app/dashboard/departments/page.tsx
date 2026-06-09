@@ -1,27 +1,44 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, canManageDepartments } from '@/lib/withAuth';
+import { useRouter } from 'next/navigation';
+import { useAuth, canManageDepartments , hasPermission } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
   id: string;
   employeeCode: string;
   designation: string;
-  user: { name: string; email: string };
+  user: { name: string; email: string; role: string };
 }
+
+const ROLE_BADGES: Record<string, string> = {
+  COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
+  HR_MANAGER: 'bg-blue-100 text-blue-700',
+  DEPT_MANAGER: 'bg-yellow-100 text-yellow-700',
+  EMPLOYEE: 'bg-green-100 text-green-700',
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  COMPANY_ADMIN: 'Company Admin',
+  HR_MANAGER: 'HR Manager',
+  DEPT_MANAGER: 'Dept Manager',
+  EMPLOYEE: 'Employee',
+};
 
 interface Department {
   id: string;
   name: string;
   headId: string | null;
   createdAt: string;
+  status: string;
   _count: { employees: number };
   employees?: Employee[];
 }
 
 export default function DepartmentsPage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
+  const router = useRouter();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +57,13 @@ export default function DepartmentsPage() {
 
   const canManage = canManageDepartments(user?.role || '');
 
+
+  // ✅ Page permission guard
+  useEffect(() => {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'departments', 'view')) {
+      router.replace('/dashboard');
+    }
+  }, [user]);
   useEffect(() => {
     if (user) fetchData();
   }, [user]);
@@ -110,6 +134,16 @@ export default function DepartmentsPage() {
     }
   };
 
+  const handleToggleStatus = async (dept: Department) => {
+    try {
+      const token = getToken();
+      const res = await apiCall(`/departments/${dept.id}/toggle-status`, { method: 'PUT' }, token || '');
+      setDepartments(prev => prev.map(d => d.id === dept.id ? { ...d, status: res.status } : d));
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
   const handleViewDetail = async (dept: Department) => {
     setSelectedDept(dept);
     setShowDetailModal(true);
@@ -171,22 +205,28 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-blue-50 rounded-2xl p-5 text-center">
           <p className="text-3xl font-bold text-blue-600">{departments.length}</p>
           <p className="text-xs text-gray-500 mt-1">Total Departments</p>
         </div>
         <div className="bg-green-50 rounded-2xl p-5 text-center">
-          <p className="text-3xl font-bold text-green-600">
-            {departments.reduce((sum, d) => sum + (d._count?.employees || 0), 0)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Total Employees</p>
+          <p className="text-3xl font-bold text-green-600">{departments.filter(d => d.status === 'active').length}</p>
+          <p className="text-xs text-gray-500 mt-1">Active</p>
+        </div>
+        <div className="bg-red-50 rounded-2xl p-5 text-center">
+          <p className="text-3xl font-bold text-red-500">{departments.filter(d => d.status === 'inactive').length}</p>
+          <p className="text-xs text-gray-500 mt-1">Inactive</p>
         </div>
         <div className="bg-purple-50 rounded-2xl p-5 text-center">
           <p className="text-3xl font-bold text-purple-600">
-            {departments.filter(d => (d._count?.employees || 0) > 0).length}
+            {departments.reduce((sum, d) => sum + (d._count?.employees || 0), 0)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Active Departments</p>
+          <div className="flex flex-wrap justify-center gap-1 mt-1">
+            <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">DM: {departments.reduce((sum, d) => sum + (d.employees?.filter(e => e.user.role === 'DEPT_MANAGER').length || 0), 0)}</span>
+            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Emp: {departments.reduce((sum, d) => sum + (d.employees?.filter(e => e.user.role === 'EMPLOYEE').length || 0), 0)}</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Total Employees</p>
         </div>
       </div>
 
@@ -238,12 +278,13 @@ export default function DepartmentsPage() {
                   <p className="text-xl font-bold text-gray-900">{dept._count?.employees || 0}</p>
                   <p className="text-xs text-gray-500">Employees</p>
                 </div>
-                <div className={`text-xs px-3 py-1.5 rounded-full font-semibold ${
-                  (dept._count?.employees || 0) > 0
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {(dept._count?.employees || 0) > 0 ? 'Active' : 'Empty'}
+                <div className="flex gap-1">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${dept.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {dept.status}
+                  </span>
+                  {(dept._count?.employees || 0) === 0 && (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-gray-100 text-gray-500">Empty</span>
+                  )}
                 </div>
               </div>
 
@@ -261,6 +302,12 @@ export default function DepartmentsPage() {
                       className="flex-1 bg-yellow-50 text-yellow-600 hover:bg-yellow-100 py-2 rounded-xl text-xs font-medium transition-colors"
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={() => handleToggleStatus(dept)}
+                      className={`px-3 py-2 rounded-xl text-xs transition-colors ${dept.status === 'active' ? 'bg-orange-50 text-orange-500 hover:bg-orange-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                    >
+                      {dept.status === 'active' ? '⏸️' : '▶️'}
                     </button>
                     <button
                       onClick={() => { setSelectedDept(dept); setShowDeleteModal(true); }}
@@ -308,7 +355,12 @@ export default function DepartmentsPage() {
                       <p className="font-semibold text-gray-900 text-sm">{emp.user.name}</p>
                       <p className="text-xs text-gray-400">{emp.designation || 'No designation'} • {emp.employeeCode}</p>
                     </div>
-                    <p className="text-xs text-gray-400">{emp.user.email}</p>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ROLE_BADGES[emp.user.role] || 'bg-gray-100 text-gray-600'}`}>
+                        {ROLE_LABELS[emp.user.role] || emp.user.role}
+                      </span>
+                      <p className="text-xs text-gray-400">{emp.user.email}</p>
+                    </div>
                   </div>
                 ))}
               </div>

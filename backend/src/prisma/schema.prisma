@@ -4,11 +4,11 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://root:@localhost:3306/hrmpro"
+  url      = env("DATABASE_URL")
 }
 
 model PlatformAdmin {
-  id           String   @id @default(uuid())
+  id           Int      @id @default(autoincrement())
   name         String
   email        String   @unique
   passwordHash String
@@ -17,14 +17,15 @@ model PlatformAdmin {
 }
 
 model Company {
-  id             String          @id @default(uuid())
+  id             Int              @id @default(autoincrement())
   name           String
   logo           String?
   industry       String?
   address        String?
-  status         String          @default("active")
+  status         String           @default("active")
   planId         String?
-  createdAt      DateTime        @default(now())
+  createdById    Int?
+  createdAt      DateTime         @default(now())
   users          User[]
   employees      Employee[]
   departments    Department[]
@@ -33,27 +34,32 @@ model Company {
   leaveBalances  LeaveBalance[]
   payrolls       Payroll[]
   shiftSchedules ShiftSchedule[]
+  settings       CompanySettings?
+  publicHolidays PublicHoliday[]
   deductionRules DeductionRule[]
+  roles          Role[]
 }
 
 model User {
-  id           String    @id @default(uuid())
-  companyId    String
-  name         String
-  email        String
-  passwordHash String
-  role         String
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  company      Company   @relation(fields: [companyId], references: [id])
-  employee     Employee?
+  id                   Int       @id @default(autoincrement())
+  companyId            Int
+  name                 String
+  email                String
+  passwordHash         String
+  role                 String
+  isActive             Boolean   @default(true)
+  sessionInvalidatedAt DateTime?
+  createdAt            DateTime  @default(now())
+  company              Company   @relation(fields: [companyId], references: [id])
+  employee             Employee?
 }
 
 model Department {
-  id             String          @id @default(uuid())
-  companyId      String
+  id             Int             @id @default(autoincrement())
+  companyId      Int
   name           String
-  headId         String?
+  headId         Int?
+  status         String          @default("active")
   createdAt      DateTime        @default(now())
   company        Company         @relation(fields: [companyId], references: [id])
   employees      Employee[]
@@ -61,12 +67,13 @@ model Department {
 }
 
 model Employee {
-  id            String         @id @default(uuid())
-  companyId     String
-  userId        String         @unique
+  id            Int            @id @default(autoincrement())
+  companyId     Int
+  userId        Int            @unique
   employeeCode  String
   designation   String?
-  departmentId  String?
+  departmentId  Int?
+  roleId        Int?
   salary        Float          @default(0)
   joinDate      DateTime       @default(now())
   status        String         @default("active")
@@ -74,22 +81,59 @@ model Employee {
   company       Company        @relation(fields: [companyId], references: [id])
   user          User           @relation(fields: [userId], references: [id])
   department    Department?    @relation(fields: [departmentId], references: [id])
+  customRole    Role?          @relation(fields: [roleId], references: [id])
   attendance    Attendance[]
   leaves        Leave[]
   leaveBalances LeaveBalance[]
   payrolls      Payroll[]
 }
 
+model Role {
+  id          Int        @id @default(autoincrement())
+  companyId   Int
+  name        String
+  description String?
+  isDefault   Boolean    @default(false)
+  scope       String     @default("all") // all | own_department
+  permissions Json       // stores permission object
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     Company    @relation(fields: [companyId], references: [id])
+  employees   Employee[]
+
+  @@unique([companyId, name])
+}
+
+model CompanySettings {
+  id          Int      @id @default(autoincrement())
+  companyId   Int      @unique
+  workingDays String   @default("1,2,3,4,5") // 0=Sun,1=Mon,...,6=Sat
+  timezone    String   @default("Asia/Karachi")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id])
+}
+
+model PublicHoliday {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id])
+}
+
 model ShiftSchedule {
-  id           String      @id @default(uuid())
-  companyId    String
-  departmentId String?
+  id           Int         @id @default(autoincrement())
+  companyId    Int
+  departmentId Int?
   name         String
   shiftStart   String
   shiftEnd     String
   gracePeriod  Int         @default(30)
   isActive     Boolean     @default(true)
-  createdById  String
+  createdById  Int
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   company      Company     @relation(fields: [companyId], references: [id])
@@ -97,8 +141,8 @@ model ShiftSchedule {
 }
 
 model DeductionRule {
-  id               String   @id @default(uuid())
-  companyId        String
+  id               Int      @id @default(autoincrement())
+  companyId        Int
   type             String   // LATE_ARRIVAL | HALF_DAY | UNAPPROVED_LEAVE
   deductPercentage Float    @default(0)
   isActive         Boolean  @default(true)
@@ -109,51 +153,52 @@ model DeductionRule {
 }
 
 model Attendance {
-  id         String    @id @default(uuid())
-  companyId  String
-  employeeId String
-  date       DateTime
-  checkIn    DateTime?
-  checkOut   DateTime?
-  status     String
-  createdAt  DateTime  @default(now())
-  company    Company   @relation(fields: [companyId], references: [id])
-  employee   Employee  @relation(fields: [employeeId], references: [id])
+  id        Int       @id @default(autoincrement())
+  companyId Int
+  employeeId Int
+  date      DateTime
+  checkIn   DateTime?
+  checkOut  DateTime?
+  status    String
+  createdAt DateTime  @default(now())
+  company   Company   @relation(fields: [companyId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id])
 }
 
 model Leave {
-  id         String   @id @default(uuid())
-  companyId  String
-  employeeId String
+  id         Int      @id @default(autoincrement())
+  companyId  Int
+  employeeId Int
   leaveType  String
   startDate  DateTime
   endDate    DateTime
   days       Int
   reason     String?
   status     String   @default("pending")
-  approvedBy String?
+  approvedBy Int?
   createdAt  DateTime @default(now())
   company    Company  @relation(fields: [companyId], references: [id])
   employee   Employee @relation(fields: [employeeId], references: [id])
 }
 
 model LeaveBalance {
-  id         String   @id @default(uuid())
-  companyId  String
-  employeeId String
+  id         Int      @id @default(autoincrement())
+  companyId  Int
+  employeeId Int
   leaveType  String
   total      Int      @default(0)
   used       Int      @default(0)
   remaining  Int      @default(0)
   year       Int
+  createdAt  DateTime @default(now())
   company    Company  @relation(fields: [companyId], references: [id])
   employee   Employee @relation(fields: [employeeId], references: [id])
 }
 
 model Payroll {
-  id         String   @id @default(uuid())
-  companyId  String
-  employeeId String
+  id         Int      @id @default(autoincrement())
+  companyId  Int
+  employeeId Int
   month      Int
   year       Int
   basic      Float
