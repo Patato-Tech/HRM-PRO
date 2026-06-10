@@ -14,15 +14,11 @@ interface Employee {
 
 const ROLE_BADGES: Record<string, string> = {
   COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
-  HR_MANAGER: 'bg-blue-100 text-blue-700',
-  DEPT_MANAGER: 'bg-yellow-100 text-yellow-700',
   EMPLOYEE: 'bg-green-100 text-green-700',
 };
 
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Company Admin',
-  HR_MANAGER: 'HR Manager',
-  DEPT_MANAGER: 'Dept Manager',
   EMPLOYEE: 'Employee',
 };
 
@@ -223,7 +219,7 @@ export default function DepartmentsPage() {
             {departments.reduce((sum, d) => sum + (d._count?.employees || 0), 0)}
           </p>
           <div className="flex flex-wrap justify-center gap-1 mt-1">
-            <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">DM: {departments.reduce((sum, d) => sum + (d.employees?.filter(e => e.user.role === 'DEPT_MANAGER').length || 0), 0)}</span>
+            <span className="text-xs </span>
             <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Emp: {departments.reduce((sum, d) => sum + (d.employees?.filter(e => e.user.role === 'EMPLOYEE').length || 0), 0)}</span>
           </div>
           <p className="text-xs text-gray-500 mt-1">Total Employees</p>
@@ -449,3 +445,4 @@ export default function DepartmentsPage() {
     </div>
   );
 }
+

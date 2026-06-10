@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -34,8 +34,8 @@ const ROLES = ['EMPLOYEE'];
 
 const roleColors: Record<string, string> = {
   COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
-  HR_MANAGER: 'bg-blue-100 text-blue-700',
-  DEPT_MANAGER: 'bg-yellow-100 text-yellow-700',
+  COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
+  EMPLOYEE: 'bg-green-100 text-green-700',
   EMPLOYEE: 'bg-green-100 text-green-700',
 };
 
@@ -374,7 +374,7 @@ export default function EmployeesPage() {
                     </td>
                     <td className="px-6 py-4 text-sm font-mono text-gray-600">{emp.employeeCode}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{emp.designation || '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{emp.user.role === 'HR_MANAGER' ? <span className="text-blue-600 font-medium">All Departments</span> : (emp.department?.name || '—')}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{emp.department?.name || '—'}</td>
                     {!hideSalary && (
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900">
                         {emp.salary != null ? `PKR ${emp.salary.toLocaleString()}` : '—'}
@@ -467,7 +467,7 @@ export default function EmployeesPage() {
                 { label: 'Employee Code', value: selectedEmployee.employeeCode },
                 { label: 'Status', value: selectedEmployee.status, badge: true },
                 { label: 'Designation', value: selectedEmployee.designation || '—' },
-                { label: 'Department', value: selectedEmployee.user.role === 'HR_MANAGER' ? 'All Departments' : (selectedEmployee.department?.name || '—') },
+                { label: 'Department', value: selectedEmployee.department?.name || '—' },
                 ...(!hideSalary ? [{ label: 'Salary', value: selectedEmployee.salary != null ? `PKR ${selectedEmployee.salary.toLocaleString()}` : '—' }] : []),
                 { label: 'Join Date', value: new Date(selectedEmployee.joinDate).toLocaleDateString() },
               ].map((item: any, i) => (
@@ -538,7 +538,7 @@ export default function EmployeesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {addForm.role !== 'HR_MANAGER' && (
+                {(
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                   <select value={addForm.departmentId} onChange={e => setAddForm({ ...addForm, departmentId: e.target.value })}
@@ -606,7 +606,7 @@ export default function EmployeesPage() {
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {selectedEmployee?.user?.role !== 'HR_MANAGER' && (
+                {(
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                   <select value={editForm.departmentId} onChange={e => setEditForm({ ...editForm, departmentId: e.target.value })}

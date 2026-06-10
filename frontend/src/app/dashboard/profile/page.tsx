@@ -29,16 +29,13 @@ const MONTHS = [
 ];
 
 const ROLE_LABELS: Record<string, string> = {
+const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Company Admin',
-  HR_MANAGER:    'HR Manager',
-  DEPT_MANAGER:  'Department Manager',
   EMPLOYEE:      'Employee',
 };
 
 const ROLE_COLORS: Record<string, string> = {
   COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
-  HR_MANAGER:    'bg-blue-100 text-blue-700',
-  DEPT_MANAGER:  'bg-yellow-100 text-yellow-700',
   EMPLOYEE:      'bg-green-100 text-green-700',
 };
 
@@ -244,8 +241,8 @@ export default function ProfilePage() {
             <h1 className="text-xl font-bold text-gray-900 truncate">{user.name}</h1>
             <p className="text-sm text-gray-500 truncate">{user.email}</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${ROLE_COLORS[user.role] || 'bg-gray-100 text-gray-700'}`}>
-                {ROLE_LABELS[user.role] || user.role}
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${(user.customRoleName ? 'bg-blue-100 text-blue-700' : ROLE_COLORS[user.role]) || 'bg-gray-100 text-gray-700'}`}>
+                {(user.customRoleName || ROLE_LABELS[user.role] || user.role)}
               </span>
               {user.companyName && (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
@@ -304,7 +301,7 @@ export default function ProfilePage() {
                 <div>
                   <label className="text-xs font-semibold text-gray-500 block mb-1">Role</label>
                   <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500 cursor-not-allowed">
-                    {ROLE_LABELS[user.role] || user.role}
+                    {(user.customRoleName || ROLE_LABELS[user.role] || user.role)}
                   </div>
                 </div>
               </div>
@@ -487,3 +484,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

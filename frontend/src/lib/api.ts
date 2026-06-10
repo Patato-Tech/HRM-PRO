@@ -1,9 +1,9 @@
-const API_URL = 'http://159.65.154.28/testing-api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 function forceLogout(message: string) {
     localStorage.setItem('session_message', message);
-    ['token','user_role','user_name','user_email','user_id','user_companyId',
-     'user_companyName','user_employeeId','user_departmentId','user_designation']
+    ['token', 'user_role', 'user_name', 'user_email', 'user_id', 'user_companyId',
+        'user_companyName', 'user_employeeId', 'user_departmentId', 'user_designation']
         .forEach(k => localStorage.removeItem(k));
     // Detect if running on staging (/testing) or production
     const isStaging = window.location.pathname.startsWith('/testing');

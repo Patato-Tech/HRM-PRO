@@ -165,3 +165,16 @@ export const canManageEmployees = (role: string) => ['COMPANY_ADMIN', 'HR_MANAGE
 export const canManagePayroll = (role: string) => ['COMPANY_ADMIN', 'HR_MANAGER'].includes(role);
 export const canManageDepartments = (role: string) => ['COMPANY_ADMIN'].includes(role);
 export const canApproveLeaves = (role: string) => ['COMPANY_ADMIN', 'HR_MANAGER', 'DEPT_MANAGER'].includes(role);
+
+// ? Universal role badge helper - use everywhere
+export const getRoleName = (userRole: string, customRole?: { name: string } | null): string => {
+  if (customRole?.name) return customRole.name;
+  if (userRole === 'COMPANY_ADMIN') return 'Company Admin';
+  return 'Employee';
+};
+
+export const getRoleColor = (userRole: string, customRole?: { name: string } | null): string => {
+  if (customRole?.name) return 'bg-blue-100 text-blue-700';
+  if (userRole === 'COMPANY_ADMIN') return 'bg-purple-100 text-purple-700';
+  return 'bg-green-100 text-green-700';
+};

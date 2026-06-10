@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, canApproveLeaves , hasPermission } from '@/lib/withAuth';
+import { useAuth, canApproveLeaves , hasPermission getRoleName, getRoleColor } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -336,12 +336,10 @@ export default function LeavesPage() {
                             <div className="flex items-center gap-1.5">
                               <p className="font-semibold text-gray-900 text-sm">{leave.employee?.user?.name}</p>
                               <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                                leave.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
-                                leave.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                                getRoleColor(leave.employee?.user?.role || '', (leave.employee as any)?.customRole) +
                                 'bg-green-100 text-green-700'
                               }`}>
-                                {leave.employee?.user?.role === 'HR_MANAGER' ? 'HR' :
-                                 leave.employee?.user?.role === 'DEPT_MANAGER' ? 'DM' : 'Emp'}
+                                {getRoleName(leave.employee?.user?.role || '', (leave.employee as any)?.customRole).slice(0,8)}
                               </span>
                             </div>
                             <p className="text-xs text-gray-400">{leave.employee?.employeeCode}</p>
@@ -410,12 +408,10 @@ export default function LeavesPage() {
                       <div className="flex items-center gap-1.5">
                         <p className="font-bold text-gray-900">{leave.employee?.user?.name}</p>
                         <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                          leave.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
-                          leave.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                          getRoleColor(leave.employee?.user?.role || '', (leave.employee as any)?.customRole) +
                           'bg-green-100 text-green-700'
                         }`}>
-                          {leave.employee?.user?.role === 'HR_MANAGER' ? 'HR Manager' :
-                           leave.employee?.user?.role === 'DEPT_MANAGER' ? 'Dept Manager' : 'Employee'}
+                          {getRoleName(leave.employee?.user?.role || '', (leave.employee as any)?.customRole)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">{leave.employee?.user?.email}</p>
@@ -521,12 +517,10 @@ export default function LeavesPage() {
                 <p className="font-bold text-gray-900 text-lg">{selectedLeave.employee?.user?.name}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                    selectedLeave.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
-                    selectedLeave.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
+                    getRoleColor(selectedLeave.employee?.user?.role || '', (selectedLeave.employee as any)?.customRole) +
                     'bg-green-100 text-green-700'
                   }`}>
-                    {selectedLeave.employee?.user?.role === 'HR_MANAGER' ? 'HR Manager' :
-                     selectedLeave.employee?.user?.role === 'DEPT_MANAGER' ? 'Dept Manager' : 'Employee'}
+                    {getRoleName(selectedLeave.employee?.user?.role || '', (selectedLeave.employee as any)?.customRole)}
                   </span>
                   {selectedLeave.employee?.department?.name && (
                     <span className="text-xs text-gray-500">· {selectedLeave.employee.department.name}</span>
@@ -700,3 +694,4 @@ export default function LeavesPage() {
     </div>
   );
 }
+

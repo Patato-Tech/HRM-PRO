@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager , hasPermission } from '@/lib/withAuth';
+import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager , hasPermission getRoleName, getRoleColor } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -486,11 +486,6 @@ export default function AttendancePage() {
                     <td colSpan={6} className="px-6 py-16 text-center">
                       <p className="text-3xl mb-3">📅</p>
                       <p className="text-gray-500 font-medium">No attendance records for today</p>
-                      {canManage && (
-                        <button onClick={() => setShowMarkModal(true)} className="mt-3 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm">
-                          Mark Now
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ) : (
@@ -504,15 +499,8 @@ export default function AttendancePage() {
                           <div>
                             <div className="flex items-center gap-1.5">
                               <p className="font-semibold text-gray-900 text-sm">{record.employee?.user?.name}</p>
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                                record.employee?.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
-                                record.employee?.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
-                                record.employee?.user?.role === 'COMPANY_ADMIN' ? 'bg-purple-100 text-purple-700' :
-                                'bg-green-100 text-green-700'
-                              }`}>
-                                {record.employee?.user?.role === 'HR_MANAGER' ? 'HR' :
-                                 record.employee?.user?.role === 'DEPT_MANAGER' ? 'DM' :
-                                 record.employee?.user?.role === 'COMPANY_ADMIN' ? 'Admin' : 'Emp'}
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${getRoleColor(record.employee?.user?.role || '', (record.employee as any)?.customRole)}`}>
+                                {getRoleName(record.employee?.user?.role || '', (record.employee as any)?.customRole).slice(0,8)}
                               </span>
                             </div>
                             <p className="text-xs text-gray-400">{record.employee?.user?.email}</p>
@@ -815,3 +803,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+

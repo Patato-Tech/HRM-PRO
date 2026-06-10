@@ -129,9 +129,7 @@ export default function DashboardPage() {
           <div className="flex flex-wrap gap-1 mt-2">
             <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Active: {empStats?.active ?? 0}</span>
             <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">Inactive: {empStats?.inactive ?? 0}</span>
-            {(empStats?.hrManagers ?? 0) > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">HR: {empStats?.hrManagers}</span>}
-            {(empStats?.deptManagers ?? 0) > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">DM: {empStats?.deptManagers}</span>}
-            {(empStats?.employees ?? 0) > 0 && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Emp: {empStats?.employees}</span>}
+            {(empStats?.withRoles ?? 0) > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">With Role: {empStats?.withRoles}</span>}
           </div>
         </div>
 
@@ -273,15 +271,8 @@ export default function DashboardPage() {
                     <p className="text-xs text-gray-400">{emp.designation || 'No designation'} {emp.department ? `• ${emp.department.name}` : ''}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                      emp.user?.role === 'HR_MANAGER' ? 'bg-blue-100 text-blue-700' :
-                      emp.user?.role === 'DEPT_MANAGER' ? 'bg-yellow-100 text-yellow-700' :
-                      emp.user?.role === 'COMPANY_ADMIN' ? 'bg-purple-100 text-purple-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {emp.user?.role === 'HR_MANAGER' ? 'HR Manager' :
-                       emp.user?.role === 'DEPT_MANAGER' ? 'Dept Manager' :
-                       emp.user?.role === 'COMPANY_ADMIN' ? 'Admin' : 'Employee'}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${emp.customRole ? 'bg-blue-100 text-blue-700' : emp.user?.role === 'COMPANY_ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                      {emp.customRole?.name || (emp.user?.role === 'COMPANY_ADMIN' ? 'Admin' : 'Employee')}
                     </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${emp.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {emp.status}
@@ -315,3 +306,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+
+

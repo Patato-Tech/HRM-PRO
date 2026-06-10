@@ -22,8 +22,7 @@ const allNavItems = [
 
 const roleColors: Record<string, string> = {
   COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
-  HR_MANAGER:    'bg-blue-100 text-blue-700',
-  DEPT_MANAGER:  'bg-yellow-100 text-yellow-700',
+  
   EMPLOYEE:      'bg-green-100 text-green-700',
 };
 
@@ -175,3 +174,4 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
