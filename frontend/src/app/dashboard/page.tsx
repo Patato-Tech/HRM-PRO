@@ -60,26 +60,56 @@ export default function DashboardPage() {
   }, [user]);
 
   const fetchAll = async () => {
-    const token = getToken() || '';
+    const token = getToken() || "";
+    const isAdmin = user!.role === "COMPANY_ADMIN";
+    const isPlainEmployee = user!.role === "EMPLOYEE" && !user!.customRoleName;
+    const hasCustomRole = !!user!.customRoleName;
     try {
-      const promises: Promise<any>[] = [
-        apiCall('/employees/stats', {}, token),
-        apiCall('/attendance/summary/today', {}, token),
-        apiCall('/employees', {}, token),
-        apiCall('/leaves/pending', {}, token),
-        apiCall('/attendance/date/' + new Date().toISOString().split('T')[0], {}, token),
-      ];
-      if (canManagePayroll(user!.role)) {
-        promises.push(apiCall('/payroll/summary', {}, token));
+      // Plain employee — only own data
+      if (isPlainEmployee) {
+        const employeeId = localStorage.getItem("user_employeeId");
+        if (employeeId) {
+          const [ownAttendance, ownLeaves] = await Promise.allSettled([
+            apiCall(`/attendance/employee/${employeeId}`, {}, token),
+            apiCall(`/leaves/employee/${employeeId}`, {}, token),
+          ]);
+          // No company stats for plain employees
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Company Admin and Custom Roles
+      const promises: Promise<any>[] = [];
+      const keys: string[] = [];
+
+      if (isAdmin || hasPermission(user, "employees", "view")) {
+        promises.push(apiCall("/employees/stats", {}, token)); keys.push("empStats");
+        promises.push(apiCall("/employees", {}, token)); keys.push("employees");
+      }
+      if (isAdmin || hasPermission(user, "attendance", "view")) {
+        promises.push(apiCall("/attendance/summary/today", {}, token)); keys.push("attendance");
+        promises.push(apiCall("/attendance/date/" + new Date().toISOString().split("T")[0], {}, token)); keys.push("todayAttendance");
+      }
+      if (isAdmin || hasPermission(user, "leaves", "approve") || hasPermission(user, "leaves", "view")) {
+        promises.push(apiCall("/leaves/pending", {}, token)); keys.push("pendingLeaves");
+      }
+      if (isAdmin || hasPermission(user, "payroll", "view")) {
+        promises.push(apiCall("/payroll/summary", {}, token)); keys.push("payroll");
       }
 
       const results = await Promise.allSettled(promises);
-      if (results[0].status === 'fulfilled') setEmpStats(results[0].value);
-      if (results[1].status === 'fulfilled') setAttendance(results[1].value);
-      if (results[2].status === 'fulfilled') setRecentEmployees(results[2].value.slice(0, 5));
-      if (results[3].status === 'fulfilled') setPendingLeaves(results[3].value.slice(0, 5));
-      if (results[4].status === 'fulfilled') setTodayAttendance(results[4].value || []);
-      if (results[5]?.status === 'fulfilled') setPayroll(results[5].value);
+      results.forEach((result, i) => {
+        if (result.status === "fulfilled") {
+          const key = keys[i];
+          if (key === "empStats") setEmpStats(result.value);
+          if (key === "employees") setRecentEmployees(result.value.slice(0, 5));
+          if (key === "attendance") setAttendance(result.value);
+          if (key === "todayAttendance") setTodayAttendance(result.value || []);
+          if (key === "pendingLeaves") setPendingLeaves(result.value.slice(0, 5));
+          if (key === "payroll") setPayroll(result.value);
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -107,6 +137,7 @@ export default function DashboardPage() {
     ? Math.round((attendance.present / attendance.totalEmployees) * 100)
     : 0;
 
+  const isPlainEmployee = user?.role === "EMPLOYEE" && !user?.customRoleName;
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -119,7 +150,8 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats Row */}
+      {!isPlainEmployee && (<>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3">
@@ -185,7 +217,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Attendance Bar */}
+
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">Today's Attendance Overview</h2>
@@ -229,7 +261,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Leaves */}
+
         {canApproveLeaves(user?.role || '') && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-4">
@@ -271,7 +303,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Recent Employees */}
+
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Recent Employees</h2>
@@ -308,7 +340,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      </>)}
+
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -329,4 +362,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
