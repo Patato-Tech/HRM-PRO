@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import * as bcrypt from 'bcryptjs';
@@ -205,6 +205,10 @@ export class EmployeesService {
         if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) throw new ForbiddenException('Only Company Admin or HR can delete employees.');
         const employee = await this.prisma.employee.findFirst({ where: { id, companyId } });
         if (!employee) throw new NotFoundException('Employee not found');
+        await this.prisma.attendance.deleteMany({ where: { employeeId: id } });
+        await this.prisma.leave.deleteMany({ where: { employeeId: id } });
+        await this.prisma.leaveBalance.deleteMany({ where: { employeeId: id } });
+        await this.prisma.payroll.deleteMany({ where: { employeeId: id } });
         await this.prisma.employee.delete({ where: { id } });
         await this.prisma.user.delete({ where: { id: employee.userId } });
         return { message: 'Employee deleted successfully' };

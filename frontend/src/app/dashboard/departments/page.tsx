@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,8 +10,8 @@ interface Employee {
   employeeCode: string;
   designation: string;
   user: { name: string; email: string; role: string };
+  customRole?: { name: string } | null;
 }
-
 const ROLE_BADGES: Record<string, string> = {
   COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
   EMPLOYEE: 'bg-green-100 text-green-700',
@@ -218,15 +218,16 @@ export default function DepartmentsPage() {
           <p className="text-3xl font-bold text-purple-600">
             {departments.reduce((sum, d) => sum + (d._count?.employees || 0), 0)}
           </p>
-          <div className="flex flex-wrap justify-center gap-1 mt-1">
-            <span className="text-xs </span>
-            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Emp: {departments.reduce((sum, d) => sum + (d.employees?.filter(e => e.user.role === 'EMPLOYEE').length || 0), 0)}</span>
-          </div>
           <p className="text-xs text-gray-500 mt-1">Total Employees</p>
+          <div className="flex flex-wrap gap-1 mt-2 justify-center">
+            {departments.flatMap(d => d.employees || []).map((emp: any) => (
+              <span key={emp.id} className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${emp.customRole ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                {emp.customRole?.name || 'Employee'}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-
-      {/* Search */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
         <input
           type="text"
@@ -352,8 +353,8 @@ export default function DepartmentsPage() {
                       <p className="text-xs text-gray-400">{emp.designation || 'No designation'} • {emp.employeeCode}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ROLE_BADGES[emp.user.role] || 'bg-gray-100 text-gray-600'}`}>
-                        {ROLE_LABELS[emp.user.role] || emp.user.role}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${(emp as any).customRole ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                        {(emp as any).customRole?.name || 'Employee'}
                       </span>
                       <p className="text-xs text-gray-400">{emp.user.email}</p>
                     </div>
@@ -445,4 +446,3 @@ export default function DepartmentsPage() {
     </div>
   );
 }
-

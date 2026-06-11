@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -41,23 +41,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null;
 
+  const isPlainEmployee = user.role === 'EMPLOYEE' && !user.customRoleName;
+  const isAdmin = user.role === 'COMPANY_ADMIN';
   const isAllowed = (roles: string) => {
     if (roles === 'all') return true;
-    if (roles === 'company_admin') return user.role === 'COMPANY_ADMIN';
-    if (roles === 'manage_employees') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'view');
-    if (roles === 'manage_departments') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'departments', 'view');
-    if (roles === 'manage_payroll') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'payroll', 'view');
-    if (roles === 'attendance') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'attendance', 'view');
-    if (roles === 'leaves') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'leaves', 'view');
-    if (roles === 'reports') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'reports', 'view');
-    if (roles === 'performance') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'performance', 'view');
-    if (roles === 'recruitment') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'recruitment', 'view');
-    if (roles === 'training') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'training', 'view');
-    if (roles === 'documents') return user.role === 'COMPANY_ADMIN' || hasPermission(user, 'documents', 'view');
+    if (roles === 'company_admin') return isAdmin;
+    if (isPlainEmployee) return false;
+    if (isAdmin) return true;
+    if (roles === 'manage_employees') return hasPermission(user, 'employees', 'view');
+    if (roles === 'manage_departments') return hasPermission(user, 'departments', 'view');
+    if (roles === 'manage_payroll') return hasPermission(user, 'payroll', 'view');
+    if (roles === 'attendance') return hasPermission(user, 'attendance', 'view');
+    if (roles === 'leaves') return hasPermission(user, 'leaves', 'view') || hasPermission(user, 'leaves', 'approve');
+    if (roles === 'reports') return hasPermission(user, 'reports', 'view');
+    if (roles === 'performance') return hasPermission(user, 'performance', 'view');
+    if (roles === 'recruitment') return hasPermission(user, 'recruitment', 'view');
+    if (roles === 'training') return hasPermission(user, 'training', 'view');
+    if (roles === 'documents') return hasPermission(user, 'documents', 'view');
     return false;
   };
 
-  const visibleNav = allNavItems.filter(item => isAllowed(item.roles));
+  const visibleNav = allNavItems.filter(item => {
+    // Plain employee always sees: Dashboard, Attendance, Leaves, Payroll, Profile
+    if (isPlainEmployee) {
+      return ['all', 'attendance', 'leaves', 'payroll', 'profile'].includes(item.roles) || item.href === '/dashboard/profile';
+    }
+    return isAllowed(item.roles);
+  });
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white border-r border-gray-200 w-64">
@@ -174,4 +184,3 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
-

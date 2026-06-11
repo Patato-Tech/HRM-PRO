@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, canApproveLeaves , hasPermission getRoleName, getRoleColor } from '@/lib/withAuth';
+import { useAuth, canApproveLeaves, hasPermission, getRoleName, getRoleColor } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -694,4 +694,3 @@ export default function LeavesPage() {
     </div>
   );
 }
-

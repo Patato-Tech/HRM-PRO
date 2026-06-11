@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,7 +28,6 @@ const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-const ROLE_LABELS: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Company Admin',
   EMPLOYEE:      'Employee',
@@ -484,4 +483,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

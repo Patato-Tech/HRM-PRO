@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePayrollDto, UpdatePayrollDto } from './dto/payroll.dto';
 
@@ -39,8 +39,8 @@ export class PayrollService {
         });
     }
 
-    async getSummary(companyId: number, actorRole: string) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
+    async getSummary(companyId: number, actorRole: string, permissions?: any) {
+        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole) && !permissions?.payroll?.view) {
             throw new ForbiddenException('Only Company Admin and HR can view payroll summary.');
         }
         const payrolls = await this.prisma.payroll.findMany({ where: { companyId } });

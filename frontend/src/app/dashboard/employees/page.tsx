@@ -76,11 +76,12 @@ export default function EmployeesPage() {
 
   const canView = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'view');
   const canCreate = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'create');
-  const canEdit = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'edit');
+  const canEditBasic = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'edit_basic') || hasPermission(user, 'employees', 'edit_full') || hasPermission(user, 'employees', 'edit');
+  const canEditFull = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'edit_full');
+  const canEditSalary = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'edit_salary');
   const canDelete = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'delete');
-  const canManage = canCreate || canEdit || canDelete;
-  const hideSalary = !isCompanyAdmin(user?.role || '') && !hasPermission(user, 'payroll', 'view');
-
+  const canEdit = canEditBasic; const canManage = canCreate || canEditBasic || canDelete;
+  const hideSalary = !isCompanyAdmin(user?.role || '') && !hasPermission(user, 'payroll', 'view_salary') && !hasPermission(user, 'payroll', 'view');
   useEffect(() => {
     if (authLoading || !user) return;
     if (user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'employees', 'view')) {
@@ -289,15 +290,13 @@ export default function EmployeesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: 'Total Staff', value: employees.length, color: 'text-gray-900', bg: 'bg-blue-50' },
           { label: 'Active', value: employees.filter(e => e.status === 'active').length, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Inactive', value: employees.filter(e => e.status === 'inactive').length, color: 'text-red-500', bg: 'bg-red-50' },
           { label: 'With Custom Role', value: employees.filter(e => (e as any).customRole).length, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'No Role Assigned', value: employees.filter(e => !(e as any).customRole).length, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-          { label: 'Employees', value: employees.filter(e => e.user.role === 'EMPLOYEE').length, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Departments', value: departments.length, color: 'text-purple-600', bg: 'bg-purple-50' },
         ].map((s, i) => (
           <div key={i} className={`${s.bg} rounded-2xl p-4 text-center`}>
             <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>

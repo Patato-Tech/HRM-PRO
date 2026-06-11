@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager , hasPermission getRoleName, getRoleColor } from '@/lib/withAuth';
+import { useAuth, canManageEmployees, isCompanyAdmin, isHRManager, hasPermission, getRoleName, getRoleColor } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface Employee {
@@ -395,7 +395,6 @@ export default function AttendancePage() {
           { label: 'Present', value: summary?.present ?? 0, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
           { label: 'Absent', value: summary?.absent ?? 0, color: 'text-red-500', bg: 'bg-red-50', icon: '❌' },
           { label: 'Late', value: summary?.late ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏰' },
-          { label: 'Total Employees', value: summary?.totalEmployees ?? 0, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👥' },
         ].map((s, i) => (
           <div key={i} className={`${s.bg} rounded-2xl p-5`}>
             <div className="flex items-center justify-between mb-2">
@@ -405,6 +404,20 @@ export default function AttendancePage() {
             <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
+        <div className="bg-blue-50 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-gray-500 font-medium">Total Employees</p>
+            <span className="text-xl">👥</span>
+          </div>
+          <p className="text-3xl font-bold text-blue-600">{summary?.totalEmployees ?? 0}</p>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {employees.map((emp: any) => (
+              <span key={emp.id} className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${emp.customRole ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                {emp.customRole?.name || 'Employee'}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Attendance Rate Bar */}
@@ -803,5 +816,4 @@ export default function AttendancePage() {
     </div>
   );
 }
-
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
 
@@ -14,6 +14,7 @@ export class DepartmentsService {
                 employees: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
+                        customRole: true,
                     },
                 },
             },
@@ -28,6 +29,7 @@ export class DepartmentsService {
                 employees: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
+                        customRole: true,
                     },
                 },
             },

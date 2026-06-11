@@ -6,14 +6,17 @@ import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
 export class LeavesService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(companyId: number) {
+    async findAll(companyId: number, actorDeptId?: number | null, customRoleScope?: string | null) {
+        const where: any = { companyId };
+        if (customRoleScope === 'own_department' && actorDeptId) where.employee = { departmentId: actorDeptId };
         return this.prisma.leave.findMany({
-            where: { companyId },
+            where,
             include: {
                 employee: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
                         department: { select: { name: true } },
+                        customRole: true,
                     },
                 },
             },
@@ -21,14 +24,17 @@ export class LeavesService {
         });
     }
 
-    async findPending(companyId: number) {
+    async findPending(companyId: number, actorDeptId?: number | null, customRoleScope?: string | null) {
+        const where: any = { companyId, status: 'pending' };
+        if (customRoleScope === 'own_department' && actorDeptId) where.employee = { departmentId: actorDeptId };
         return this.prisma.leave.findMany({
-            where: { companyId, status: 'pending' },
+            where,
             include: {
                 employee: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
                         department: { select: { name: true } },
+                        customRole: true,
                     },
                 },
             },

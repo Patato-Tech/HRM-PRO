@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, isCompanyAdmin } from '@/lib/withAuth';
@@ -6,7 +6,8 @@ import { apiCall, getToken } from '@/lib/api';
 
 interface Permission {
   view?: boolean; create?: boolean; edit?: boolean; delete?: boolean;
-  manage?: boolean; approve?: boolean; process?: boolean;
+  edit_basic?: boolean; edit_full?: boolean; edit_salary?: boolean;
+  view_salary?: boolean; manage?: boolean; approve?: boolean; process?: boolean;
   review?: boolean; hire?: boolean; assign?: boolean; upload?: boolean;
 }
 interface Permissions {
@@ -22,11 +23,11 @@ interface Role {
 }
 
 const PERMISSION_MODULES = [
-  { key: 'employees', label: '👥 Employees', perms: ['view', 'create', 'edit', 'delete'] },
+  { key: 'employees', label: '👥 Employees', perms: ['view', 'create', 'edit_basic', 'edit_full', 'edit_salary', 'delete'] },
   { key: 'departments', label: '🏢 Departments', perms: ['view', 'create', 'edit', 'delete'] },
   { key: 'attendance', label: '📅 Attendance', perms: ['view', 'manage'] },
   { key: 'leaves', label: '🌿 Leaves', perms: ['view', 'approve', 'manage'] },
-  { key: 'payroll', label: '💰 Payroll', perms: ['view', 'process', 'approve'] },
+  { key: 'payroll', label: '💰 Payroll', perms: ['view', 'view_salary', 'process', 'approve'] },
   { key: 'reports', label: '📊 Reports', perms: ['view'] },
   { key: 'performance', label: '⭐ Performance', perms: ['view', 'manage', 'review'] },
   { key: 'recruitment', label: '🎯 Recruitment', perms: ['view', 'manage', 'hire'] },

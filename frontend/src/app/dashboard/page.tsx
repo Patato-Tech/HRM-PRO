@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useAuth, hasPermission, canManageEmployees, canManagePayroll, canApproveLeaves } from '@/lib/withAuth';
@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [payroll, setPayroll] = useState<PayrollSummary | null>(null);
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeave[]>([]);
   const [recentEmployees, setRecentEmployees] = useState<RecentEmployee[]>([]);
+  const [todayAttendance, setTodayAttendance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,6 +67,7 @@ export default function DashboardPage() {
         apiCall('/attendance/summary/today', {}, token),
         apiCall('/employees', {}, token),
         apiCall('/leaves/pending', {}, token),
+        apiCall('/attendance/date/' + new Date().toISOString().split('T')[0], {}, token),
       ];
       if (canManagePayroll(user!.role)) {
         promises.push(apiCall('/payroll/summary', {}, token));
@@ -76,9 +78,8 @@ export default function DashboardPage() {
       if (results[1].status === 'fulfilled') setAttendance(results[1].value);
       if (results[2].status === 'fulfilled') setRecentEmployees(results[2].value.slice(0, 5));
       if (results[3].status === 'fulfilled') setPendingLeaves(results[3].value.slice(0, 5));
-      if (results[4]?.status === 'fulfilled') setPayroll(results[4].value);
-    } catch (err) {
-      console.error(err);
+      if (results[4].status === 'fulfilled') setTodayAttendance(results[4].value || []);
+      if (results[5]?.status === 'fulfilled') setPayroll(results[5].value);
     } finally {
       setLoading(false);
     }
@@ -129,7 +130,13 @@ export default function DashboardPage() {
           <div className="flex flex-wrap gap-1 mt-2">
             <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Active: {empStats?.active ?? 0}</span>
             <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">Inactive: {empStats?.inactive ?? 0}</span>
-            {(empStats?.withRoles ?? 0) > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">With Role: {empStats?.withRoles}</span>}
+          </div>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {recentEmployees.map((emp: any) => (
+              <span key={emp.id} className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${emp.customRole ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                {emp.customRole?.name || 'Employee'}
+              </span>
+            ))}
           </div>
         </div>
 
@@ -139,7 +146,13 @@ export default function DashboardPage() {
             <span className="bg-green-100 text-green-600 text-xl w-9 h-9 rounded-xl flex items-center justify-center">✅</span>
           </div>
           <p className="text-3xl font-bold text-green-600">{attendance?.present ?? 0}</p>
-          <p className="text-xs text-gray-400 mt-1">{attendancePct}% attendance rate</p>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {todayAttendance.filter((r:any) => r.status === 'present').slice(0,3).map((r:any) => (
+              <span key={r.id} className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${r.employee?.customRole ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                {r.employee?.user?.name?.split(' ')[0]}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -183,13 +196,23 @@ export default function DashboardPage() {
             { label: 'Present', value: attendance?.present ?? 0, color: 'text-green-600', bg: 'bg-green-50' },
             { label: 'Absent', value: attendance?.absent ?? 0, color: 'text-red-500', bg: 'bg-red-50' },
             { label: 'Late', value: attendance?.late ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-            { label: 'Total', value: attendance?.totalEmployees ?? 0, color: 'text-blue-600', bg: 'bg-blue-50' },
           ].map((item, i) => (
             <div key={i} className={`${item.bg} rounded-xl p-4 text-center`}>
               <p className={`text-2xl font-bold ${item.color}`}>{item.value}</p>
               <p className="text-xs text-gray-500 mt-1">{item.label}</p>
             </div>
           ))}
+          <div className="bg-blue-50 rounded-xl p-4">
+            <p className="text-2xl font-bold text-blue-600 text-center">{attendance?.totalEmployees ?? 0}</p>
+            <p className="text-xs text-gray-500 mt-1 text-center">Total</p>
+            <div className="flex flex-wrap gap-1 mt-2 justify-center">
+              {recentEmployees.map((emp: any) => (
+                <span key={emp.id} className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${emp.customRole ? 'bg-blue-200 text-blue-800' : 'bg-green-100 text-green-700'}`}>
+                  {emp.customRole?.name || 'Employee'}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
         <div className="bg-gray-100 rounded-full h-3 overflow-hidden">
           <div className="flex h-full rounded-full overflow-hidden">
@@ -306,7 +329,4 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-
 

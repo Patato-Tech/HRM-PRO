@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Post, Put, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
 import { CreatePayrollDto, UpdatePayrollDto } from './dto/payroll.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,7 +23,7 @@ export class PayrollController {
     @Get('summary')
     @RequirePermission('payroll', 'view')
     getSummary(@Request() req: any) {
-        return this.payrollService.getSummary(Number(req.user.companyId), req.user.role);
+        return this.payrollService.getSummary(Number(req.user.companyId), req.user.role, req.user.permissions);
     }
 
     @Get('month')
