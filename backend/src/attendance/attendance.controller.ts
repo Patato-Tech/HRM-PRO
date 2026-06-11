@@ -2,7 +2,6 @@
 import { AttendanceService } from './attendance.service';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RequirePermission } from '../auth/permissions.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('attendance')
@@ -14,7 +13,7 @@ export class AttendanceController {
 
     @Get('summary/today')
     getTodaySummary(@Request() req) {
-        return this.attendanceService.getTodaySummary(Number(req.user.companyId));
+        return this.attendanceService.getTodaySummary(Number(req.user.companyId), req.user);
     }
 
     @Get('company-settings')
@@ -48,9 +47,8 @@ export class AttendanceController {
     }
 
     @Get('date/:date')
-    @RequirePermission('attendance', 'view')
     findByDate(@Param('date') date: string, @Request() req) {
-        return this.attendanceService.findByDate(date, Number(req.user.companyId));
+        return this.attendanceService.findByDate(date, Number(req.user.companyId), req.user);
     }
 
     @Get('employee/:id')
@@ -59,13 +57,8 @@ export class AttendanceController {
     }
 
     @Get()
-    @RequirePermission('attendance', 'view')
     findAll(@Request() req) {
-        return this.attendanceService.findAll(
-            Number(req.user.companyId),
-            req.user.role,
-            req.user.departmentId ? Number(req.user.departmentId) : null,
-        );
+        return this.attendanceService.findAll(Number(req.user.companyId), req.user);
     }
 
     @Post('checkin')
@@ -85,6 +78,6 @@ export class AttendanceController {
 
     @Put(':id')
     update(@Param('id') id: string, @Body() dto: any, @Request() req) {
-        return this.attendanceService.update(parseInt(id), dto, Number(req.user.companyId));
+        return this.attendanceService.update(parseInt(id), dto, Number(req.user.companyId), req.user);
     }
 }

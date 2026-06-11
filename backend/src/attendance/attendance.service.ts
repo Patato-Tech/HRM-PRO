@@ -1,5 +1,6 @@
 ﻿import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { checkPermission, getScopeFilter, isSelfOperation } from '../auth/rbac.util';
 
 @Injectable()
 export class AttendanceService {
@@ -33,7 +34,7 @@ export class AttendanceService {
         if (employee.departmentId) {
             const department = await this.prisma.department.findUnique({ where: { id: employee.departmentId } });
             if (department && department.status === 'inactive') {
-                throw new BadRequestException('Your department is currently inactive. Please contact your administrator.');
+                throw new BadRequestException('Your department is currently inactive.');
             }
         }
 
@@ -63,7 +64,10 @@ export class AttendanceService {
             data: { companyId, employeeId, date: today, checkIn: now, status },
             include: {
                 employee: {
-                    include: { user: { select: { id: true, name: true, email: true, role: true } } },
+                    include: {
+                        user: { select: { id: true, name: true, email: true, role: true } },
+                        customRole: true,
+                    },
                 },
             },
         });
@@ -74,7 +78,7 @@ export class AttendanceService {
         if (employee?.departmentId) {
             const department = await this.prisma.department.findUnique({ where: { id: employee.departmentId } });
             if (department && department.status === 'inactive') {
-                throw new BadRequestException('Your department is currently inactive. Please contact your administrator.');
+                throw new BadRequestException('Your department is currently inactive.');
             }
         }
 
@@ -96,46 +100,70 @@ export class AttendanceService {
         });
     }
 
-    async findAll(companyId: number, actorRole: string, actorDeptId: number | null) {
-        const where: any = { companyId };
-        if (actorRole === 'DEPT_MANAGER' && actorDeptId) {
-            where.employee = { departmentId: actorDeptId };
+    async findAll(companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        const isPlainEmployee = user.role === 'EMPLOYEE' && !user.customRoleScope;
+
+        // Plain employee — own records only
+        if (isPlainEmployee) {
+            if (!user.employeeId) return [];
+            return this.prisma.attendance.findMany({
+                where: { companyId, employeeId: Number(user.employeeId) },
+                orderBy: { date: 'desc' },
+            });
         }
+
+        if (!isAdmin) checkPermission(user, 'attendance', 'view');
+
+        const scopeFilter = getScopeFilter(user);
         return this.prisma.attendance.findMany({
-            where,
+            where: { companyId, ...scopeFilter },
             include: {
                 employee: {
-                    include: { user: { select: { id: true, name: true, email: true, role: true } } },
+                    include: {
+                        user: { select: { id: true, name: true, email: true, role: true } },
+                        customRole: true,
+                    },
                 },
             },
             orderBy: { date: 'desc' },
         });
     }
 
-    async getTodaySummary(companyId: number) {
+    async getTodaySummary(companyId: number, user: any) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const scopeFilter = getScopeFilter(user);
+        const empFilter = scopeFilter.employee || {};
+
         const [present, absent, late, totalEmployees] = await Promise.all([
-            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'present' } }),
-            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'absent' } }),
-            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'late' } }),
-            this.prisma.employee.count({ where: { companyId, status: 'active' } }),
+            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'present', ...scopeFilter } }),
+            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'absent', ...scopeFilter } }),
+            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'late', ...scopeFilter } }),
+            this.prisma.employee.count({ where: { companyId, status: 'active', ...empFilter } }),
         ]);
         return { present, absent, late, totalEmployees };
     }
 
-    async findByDate(date: string, companyId: number) {
+    async findByDate(date: string, companyId: number, user: any) {
         const start = new Date(date);
         start.setHours(0, 0, 0, 0);
         const end = new Date(date);
         end.setHours(23, 59, 59, 999);
+
+        const scopeFilter = getScopeFilter(user);
+
         return this.prisma.attendance.findMany({
-            where: { companyId, date: { gte: start, lte: end } },
+            where: { companyId, date: { gte: start, lte: end }, ...scopeFilter },
             include: {
                 employee: {
-                    include: { user: { select: { id: true, name: true, email: true, role: true } } },
+                    include: {
+                        user: { select: { id: true, name: true, email: true, role: true } },
+                        customRole: true,
+                    },
                 },
             },
         });
@@ -148,9 +176,21 @@ export class AttendanceService {
         });
     }
 
-    async update(id: number, dto: any, companyId: number) {
+    async update(id: number, dto: any, companyId: number, user: any) {
+        if (user.role !== 'COMPANY_ADMIN') {
+            checkPermission(user, 'attendance', 'manage');
+        }
         const record = await this.prisma.attendance.findFirst({ where: { id, companyId } });
         if (!record) throw new NotFoundException('Attendance record not found');
+
+        // own_department scope — can only edit own dept attendance
+        if (user.customRoleScope === 'own_department') {
+            const emp = await this.prisma.employee.findFirst({ where: { id: record.employeeId } });
+            if (emp?.departmentId !== Number(user.departmentId)) {
+                throw new ForbiddenException('You can only edit attendance in your department.');
+            }
+        }
+
         return this.prisma.attendance.update({
             where: { id },
             data: {

@@ -1,21 +1,21 @@
 ﻿import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePayrollDto, UpdatePayrollDto } from './dto/payroll.dto';
-
-const SALARY_INCREMENT_RULES: Record<string, string[]> = {
-    COMPANY_ADMIN: ['HR_MANAGER', 'DEPT_MANAGER', 'EMPLOYEE'],
-    HR_MANAGER: ['DEPT_MANAGER', 'EMPLOYEE'],
-};
+import { checkPermission, getScopeFilter, isSelfOperation } from '../auth/rbac.util';
 
 @Injectable()
 export class PayrollService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(companyId: number, actorRole: string, actorUserId: number, actorEmployeeId: number | null) {
-        if (actorRole === 'EMPLOYEE' || actorRole === 'DEPT_MANAGER') {
-            if (!actorEmployeeId) return [];
+    async findAll(companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        const isPlainEmployee = user.role === 'EMPLOYEE' && !user.customRoleScope;
+
+        // Plain employee — own payslips only
+        if (isPlainEmployee) {
+            if (!user.employeeId) return [];
             return this.prisma.payroll.findMany({
-                where: { companyId, employeeId: actorEmployeeId },
+                where: { companyId, employeeId: Number(user.employeeId) },
                 include: {
                     employee: {
                         include: { user: { select: { id: true, name: true, email: true } } },
@@ -25,13 +25,18 @@ export class PayrollService {
             });
         }
 
+        if (!isAdmin) checkPermission(user, 'payroll', 'view');
+
+        const scopeFilter = getScopeFilter(user);
+
         return this.prisma.payroll.findMany({
-            where: { companyId },
+            where: { companyId, ...scopeFilter },
             include: {
                 employee: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
                         department: { select: { id: true, name: true } },
+                        customRole: true,
                     },
                 },
             },
@@ -39,39 +44,51 @@ export class PayrollService {
         });
     }
 
-    async getSummary(companyId: number, actorRole: string, permissions?: any) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole) && !permissions?.payroll?.view) {
-            throw new ForbiddenException('Only Company Admin and HR can view payroll summary.');
-        }
-        const payrolls = await this.prisma.payroll.findMany({ where: { companyId } });
+    async getSummary(companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        if (!isAdmin) checkPermission(user, 'payroll', 'view');
+
+        const scopeFilter = getScopeFilter(user);
+        const payrolls = await this.prisma.payroll.findMany({
+            where: { companyId, ...scopeFilter },
+        });
+
         const totalPaid = payrolls.filter(p => p.status === 'approved').reduce((s, p) => s + p.netSalary, 0);
         const totalPending = payrolls.filter(p => p.status === 'pending').reduce((s, p) => s + p.netSalary, 0);
         return { totalPaid, totalPending, totalRecords: payrolls.length };
     }
 
-    async findByMonth(month: number, year: number, companyId: number, actorRole: string, actorEmployeeId: number | null) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
-            throw new ForbiddenException('Only Company Admin and HR can view monthly payroll.');
-        }
+    async findByMonth(month: number, year: number, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        if (!isAdmin) checkPermission(user, 'payroll', 'view');
+
+        const scopeFilter = getScopeFilter(user);
+
         return this.prisma.payroll.findMany({
-            where: { companyId, month, year },
+            where: { companyId, month, year, ...scopeFilter },
             include: {
                 employee: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
                         department: { select: { id: true, name: true } },
+                        customRole: true,
                     },
                 },
             },
         });
     }
 
-    async findByEmployee(employeeId: number, companyId: number, actorRole: string, actorEmployeeId: number | null) {
-        if (['EMPLOYEE', 'DEPT_MANAGER', 'HR_MANAGER'].includes(actorRole)) {
-            if (actorEmployeeId !== employeeId) {
-                throw new ForbiddenException('You can only view your own payroll records.');
-            }
+    async findByEmployee(employeeId: number, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        const isPlainEmployee = user.role === 'EMPLOYEE' && !user.customRoleScope;
+
+        // Plain employee can only view own records
+        if (isPlainEmployee && Number(user.employeeId) !== employeeId) {
+            throw new ForbiddenException('You can only view your own payroll records.');
         }
+
+        if (!isAdmin && !isPlainEmployee) checkPermission(user, 'payroll', 'view');
+
         return this.prisma.payroll.findMany({
             where: { employeeId, companyId },
             include: {
@@ -86,10 +103,9 @@ export class PayrollService {
         });
     }
 
-    async create(dto: CreatePayrollDto, companyId: number, actorRole: string) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
-            throw new ForbiddenException('Only Company Admin and HR can process payroll.');
-        }
+    async create(dto: CreatePayrollDto, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        if (!isAdmin) checkPermission(user, 'payroll', 'process');
 
         const empId = Number(dto.employeeId);
         const autoDeductions = await this.calculateAutoDeductions(empId, companyId, dto.month, dto.year, dto.basic);
@@ -164,10 +180,8 @@ export class PayrollService {
         return Math.round(totalDeduction);
     }
 
-    async setDeductionRule(companyId: number, actorRole: string, dto: { type: string; deductPercentage: number; isActive: boolean }) {
-        if (actorRole !== 'COMPANY_ADMIN') {
-            throw new ForbiddenException('Only Company Admin can configure deduction rules.');
-        }
+    async setDeductionRule(companyId: number, user: any, dto: { type: string; deductPercentage: number; isActive: boolean }) {
+        if (user.role !== 'COMPANY_ADMIN') throw new ForbiddenException('Only Company Admin can configure deduction rules.');
         return this.prisma.deductionRule.upsert({
             where: { companyId_type: { companyId, type: dto.type } },
             create: { companyId, type: dto.type, deductPercentage: dto.deductPercentage, isActive: dto.isActive },
@@ -175,30 +189,18 @@ export class PayrollService {
         });
     }
 
-    async getDeductionRules(companyId: number, actorRole: string) {
-        if (actorRole !== 'COMPANY_ADMIN') {
-            throw new ForbiddenException('Only Company Admin can view deduction rules.');
-        }
+    async getDeductionRules(companyId: number, user: any) {
+        if (user.role !== 'COMPANY_ADMIN') throw new ForbiddenException('Only Company Admin can view deduction rules.');
         return this.prisma.deductionRule.findMany({ where: { companyId } });
     }
 
-    async incrementSalary(employeeId: number, amount: number, companyId: number, actorRole: string) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
-            throw new ForbiddenException('Only Company Admin and HR can increment salaries.');
-        }
+    async incrementSalary(employeeId: number, amount: number, companyId: number, user: any) {
+        if (user.role !== 'COMPANY_ADMIN') checkPermission(user, 'employees', 'edit_salary');
+        if (isSelfOperation(user, employeeId)) throw new ForbiddenException('You cannot modify your own salary.');
         if (amount <= 0) throw new BadRequestException('Increment amount must be positive.');
 
-        const employee = await this.prisma.employee.findFirst({
-            where: { id: employeeId, companyId },
-            include: { user: { select: { role: true } } },
-        });
+        const employee = await this.prisma.employee.findFirst({ where: { id: employeeId, companyId } });
         if (!employee) throw new NotFoundException('Employee not found.');
-
-        const targetRole = employee.user.role;
-        const allowed = SALARY_INCREMENT_RULES[actorRole] ?? [];
-        if (!allowed.includes(targetRole)) {
-            throw new ForbiddenException(`A ${actorRole} cannot increment salary for a ${targetRole}.`);
-        }
 
         return this.prisma.employee.update({
             where: { id: employeeId },
@@ -207,10 +209,10 @@ export class PayrollService {
         });
     }
 
-    async update(id: number, dto: UpdatePayrollDto, companyId: number, actorRole: string) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
-            throw new ForbiddenException('Only Company Admin and HR can update payroll.');
-        }
+    async update(id: number, dto: UpdatePayrollDto, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        if (!isAdmin) checkPermission(user, 'payroll', 'view');
+
         const payroll = await this.prisma.payroll.findFirst({ where: { id, companyId } });
         if (!payroll) throw new NotFoundException('Payroll record not found');
 
@@ -225,19 +227,21 @@ export class PayrollService {
         });
     }
 
-    async approve(id: number, companyId: number, actorRole: string) {
-        if (!['COMPANY_ADMIN', 'HR_MANAGER'].includes(actorRole)) {
-            throw new ForbiddenException('Only Company Admin and HR can approve payroll.');
-        }
+    async approve(id: number, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        if (!isAdmin) checkPermission(user, 'payroll', 'approve');
+
         const payroll = await this.prisma.payroll.findFirst({ where: { id, companyId } });
         if (!payroll) throw new NotFoundException('Payroll record not found');
         return this.prisma.payroll.update({ where: { id }, data: { status: 'approved' } });
     }
 
-    async getPayslip(employeeId: number, month: number, year: number, companyId: number, actorRole: string, actorEmployeeId: number | null) {
-        if (actorEmployeeId !== employeeId) {
-            throw new ForbiddenException('You can only download your own payslip.');
-        }
+    async getPayslip(employeeId: number, month: number, year: number, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        const isOwn = Number(user.employeeId) === employeeId;
+
+        if (!isAdmin && !isOwn) throw new ForbiddenException('You can only download your own payslip.');
+
         const payroll = await this.prisma.payroll.findFirst({
             where: { employeeId, companyId, month, year },
             include: {
@@ -258,7 +262,6 @@ export class PayrollService {
             employee: payroll.employee.user.name,
             designation: payroll.employee.designation,
             department: payroll.employee.department?.name,
-            role: payroll.employee.user.role,
             month, year,
             basic: payroll.basic,
             allowances: payroll.allowances,

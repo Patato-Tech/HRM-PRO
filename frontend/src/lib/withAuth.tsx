@@ -178,3 +178,22 @@ export const getRoleColor = (userRole: string, customRole?: { name: string } | n
   if (userRole === 'COMPANY_ADMIN') return 'bg-purple-100 text-purple-700';
   return 'bg-green-100 text-green-700';
 };
+
+// ✅ Clean permissions hook - use this everywhere
+export const usePermissions = () => {
+  const { user } = useAuth(false);
+  return {
+    can: (module: string, action: string): boolean => {
+      if (!user) return false;
+      if (user.role === 'COMPANY_ADMIN') return true;
+      return hasPermission(user, module, action);
+    },
+    isAdmin: user?.role === 'COMPANY_ADMIN',
+    isPlainEmployee: user?.role === 'EMPLOYEE' && !user?.customRoleName,
+    hasCustomRole: !!user?.customRoleName,
+    isSelf: (userId: string | number): boolean =>
+      String(userId) === String(user?.id),
+    scope: user?.customRoleScope || null,
+    user,
+  };
+};
