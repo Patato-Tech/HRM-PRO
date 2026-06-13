@@ -88,7 +88,7 @@ export default function LeavesPage() {
 
   // ✅ Page permission guard
   useEffect(() => {
-    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'leaves', 'view')) {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !(user.role === 'EMPLOYEE' && !user.customRoleName) && !hasPermission(user, 'leaves', 'view') && !hasPermission(user, 'leaves', 'approve')) {
       router.replace('/dashboard');
     }
   }, [user]);

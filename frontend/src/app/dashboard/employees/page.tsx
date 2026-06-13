@@ -122,8 +122,15 @@ export default function EmployeesPage() {
 
   const handleAdd = async () => {
     setError('');
+    const selectedRole = roles.find((r: any) => String(r.id) === String(addForm.roleId));
+    const isCompanyWide = selectedRole?.scope === 'all';
+    const isDeptRequired = !selectedRole || selectedRole.scope === 'own_department';
     if (!addForm.name || !addForm.email || !addForm.password) {
       setError('Name, email and password are required');
+      return;
+    }
+    if (isDeptRequired && !addForm.departmentId) {
+      setError('Department is required for this role');
       return;
     }
     try {
@@ -537,16 +544,24 @@ export default function EmployeesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {(
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select value={addForm.departmentId} onChange={e => setAddForm({ ...addForm, departmentId: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                    <option value="">No Department</option>
-                    {departments.filter(d => d.status === 'active').map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-                )}
+                {(() => {
+                  const selectedRole = roles.find((r: any) => String(r.id) === String(addForm.roleId));
+                  const isCompanyWide = selectedRole?.scope === 'all';
+                  const isDeptRequired = !selectedRole || selectedRole.scope === 'own_department';
+                  if (isCompanyWide) return null;
+                  return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department {isDeptRequired ? <span className="text-red-500">*</span> : <span className="text-gray-400">(optional)</span>}
+                    </label>
+                    <select value={addForm.departmentId} onChange={e => setAddForm({ ...addForm, departmentId: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                      <option value="">Select Department</option>
+                      {departments.filter(d => d.status === 'active').map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  );
+                })()}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Salary (PKR)</label>
                   <input type="number" value={addForm.salary} onChange={e => setAddForm({ ...addForm, salary: e.target.value })}

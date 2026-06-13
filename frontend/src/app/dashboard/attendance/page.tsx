@@ -93,6 +93,9 @@ export default function AttendancePage() {
   const [bulkForms, setBulkForms] = useState<Record<string, { status: string; checkIn: string; checkOut: string }>>({});
   const [bulkDate, setBulkDate] = useState(new Date().toISOString().split('T')[0]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkOutLoading, setCheckOutLoading] = useState(false);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
 
   // Shift settings form
   const [shiftForm, setShiftForm] = useState({
@@ -115,7 +118,7 @@ export default function AttendancePage() {
 
   // ✅ Page permission guard
   useEffect(() => {
-    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'attendance', 'view')) {
+    if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !(user.role === 'EMPLOYEE' && !user.customRoleName) && !hasPermission(user, 'attendance', 'view')) {
       router.replace('/dashboard');
     }
   }, [user]);
@@ -177,6 +180,35 @@ export default function AttendancePage() {
     setTimeout(() => setSuccess(''), 3000);
   };
 
+
+  const handleCheckIn = async () => {
+    setCheckInLoading(true);
+    try {
+      const token = getToken() || "";
+      const result = await apiCall("/attendance/checkin", { method: "POST" }, token);
+      setTodayRecord(result);
+      showSuccessMsg("Checked in successfully!");
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || "Check-in failed");
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    setCheckOutLoading(true);
+    try {
+      const token = getToken() || "";
+      await apiCall("/attendance/checkout", { method: "POST" }, token);
+      showSuccessMsg("Checked out successfully!");
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || "Check-out failed");
+    } finally {
+      setCheckOutLoading(false);
+    }
+  };
   const handleMarkSingle = async () => {
     setError('');
     if (!markForm.employeeId) { setError('Please select an employee'); return; }
@@ -462,6 +494,47 @@ export default function AttendancePage() {
       </div>
 
       {/* TODAY TAB */}
+      {(user?.role === "EMPLOYEE" && !user?.customRoleName) && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h2 className="font-semibold text-gray-900 mb-4">My Attendance</h2>
+          {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
+          <div className="flex gap-4">
+            <button
+              onClick={handleCheckIn}
+              disabled={checkInLoading}
+              className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-3 rounded-xl font-medium"
+            >
+              {checkInLoading ? "Checking in..." : "✅ Check In"}
+            </button>
+            <button
+              onClick={handleCheckOut}
+              disabled={checkOutLoading}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl font-medium"
+            >
+              {checkOutLoading ? "Checking out..." : "🚪 Check Out"}
+            </button>
+          </div>
+          {records.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase">My Recent Attendance</p>
+            {records.slice(0,5).map((rec: any) => (
+              <div key={rec.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{new Date(rec.date).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-400">
+                    In: {rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "-"}
+                    {" "}Out: {rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "-"}
+                  </p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-semibold ${rec.status === "present" ? "bg-green-100 text-green-700" : rec.status === "late" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
+                  {rec.status}
+                </span>
+              </div>
+            ))}
+          </div>
+          )}
+        </div>
+      )}
       {activeTab === 'today' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100">
@@ -816,4 +889,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
