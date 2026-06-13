@@ -561,7 +561,7 @@ export default function AttendancePage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Employee', 'Code', 'Status', 'Check In', 'Check Out'].map(h => (
+                  {['Employee', 'Code', 'Department', 'Status', 'Check In', 'Check Out'].map(h => (
                     <th key={h as string} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -594,6 +594,7 @@ export default function AttendancePage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.employee?.employeeCode}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600"><span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(record.employee as any)?.department?.name || "—"}</span></td>
                       <td className="px-6 py-4">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
                           {record.status.replace('_', ' ')}
@@ -651,7 +652,7 @@ export default function AttendancePage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Employee', 'Code', 'Date', 'Status', 'Check In', 'Check Out', canManage && 'Actions'].filter(Boolean).map(h => (
+                  {['Employee', 'Code', 'Department', 'Date', 'Status', 'Check In', 'Check Out', canManage && 'Actions'].filter(Boolean).map(h => (
                     <th key={h as string} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -676,6 +677,7 @@ export default function AttendancePage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.employee?.employeeCode}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600"><span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(record.employee as any)?.department?.name || "—"}</span></td>
                       <td className="px-6 py-4 text-sm text-gray-600">{new Date(record.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
@@ -886,6 +888,49 @@ export default function AttendancePage() {
 
       {/* MARK SINGLE MODAL */}
 
+      {showEditModal && selectedRecord && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Attendance</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
+            <div className="bg-blue-50 rounded-xl p-3 mb-4">
+              <p className="font-semibold text-gray-900 text-sm">{selectedRecord.employee?.user?.name}</p>
+              <p className="text-xs text-gray-500">{new Date(selectedRecord.date).toLocaleDateString()}</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                  <option value="present">Present</option>
+                  <option value="late">Late</option>
+                  <option value="absent">Absent</option>
+                  <option value="half_day">Half Day</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Check In Time</label>
+                  <input type="time" value={editForm.checkIn} onChange={e => setEditForm({ ...editForm, checkIn: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Check Out Time</label>
+                  <input type="time" value={editForm.checkOut} onChange={e => setEditForm({ ...editForm, checkOut: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
+              <button onClick={handleEdit} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

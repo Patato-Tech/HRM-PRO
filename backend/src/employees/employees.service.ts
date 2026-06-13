@@ -183,7 +183,7 @@ export class EmployeesService {
         });
     }
 
-    async incrementSalary(id: number, amount: number, companyId: number, user: any) {
+    async incrementSalary(id: number, amount: number, companyId: number, user: any, reason?: string) {
         if (user.role !== 'COMPANY_ADMIN') {
             checkPermission(user, 'employees', 'edit_salary');
         }
@@ -193,10 +193,39 @@ export class EmployeesService {
         const employee = await this.prisma.employee.findFirst({ where: { id, companyId } });
         if (!employee) throw new NotFoundException('Employee not found');
 
-        return this.prisma.employee.update({
+        const oldSalary = employee.salary;
+        const newSalary = oldSalary + amount;
+        if (newSalary < 0) throw new BadRequestException('Salary cannot be negative.');
+
+        const updated = await this.prisma.employee.update({
             where: { id },
-            data: { salary: { increment: amount } },
+            data: { salary: newSalary },
             include: { user: { select: SAFE_USER_SELECT }, department: true },
+        });
+
+        await this.prisma.salaryHistory.create({
+            data: {
+                companyId,
+                employeeId: id,
+                oldSalary,
+                newSalary,
+                amount: Math.abs(amount),
+                type: amount > 0 ? 'increment' : 'decrement',
+                reason: reason || null,
+                changedById: Number(user.userId),
+            },
+        });
+
+        return updated;
+    }
+
+    async getSalaryHistory(employeeId: number, companyId: number) {
+        return this.prisma.salaryHistory.findMany({
+            where: { employeeId, companyId },
+            include: {
+                changedBy: { select: { name: true, email: true } },
+            },
+            orderBy: { createdAt: 'desc' },
         });
     }
 

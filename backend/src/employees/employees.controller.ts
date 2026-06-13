@@ -18,6 +18,11 @@ export class EmployeesController {
         return this.employeesService.getStats(Number(req.user.companyId), req.user);
     }
 
+    @Get(':id/salary-history')
+    getSalaryHistory(@Param('id') id: string, @Request() req: any) {
+        return this.employeesService.getSalaryHistory(parseInt(id), Number(req.user.companyId));
+    }
+
     @Get(':id')
     findOne(@Param('id') id: string, @Request() req: any) {
         return this.employeesService.findOne(parseInt(id), Number(req.user.companyId), req.user);
@@ -34,8 +39,8 @@ export class EmployeesController {
     }
 
     @Put(':id/increment-salary')
-    incrementSalary(@Param('id') id: string, @Body() body: { amount: number }, @Request() req: any) {
-        return this.employeesService.incrementSalary(parseInt(id), body.amount, Number(req.user.companyId), req.user);
+    incrementSalary(@Param('id') id: string, @Body() body: { amount: number; reason?: string }, @Request() req: any) {
+        return this.employeesService.incrementSalary(parseInt(id), body.amount, Number(req.user.companyId), req.user, body.reason);
     }
 
     @Put(':id/reset-password')

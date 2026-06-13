@@ -17,41 +17,45 @@ model PlatformAdmin {
 }
 
 model Company {
-  id             Int              @id @default(autoincrement())
-  name           String
-  logo           String?
-  industry       String?
-  address        String?
-  status         String           @default("active")
-  planId         String?
-  createdById    Int?
-  createdAt      DateTime         @default(now())
-  users          User[]
-  employees      Employee[]
-  departments    Department[]
-  attendance     Attendance[]
-  leaves         Leave[]
-  leaveBalances  LeaveBalance[]
-  payrolls       Payroll[]
-  shiftSchedules ShiftSchedule[]
-  settings       CompanySettings?
-  publicHolidays PublicHoliday[]
-  deductionRules DeductionRule[]
-  roles          Role[]
+  id              Int              @id @default(autoincrement())
+  name            String
+  logo            String?
+  industry        String?
+  address         String?
+  status          String           @default("active")
+  planId          String?
+  createdById     Int?
+  createdAt       DateTime         @default(now())
+  users           User[]
+  employees       Employee[]
+  departments     Department[]
+  attendance      Attendance[]
+  leaves          Leave[]
+  leaveBalances   LeaveBalance[]
+  payrolls        Payroll[]
+  shiftSchedules  ShiftSchedule[]
+  settings        CompanySettings?
+  publicHolidays  PublicHoliday[]
+  deductionRules  DeductionRule[]
+  roles           Role[]
+  salaryHistories SalaryHistory[]
+
 }
 
 model User {
-  id                   Int       @id @default(autoincrement())
+  id                   Int             @id @default(autoincrement())
   companyId            Int
   name                 String
   email                String
   passwordHash         String
   role                 String
-  isActive             Boolean   @default(true)
+  isActive             Boolean         @default(true)
   sessionInvalidatedAt DateTime?
-  createdAt            DateTime  @default(now())
-  company              Company   @relation(fields: [companyId], references: [id])
+  createdAt            DateTime        @default(now())
+  company              Company         @relation(fields: [companyId], references: [id])
   employee             Employee?
+  salaryHistories      SalaryHistory[]
+
 }
 
 model Department {
@@ -67,25 +71,27 @@ model Department {
 }
 
 model Employee {
-  id            Int            @id @default(autoincrement())
-  companyId     Int
-  userId        Int            @unique
-  employeeCode  String
-  designation   String?
-  departmentId  Int?
-  roleId        Int?
-  salary        Float          @default(0)
-  joinDate      DateTime       @default(now())
-  status        String         @default("active")
-  createdAt     DateTime       @default(now())
-  company       Company        @relation(fields: [companyId], references: [id])
-  user          User           @relation(fields: [userId], references: [id])
-  department    Department?    @relation(fields: [departmentId], references: [id])
-  customRole    Role?          @relation(fields: [roleId], references: [id])
-  attendance    Attendance[]
-  leaves        Leave[]
-  leaveBalances LeaveBalance[]
-  payrolls      Payroll[]
+  id              Int             @id @default(autoincrement())
+  companyId       Int
+  userId          Int             @unique
+  employeeCode    String
+  designation     String?
+  departmentId    Int?
+  roleId          Int?
+  salary          Float           @default(0)
+  joinDate        DateTime        @default(now())
+  status          String          @default("active")
+  createdAt       DateTime        @default(now())
+  company         Company         @relation(fields: [companyId], references: [id])
+  user            User            @relation(fields: [userId], references: [id])
+  department      Department?     @relation(fields: [departmentId], references: [id])
+  customRole      Role?           @relation(fields: [roleId], references: [id])
+  attendance      Attendance[]
+  leaves          Leave[]
+  leaveBalances   LeaveBalance[]
+  payrolls        Payroll[]
+  salaryHistories SalaryHistory[]
+
 }
 
 model Role {
@@ -95,7 +101,7 @@ model Role {
   description String?
   isDefault   Boolean    @default(false)
   scope       String     @default("all") // all | own_department
-  permissions Json       // stores permission object
+  permissions Json // stores permission object
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   company     Company    @relation(fields: [companyId], references: [id])
@@ -143,7 +149,7 @@ model ShiftSchedule {
 model DeductionRule {
   id               Int      @id @default(autoincrement())
   companyId        Int
-  type             String   // LATE_ARRIVAL | HALF_DAY | UNAPPROVED_LEAVE
+  type             String // LATE_ARRIVAL | HALF_DAY | UNAPPROVED_LEAVE
   deductPercentage Float    @default(0)
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
@@ -153,16 +159,16 @@ model DeductionRule {
 }
 
 model Attendance {
-  id        Int       @id @default(autoincrement())
-  companyId Int
+  id         Int       @id @default(autoincrement())
+  companyId  Int
   employeeId Int
-  date      DateTime
-  checkIn   DateTime?
-  checkOut  DateTime?
-  status    String
-  createdAt DateTime  @default(now())
-  company   Company   @relation(fields: [companyId], references: [id])
-  employee  Employee  @relation(fields: [employeeId], references: [id])
+  date       DateTime
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     String
+  createdAt  DateTime  @default(now())
+  company    Company   @relation(fields: [companyId], references: [id])
+  employee   Employee  @relation(fields: [employeeId], references: [id])
 }
 
 model Leave {
@@ -209,4 +215,21 @@ model Payroll {
   createdAt  DateTime @default(now())
   company    Company  @relation(fields: [companyId], references: [id])
   employee   Employee @relation(fields: [employeeId], references: [id])
+}
+
+model SalaryHistory {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  employeeId  Int
+  oldSalary   Float
+  newSalary   Float
+  amount      Float
+  type        String // "increment" | "decrement"
+  reason      String?
+  changedById Int
+  createdAt   DateTime @default(now())
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  employee  Employee @relation(fields: [employeeId], references: [id])
+  changedBy User     @relation(fields: [changedById], references: [id])
 }

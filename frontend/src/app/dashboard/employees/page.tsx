@@ -57,6 +57,11 @@ export default function EmployeesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [showIncrementModal, setShowIncrementModal] = useState(false);
+  const [incrementForm, setIncrementForm] = useState({ amount: "", type: "increment", reason: "" });
+  const [salaryHistory, setSalaryHistory] = useState<any[]>([]);
+  const [showSalaryHistory, setShowSalaryHistory] = useState(false);
+  const [incrementLoading, setIncrementLoading] = useState(false);
   const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
 
   const [addForm, setAddForm] = useState({
@@ -227,6 +232,36 @@ export default function EmployeesPage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleIncrement = async () => {
+    if (!selectedEmployee || !incrementForm.amount) { setError("Amount is required"); return; }
+    setIncrementLoading(true);
+    try {
+      const token = getToken() || "";
+      const amount = incrementForm.type === "increment" ? Math.abs(Number(incrementForm.amount)) : -Math.abs(Number(incrementForm.amount));
+      await apiCall(`/employees/${selectedEmployee.id}/increment-salary`, {
+        method: "PUT",
+        body: JSON.stringify({ amount, reason: incrementForm.reason || undefined }),
+      }, token);
+      setShowIncrementModal(false);
+      showSuccessMsg(`Salary ${incrementForm.type === "increment" ? "incremented" : "decremented"} successfully!`);
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || "Failed to update salary");
+    } finally {
+      setIncrementLoading(false);
+    }
+  };
+
+  const handleViewSalaryHistory = async (emp: Employee) => {
+    const token = getToken() || "";
+    try {
+      const data = await apiCall(`/employees/${emp.id}/salary-history`, {}, token);
+      setSalaryHistory(data || []);
+      setSelectedEmployee(emp);
+      setShowSalaryHistory(true);
+    } catch (err) { console.error(err); }
   };
 
   const openEditModal = (emp: Employee) => {
@@ -419,6 +454,14 @@ export default function EmployeesPage() {
                             >
                               Reset Pwd
                             </button>
+                            {canEditSalary && (
+                            <button
+                              onClick={() => { setShowIncrementModal(true); setSelectedEmployee(emp); setIncrementForm({ amount: "", type: "increment", reason: "" }); }}
+                              className="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-2.5 py-1.5 rounded-lg"
+                            >
+                              💰 Salary
+                            </button>
+                            )}
                             {emp.user.id !== user?.id && (
                             <button
                               onClick={() => handleDeactivate(emp)}
@@ -725,6 +768,114 @@ export default function EmployeesPage() {
               <button onClick={() => setShowDeleteModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
               <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-sm font-medium">Yes, Delete</button>
             </div>
+          </div>
+        </div>
+      )}
+      {showIncrementModal && selectedEmployee && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Update Salary</h3>
+              <button onClick={() => { setShowIncrementModal(false); setError(""); }} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-3 mb-4 flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">{selectedEmployee.user.name}</p>
+                <p className="text-xs text-gray-500">Current Salary: PKR {(selectedEmployee as any).salary?.toLocaleString() || 0}</p>
+              </div>
+              <button onClick={() => handleViewSalaryHistory(selectedEmployee)}
+                className="text-xs bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg">
+                View History
+              </button>
+            </div>
+            {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select value={incrementForm.type} onChange={e => setIncrementForm({ ...incrementForm, type: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                  <option value="increment">Increment (Increase)</option>
+                  <option value="decrement">Decrement (Decrease)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (PKR) *</label>
+                <input type="number" value={incrementForm.amount} onChange={e => setIncrementForm({ ...incrementForm, amount: e.target.value })}
+                  placeholder="e.g. 5000"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {["Annual Increment", "Performance Bonus", "Promotion", "Market Adjustment", "Correction"].map(r => (
+                    <button key={r} type="button"
+                      onClick={() => setIncrementForm({ ...incrementForm, reason: r })}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${incrementForm.reason === r ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <input type="text" value={incrementForm.reason} onChange={e => setIncrementForm({ ...incrementForm, reason: e.target.value })}
+                  placeholder="Or type custom reason..."
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => { setShowIncrementModal(false); setError(""); }} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
+              <button onClick={handleIncrement} disabled={incrementLoading}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-medium">
+                {incrementLoading ? "Updating..." : "Update Salary"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSalaryHistory && selectedEmployee && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Salary History — {selectedEmployee.user.name}</h3>
+              <button onClick={() => setShowSalaryHistory(false)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
+            </div>
+            {salaryHistory.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-3xl mb-2">📊</p>
+                <p className="text-gray-500">No salary history found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {salaryHistory.map((h: any) => (
+                  <div key={h.id} className="border border-gray-100 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${h.type === "increment" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {h.type === "increment" ? "▲ Increment" : "▼ Decrement"}
+                      </span>
+                      <span className="text-xs text-gray-400">{new Date(h.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-gray-400">Old Salary</p>
+                        <p className="font-semibold text-gray-900">PKR {h.oldSalary?.toLocaleString()}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-gray-400">Amount</p>
+                        <p className={`font-semibold ${h.type === "increment" ? "text-green-600" : "text-red-600"}`}>
+                          {h.type === "increment" ? "+" : "-"}PKR {h.amount?.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <p className="text-gray-400">New Salary</p>
+                        <p className="font-semibold text-gray-900">PKR {h.newSalary?.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    {h.reason && <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-1.5">Reason: {h.reason}</p>}
+                    <p className="text-xs text-gray-400 mt-1">By: {h.changedBy?.name}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setShowSalaryHistory(false)} className="w-full mt-4 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Close</button>
           </div>
         </div>
       )}
