@@ -103,7 +103,7 @@ export default function DashboardPage() {
         if (result.status === "fulfilled") {
           const key = keys[i];
           if (key === "empStats") setEmpStats(result.value);
-          if (key === "employees") setRecentEmployees(result.value.slice(0, 5));
+          if (key === "employees") setRecentEmployees(result.value.filter((e: any) => !user?.customRoleName || String(e.user?.id) !== String(user?.id)).slice(0, 5));
           if (key === "attendance") setAttendance(result.value);
           if (key === "todayAttendance") setTodayAttendance(result.value || []);
           if (key === "pendingLeaves") setPendingLeaves(result.value.slice(0, 5));

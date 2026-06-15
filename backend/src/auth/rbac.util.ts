@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+﻿import { ForbiddenException } from '@nestjs/common';
 
 /**
  * Check if user has a specific permission

@@ -100,6 +100,43 @@ export class AttendanceService {
         });
     }
 
+    async manualMark(dto: any, companyId: number, user: any) {
+        if (user.role !== 'COMPANY_ADMIN') {
+            checkPermission(user, 'attendance', 'manage');
+        }
+        const empId = Number(dto.employeeId);
+        const date = new Date(dto.date);
+        date.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(date);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const existing = await this.prisma.attendance.findFirst({
+            where: { employeeId: empId, companyId, date: { gte: date, lt: tomorrow } },
+        });
+
+        const data: any = {
+            companyId,
+            employeeId: empId,
+            date,
+            status: dto.status || 'present',
+            checkIn: dto.checkIn ? new Date(`${dto.date}T${dto.checkIn}`) : null,
+            checkOut: dto.checkOut ? new Date(`${dto.date}T${dto.checkOut}`) : null,
+        };
+
+        if (existing) {
+            return this.prisma.attendance.update({
+                where: { id: existing.id },
+                data,
+                include: { employee: { include: { user: { select: { id: true, name: true, email: true, role: true } } } } },
+            });
+        }
+
+        return this.prisma.attendance.create({
+            data,
+            include: { employee: { include: { user: { select: { id: true, name: true, email: true, role: true } } } } },
+        });
+    }
+
     async findAll(companyId: number, user: any) {
         const isAdmin = user.role === 'COMPANY_ADMIN';
         const isPlainEmployee = user.role === 'EMPLOYEE' && !user.customRoleScope;
@@ -116,18 +153,21 @@ export class AttendanceService {
         if (!isAdmin) checkPermission(user, 'attendance', 'view');
 
         const scopeFilter = getScopeFilter(user);
-        return this.prisma.attendance.findMany({
+        const selfExcludeId = user.employeeId ? Number(user.employeeId) : null;
+        const allRecords = await this.prisma.attendance.findMany({
             where: { companyId, ...scopeFilter },
             include: {
                 employee: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
+                        department: { select: { id: true, name: true } },
                         customRole: true,
                     },
                 },
             },
             orderBy: { date: 'desc' },
         });
+        return selfExcludeId ? allRecords.filter(r => r.employeeId !== selfExcludeId) : allRecords;
     }
 
     async getTodaySummary(companyId: number, user: any) {
@@ -136,6 +176,7 @@ export class AttendanceService {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
+        console.log('ATTENDANCE USER:', JSON.stringify(user));
         const scopeFilter = getScopeFilter(user);
         const empFilter = scopeFilter.employee || {};
 
@@ -155,18 +196,21 @@ export class AttendanceService {
         end.setHours(23, 59, 59, 999);
 
         const scopeFilter = getScopeFilter(user);
+        const selfExcludeId = user.employeeId ? Number(user.employeeId) : null;
 
-        return this.prisma.attendance.findMany({
+        const dateRecords = await this.prisma.attendance.findMany({
             where: { companyId, date: { gte: start, lte: end }, ...scopeFilter },
             include: {
                 employee: {
                     include: {
                         user: { select: { id: true, name: true, email: true, role: true } },
+                        department: { select: { id: true, name: true } },
                         customRole: true,
                     },
                 },
             },
         });
+        return selfExcludeId ? dateRecords.filter(r => r.employeeId !== selfExcludeId) : dateRecords;
     }
 
     async findByEmployee(employeeId: number, companyId: number) {

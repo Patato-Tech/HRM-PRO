@@ -36,8 +36,10 @@ export class EmployeesService {
         const scopeFilter = getEmployeeScopeFilter(user);
         const showSalary = canViewSalary(user);
 
+        // Exclude own record for custom roles
+        const selfExclude = user.employeeId ? { id: { not: Number(user.employeeId) } } : {};
         const employees = await this.prisma.employee.findMany({
-            where: { companyId, ...scopeFilter },
+            where: { companyId, ...scopeFilter, ...selfExclude },
             include: {
                 user: { select: SAFE_USER_SELECT },
                 department: { select: { id: true, name: true } },

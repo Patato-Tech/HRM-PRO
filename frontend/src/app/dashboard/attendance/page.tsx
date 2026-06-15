@@ -8,12 +8,16 @@ import { apiCall, getToken } from '@/lib/api';
 interface Employee {
   id: string;
   employeeCode: string;
-  user: { name: string; email: string };
+  departmentId: string | null;
+  department?: { name: string } | null;
+  customRole?: { scope: string; name: string } | null;
+  user: { id: string; name: string; email: string };
 }
 
 interface Department {
   id: string;
   name: string;
+  status: string;
 }
 
 interface AttendanceRecord {
@@ -68,9 +72,10 @@ export default function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'today' | 'history' | 'shifts'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'history' | 'bulk' | 'shifts'>('today');
 
   const [showMarkModal, setShowMarkModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -78,6 +83,7 @@ export default function AttendancePage() {
 
   const [markForm, setMarkForm] = useState({
     employeeId: '',
+    departmentId: '',
     date: new Date().toISOString().split('T')[0],
     status: 'present',
     checkIn: '',
@@ -94,6 +100,7 @@ export default function AttendancePage() {
   const [bulkDate, setBulkDate] = useState(new Date().toISOString().split('T')[0]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
+  const [absentLoading, setAbsentLoading] = useState(false);
   const [checkOutLoading, setCheckOutLoading] = useState(false);
   const [todayRecord, setTodayRecord] = useState<any>(null);
 
@@ -112,7 +119,7 @@ export default function AttendancePage() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [shiftError, setShiftError] = useState('');
 
-  const canManage = canManageEmployees(user?.role || '');
+  const canManage = canManageEmployees(user?.role || '') || hasPermission(user, 'attendance', 'manage');
   const canSetShifts = isCompanyAdmin(user?.role || '');
 
 
@@ -166,6 +173,7 @@ export default function AttendancePage() {
   };
 
   const fetchByDate = async () => {
+    if (!selectedDate) return;
     const token = getToken() || '';
     try {
       const data = await apiCall(`/attendance/date/${selectedDate}`, {}, token);
@@ -209,6 +217,35 @@ export default function AttendancePage() {
       setCheckOutLoading(false);
     }
   };
+  const handleMarkAbsents = async () => {
+    setAbsentLoading(true);
+    const token = getToken() || '';
+    const today = new Date().toISOString().split('T')[0];
+    let count = 0;
+    try {
+      for (const emp of employees) {
+        const hasRecord = records.some(r => String(r.employee?.id) === String(emp.id));
+        if (!hasRecord) {
+          try {
+            await apiCall('/attendance/manual', {
+              method: 'POST',
+              body: JSON.stringify({
+                employeeId: emp.id,
+                date: today,
+                status: 'absent',
+              }),
+            }, token);
+            count++;
+          } catch { /* skip */ }
+        }
+      }
+      showSuccessMsg(`${count} employees marked absent`);
+      fetchData();
+    } finally {
+      setAbsentLoading(false);
+    }
+  };
+
   const handleMarkSingle = async () => {
     setError('');
     if (!markForm.employeeId) { setError('Please select an employee'); return; }
@@ -338,7 +375,8 @@ export default function AttendancePage() {
     const matchSearch = r.employee?.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.employee?.employeeCode?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = statusFilter === 'all' || r.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchDept = deptFilter === 'all' || (r.employee as any)?.department?.name === deptFilter;
+    return matchSearch && matchStatus && matchDept;
   });
 
   const handleSaveWorkingDays = async () => {
@@ -418,6 +456,18 @@ export default function AttendancePage() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
+        {canManage && (
+        <div className="flex gap-2">
+          <button onClick={handleMarkAbsents} disabled={absentLoading}
+            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
+            {absentLoading ? "Marking..." : "Mark Absents"}
+          </button>
+          <button onClick={() => { setShowMarkModal(true); setError(""); }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
+            + Mark Attendance
+          </button>
+        </div>
+        )}
 
       </div>
 
@@ -479,6 +529,7 @@ export default function AttendancePage() {
         {([
           { key: 'today', label: '📅 Today' },
           { key: 'history', label: '📋 By Date' },
+          canManage && { key: 'bulk', label: '📝 Bulk Mark' },
           canSetShifts && { key: 'shifts', label: '⚙️ Shift Settings' },
         ] as any[]).filter(Boolean).map((tab: any) => (
           <button
@@ -494,7 +545,7 @@ export default function AttendancePage() {
       </div>
 
       {/* TODAY TAB */}
-      {(user?.role === "EMPLOYEE" && !user?.customRoleName) && (
+      {(user?.role === "EMPLOYEE" || user?.customRoleName) && (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h2 className="font-semibold text-gray-900 mb-4">My Attendance</h2>
           {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
@@ -517,7 +568,7 @@ export default function AttendancePage() {
           {records.length > 0 && (
           <div className="mt-4 space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase">My Recent Attendance</p>
-            {records.slice(0,5).map((rec: any) => (
+            {records.filter((rec: any) => String(rec.employee?.user?.id) === String(user?.id) || String(rec.employeeId) === String(user?.employeeId)).slice(0,5).map((rec: any) => (
               <div key={rec.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{new Date(rec.date).toLocaleDateString()}</p>
@@ -554,6 +605,11 @@ export default function AttendancePage() {
                 <option value="all">All Status</option>
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
               </select>
+                <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                  <option value="all">All Departments</option>
+                  {departments.filter(d => d.status === "active").map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                </select>
             </div>
           </div>
 
@@ -594,7 +650,7 @@ export default function AttendancePage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.employee?.employeeCode}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600"><span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(record.employee as any)?.department?.name || "—"}</span></td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{(record.employee as any)?.department?.name ? (<span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(record.employee as any)?.department?.name}</span>) : (record.employee as any)?.customRole?.scope === "all" ? (<span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>) : (<span className="text-xs text-gray-400">—</span>)}</td>
                       <td className="px-6 py-4">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
                           {record.status.replace('_', ' ')}
@@ -645,6 +701,11 @@ export default function AttendancePage() {
                 <option value="all">All Status</option>
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
               </select>
+                <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                  <option value="all">All Departments</option>
+                  {departments.filter(d => d.status === "active").map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                </select>
             </div>
           </div>
 
@@ -677,7 +738,7 @@ export default function AttendancePage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.employee?.employeeCode}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600"><span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(record.employee as any)?.department?.name || "—"}</span></td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{(record.employee as any)?.department?.name ? (<span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(record.employee as any)?.department?.name}</span>) : (record.employee as any)?.customRole?.scope === "all" ? (<span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>) : (<span className="text-xs text-gray-400">—</span>)}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{new Date(record.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
@@ -707,6 +768,81 @@ export default function AttendancePage() {
         </div>
       )}
 
+      {activeTab === "bulk" && canManage && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Bulk Mark Attendance</h2>
+                <p className="text-xs text-gray-400 mt-1">Mark attendance for all employees at once</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input type="date" value={bulkDate} onChange={e => { setBulkDate(e.target.value); initBulkForms(); }}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                <button onClick={initBulkForms}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium">
+                  Load Employees
+                </button>
+                <button onClick={handleBulkMark} disabled={bulkLoading}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-medium">
+                  {bulkLoading ? "Saving..." : "Save All"}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  {["Employee", "Code", "Department", "Status", "Check In", "Check Out"].map(h => (
+                    <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {employees.length === 0 ? (
+                  <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">Click "Load Employees" to start</td></tr>
+                ) : (
+                  employees.map(emp => (
+                    <tr key={emp.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="bg-blue-100 text-blue-700 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs">
+                            {emp.user.name.charAt(0).toUpperCase()}
+                          </div>
+                          <p className="font-semibold text-gray-900 text-sm">{emp.user.name}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-sm font-mono text-gray-600">{emp.employeeCode}</td>
+                      <td className="px-6 py-3 text-sm text-gray-500">{emp.department?.name ? (<span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{emp.department.name}</span>) : emp.customRole?.scope === "all" ? (<span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>) : (<span className="text-xs text-gray-400">—</span>)}</td>
+                      <td className="px-6 py-3">
+                        <select value={bulkForms[emp.id]?.status || "present"}
+                          onChange={e => setBulkForms(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], status: e.target.value } }))}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                          <option value="present">Present</option>
+                          <option value="late">Late</option>
+                          <option value="absent">Absent</option>
+                          <option value="half_day">Half Day</option>
+                        </select>
+                      </td>
+                      <td className="px-6 py-3">
+                        <input type="time" value={bulkForms[emp.id]?.checkIn || ""}
+                          onChange={e => setBulkForms(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], checkIn: e.target.value } }))}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                      </td>
+                      <td className="px-6 py-3">
+                        <input type="time" value={bulkForms[emp.id]?.checkOut || ""}
+                          onChange={e => setBulkForms(prev => ({ ...prev, [emp.id]: { ...prev[emp.id], checkOut: e.target.value } }))}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {activeTab === 'shifts' && canSetShifts && (
         <div className="space-y-5">
           {/* Set Office Timings */}
@@ -888,6 +1024,74 @@ export default function AttendancePage() {
 
       {/* MARK SINGLE MODAL */}
 
+      {showMarkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Mark Attendance</h3>
+              <button onClick={() => setShowMarkModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
+            </div>
+            {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
+            <div className="space-y-3">
+              {(() => {
+                const selectedEmp = employees.find(e => String(e.id) === String(markForm.employeeId));
+                const isCompanyWide = selectedEmp && (selectedEmp?.customRole?.scope === "all" || (!selectedEmp?.customRole && !selectedEmp?.departmentId));
+                return !isCompanyWide && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Department <span className="text-gray-400 font-normal">(optional filter)</span></label>
+                    <select value={markForm.departmentId} onChange={e => setMarkForm({ ...markForm, departmentId: e.target.value, employeeId: "" })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                      <option value="">All Departments</option>
+                      {departments.filter(d => d.status === "active").map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
+                <select value={markForm.employeeId} onChange={e => setMarkForm({ ...markForm, employeeId: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                  <option value="">Select employee</option>
+                  {employees.filter(emp => !markForm.departmentId || String(emp.departmentId) === String(markForm.departmentId)).map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode}){emp.customRole ? ` [${emp.customRole.name}]` : ""}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <input type="date" value={markForm.date} onChange={e => setMarkForm({ ...markForm, date: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                <select value={markForm.status} onChange={e => setMarkForm({ ...markForm, status: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                  <option value="present">Present</option>
+                  <option value="late">Late</option>
+                  <option value="absent">Absent</option>
+                  <option value="half_day">Half Day</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Check In</label>
+                  <input type="time" value={markForm.checkIn} onChange={e => setMarkForm({ ...markForm, checkIn: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Check Out</label>
+                  <input type="time" value={markForm.checkOut} onChange={e => setMarkForm({ ...markForm, checkOut: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowMarkModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
+              <button onClick={handleMarkSingle} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Mark Attendance</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showEditModal && selectedRecord && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">

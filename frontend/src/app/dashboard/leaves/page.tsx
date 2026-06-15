@@ -53,12 +53,13 @@ export default function LeavesPage() {
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<Leave[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [myBalances, setMyBalances] = useState<LeaveBalance[]>([]);
+  const [myBalances, setMyBalances] = useState<Record<string, LeaveBalance[]>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'balance'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
@@ -79,6 +80,7 @@ export default function LeavesPage() {
 
   const [balanceForm, setBalanceForm] = useState({
     employeeId: '',
+    departmentId: '',
     leaveType: 'Annual',
     total: '',
     year: new Date().getFullYear().toString(),
@@ -91,7 +93,7 @@ export default function LeavesPage() {
   });
   const [bulkBalanceLoading, setBulkBalanceLoading] = useState(false);
 
-  const canApprove = canApproveLeaves(user?.role || '');
+  const canApprove = canApproveLeaves(user?.role || '') || hasPermission(user, 'leaves', 'approve') || isCompanyAdmin(user?.role || '');
 
   useEffect(() => {
     if (!authLoading && user && user.role !== 'COMPANY_ADMIN' && !(user.role === 'EMPLOYEE' && !user.customRoleName) && !hasPermission(user, 'leaves', 'view') && !hasPermission(user, 'leaves', 'approve')) {
@@ -195,7 +197,7 @@ export default function LeavesPage() {
         }),
       }, token);
       setShowBalanceModal(false);
-      setBalanceForm({ employeeId: '', leaveType: 'Annual', total: '', year: new Date().getFullYear().toString() });
+      setBalanceForm({ employeeId: '', departmentId: '', leaveType: 'Annual', total: '', year: new Date().getFullYear().toString() });
       showSuccessMsg('Leave balance added!');
     } catch (err: any) {
       setError(err.message);
@@ -233,16 +235,16 @@ export default function LeavesPage() {
 
   const handleViewBalance = async (emp: Employee) => {
     const token = getToken() || '';
+    console.log('Fetching balance for emp:', emp.id);
     try {
       const data = await apiCall(`/leaves/balance/${emp.id}`, {}, token);
-      setMyBalances(data);
+      console.log('Balance data:', data);
+      setMyBalances(prev => ({ ...prev, [String(emp.id)]: data }));
     } catch (err) {
-      console.error(err);
+      console.error('Balance error:', err);
     }
   };
-
   const calculateDays = (start: string, end: string) => {
-    if (!start || !end) return '';
     const diff = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return diff > 0 ? diff.toString() : '';
   };
@@ -252,7 +254,8 @@ export default function LeavesPage() {
       l.leaveType.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = statusFilter === 'all' || l.status === statusFilter;
     const matchType = typeFilter === 'all' || l.leaveType === typeFilter;
-    return matchSearch && matchStatus && matchType;
+    const matchDept = deptFilter === 'all' || (l.employee as any)?.department?.name === deptFilter;
+    return matchSearch && matchStatus && matchType && matchDept;
   });
 
   if (loading) {
@@ -279,7 +282,7 @@ export default function LeavesPage() {
           <p className="text-gray-500 text-sm mt-1">{pendingLeaves.length} pending approval</p>
         </div>
         <div className="flex gap-2">
-          {isCompanyAdmin(user?.role || '') && (
+          {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'leaves', 'manage')) && (
             <>
               <button onClick={() => { setShowBulkBalanceModal(true); setError(''); }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
@@ -291,7 +294,7 @@ export default function LeavesPage() {
               </button>
             </>
           )}
-          {!isCompanyAdmin(user?.role || '') && (
+          {!isCompanyAdmin(user?.role || '') && !user?.customRoleName && (
             <button onClick={() => { setShowApplyModal(true); setError(''); }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
               + Apply Leave
@@ -351,13 +354,20 @@ export default function LeavesPage() {
                 <option value="all">All Types</option>
                 {LEAVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
+              <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                <option value="all">All Departments</option>
+                {employees.filter((emp: any) => emp.department).map((emp: any) => emp.department?.name).filter((v: any, i: any, a: any) => a.indexOf(v) === i).map((name: any) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Employee', 'Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status', 'Actions'].map(h => (
+                  {['Employee', 'Department', 'Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status', 'Actions'].map(h => (
                     <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -384,6 +394,7 @@ export default function LeavesPage() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{(leave.employee as any)?.department?.name ? (<span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(leave.employee as any)?.department?.name}</span>) : (leave.employee as any)?.customRole?.scope === "all" ? (<span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>) : (<span className="text-xs text-gray-400">—</span>)}</td>
                       <td className="px-6 py-4">
                         <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{leave.leaveType}</span>
                       </td>
@@ -505,12 +516,12 @@ export default function LeavesPage() {
                     </div>
                     <button onClick={() => handleViewBalance(emp)}
                       className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg">
-                      View Balance
+                      {myBalances[String(emp.id)] ? "↻ Refresh" : "View Balance"}
                     </button>
                   </div>
-                  {myBalances.length > 0 && (
+                  {(myBalances[String(emp.id)] || []).length > 0 && (
                     <div className="space-y-2 mt-2">
-                      {myBalances.map(balance => (
+                      {(myBalances[String(emp.id)] || []).map(balance => (
                         <div key={balance.id} className="flex items-center justify-between text-xs">
                           <span className="text-gray-600">{balance.leaveType}</span>
                           <div className="flex items-center gap-2">
@@ -658,12 +669,30 @@ export default function LeavesPage() {
             </div>
             {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
             <div className="space-y-3">
+              {(() => {
+                const selEmp = employees.find((e: any) => String(e.id) === String(balanceForm.employeeId));
+                const isCompanyWide = selEmp && (selEmp.customRole?.scope === "all" || (!selEmp.customRole && !selEmp.departmentId));
+                return !isCompanyWide && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Department <span className="text-gray-400 font-normal">(optional filter)</span></label>
+                    <select value={balanceForm.departmentId} onChange={e => setBalanceForm({ ...balanceForm, departmentId: e.target.value, employeeId: "" })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                      <option value="">All Departments</option>
+                      {employees.filter((e: any) => e.department).map((e: any) => e.department?.name).filter((v: any, i: any, a: any) => a.indexOf(v) === i).map((name: any) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
                 <select value={balanceForm.employeeId} onChange={e => setBalanceForm({ ...balanceForm, employeeId: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
                   <option value="">Select employee</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.user.name}</option>)}
+                  {employees.filter((emp: any) => !balanceForm.departmentId || emp.department?.name === balanceForm.departmentId).map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>
+                  ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">

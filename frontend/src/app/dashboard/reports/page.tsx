@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -102,8 +102,8 @@ export default function ReportsPage() {
 
   const token = getToken() || '';
   const role = user?.role || '';
-  const isEmp = isEmployee(role);
-  const isDeptMgr = isDeptManager(role);
+  const isEmp = isEmployee(role) && !user?.customRoleName && !hasPermission(user, 'reports', 'view');
+  const isDeptMgr = isDeptManager(role) || (user?.customRoleScope === 'own_department' && hasPermission(user, 'reports', 'view'));
 
   // ✅ useCallback so these are stable references for useEffect deps
   const fetchEmployeeData = useCallback(async () => {

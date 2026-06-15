@@ -14,10 +14,10 @@ const allNavItems = [
   { href: '/dashboard/reports',     label: 'Reports',      icon: '📈', roles: 'reports',            soon: false },
   { href: '/dashboard/roles',       label: 'Roles',        icon: '🔐', roles: 'company_admin',     soon: false },
   { href: '/dashboard/profile',     label: 'Profile',      icon: '👤', roles: 'all',               soon: false },
-  { href: '/dashboard/performance', label: 'Performance',  icon: '⭐', roles: 'performance',       soon: true  },
-  { href: '/dashboard/recruitment', label: 'Recruitment',  icon: '🎯', roles: 'recruitment',        soon: true  },
-  { href: '/dashboard/training',    label: 'Training',     icon: '📚', roles: 'training',           soon: true  },
-  { href: '/dashboard/documents',   label: 'Documents',    icon: '📄', roles: 'documents',          soon: true  },
+  { href: '/dashboard/performance', label: 'Performance',  icon: '⭐', roles: 'performance'  },
+  { href: '/dashboard/recruitment', label: 'Recruitment',  icon: '🎯', roles: 'recruitment'  },
+  { href: '/dashboard/training',    label: 'Training',     icon: '📚', roles: 'training'  },
+  { href: '/dashboard/documents',   label: 'Documents',    icon: '📄', roles: 'documents'  },
 ];
 
 const roleColors: Record<string, string> = {
@@ -54,10 +54,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (roles === 'attendance') return hasPermission(user, 'attendance', 'view');
     if (roles === 'leaves') return hasPermission(user, 'leaves', 'view') || hasPermission(user, 'leaves', 'approve');
     if (roles === 'reports') return hasPermission(user, 'reports', 'view');
-    if (roles === 'performance') return hasPermission(user, 'performance', 'view');
-    if (roles === 'recruitment') return hasPermission(user, 'recruitment', 'view');
-    if (roles === 'training') return hasPermission(user, 'training', 'view');
-    if (roles === 'documents') return hasPermission(user, 'documents', 'view');
+    if (roles === 'performance') return isAdmin || hasPermission(user, 'performance', 'view');
+    if (roles === 'recruitment') return isAdmin || hasPermission(user, 'recruitment', 'view');
+    if (roles === 'training') return isAdmin || hasPermission(user, 'training', 'view');
+    if (roles === 'documents') return isAdmin || hasPermission(user, 'documents', 'view');
     return false;
   };
 

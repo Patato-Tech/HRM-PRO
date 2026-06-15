@@ -86,7 +86,7 @@ export default function EmployeesPage() {
   const canEditSalary = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'edit_salary');
   const canDelete = user?.role === 'COMPANY_ADMIN' || hasPermission(user, 'employees', 'delete');
   const canEdit = canEditBasic; const canManage = canCreate || canEditBasic || canDelete;
-  const hideSalary = !isCompanyAdmin(user?.role || '') && !hasPermission(user, 'payroll', 'view_salary') && !hasPermission(user, 'payroll', 'view');
+  const hideSalary = !isCompanyAdmin(user?.role || '') && !hasPermission(user, 'employees', 'edit_salary');
   useEffect(() => {
     if (authLoading || !user) return;
     if (user.role !== 'COMPANY_ADMIN' && !hasPermission(user, 'employees', 'view')) {
@@ -294,9 +294,9 @@ export default function EmployeesPage() {
       emp.designation?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = statusFilter === 'all' || emp.status === statusFilter;
     const matchDept = deptFilter === 'all' || emp.department?.id === deptFilter;
-    return matchSearch && matchStatus && matchDept;
+    const isOwnRecord = !!(user?.customRoleName && String(emp.user.id) === String(user?.id));
+    return matchSearch && matchStatus && matchDept && !isOwnRecord;
   });
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -415,7 +415,15 @@ export default function EmployeesPage() {
                     </td>
                     <td className="px-6 py-4 text-sm font-mono text-gray-600">{emp.employeeCode}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{emp.designation || '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{emp.department?.name || '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {emp.department?.name ? (
+                        <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{emp.department.name}</span>
+                      ) : emp.customRole?.scope === 'all' ? (
+                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                     {!hideSalary && (
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900">
                         {emp.salary != null ? `PKR ${emp.salary.toLocaleString()}` : '—'}

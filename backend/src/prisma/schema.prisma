@@ -17,81 +17,97 @@ model PlatformAdmin {
 }
 
 model Company {
-  id              Int              @id @default(autoincrement())
-  name            String
-  logo            String?
-  industry        String?
-  address         String?
-  status          String           @default("active")
-  planId          String?
-  createdById     Int?
-  createdAt       DateTime         @default(now())
-  users           User[]
-  employees       Employee[]
-  departments     Department[]
-  attendance      Attendance[]
-  leaves          Leave[]
-  leaveBalances   LeaveBalance[]
-  payrolls        Payroll[]
-  shiftSchedules  ShiftSchedule[]
-  settings        CompanySettings?
-  publicHolidays  PublicHoliday[]
-  deductionRules  DeductionRule[]
-  roles           Role[]
-  salaryHistories SalaryHistory[]
-
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  logo                String?
+  industry            String?
+  address             String?
+  status              String               @default("active")
+  planId              String?
+  createdById         Int?
+  createdAt           DateTime             @default(now())
+  users               User[]
+  employees           Employee[]
+  departments         Department[]
+  attendance          Attendance[]
+  leaves              Leave[]
+  leaveBalances       LeaveBalance[]
+  payrolls            Payroll[]
+  shiftSchedules      ShiftSchedule[]
+  settings            CompanySettings?
+  publicHolidays      PublicHoliday[]
+  deductionRules      DeductionRule[]
+  roles               Role[]
+  salaryHistories     SalaryHistory[]
+  performanceReviews  PerformanceReview[]
+  jobPostings         JobPosting[]
+  applicants          Applicant[]
+  trainingPrograms    TrainingProgram[]
+  trainingEnrollments TrainingEnrollment[]
+  documents           Document[]
 }
 
 model User {
-  id                   Int             @id @default(autoincrement())
+  id                   Int                 @id @default(autoincrement())
   companyId            Int
   name                 String
   email                String
   passwordHash         String
   role                 String
-  isActive             Boolean         @default(true)
+  isActive             Boolean             @default(true)
   sessionInvalidatedAt DateTime?
-  createdAt            DateTime        @default(now())
-  company              Company         @relation(fields: [companyId], references: [id])
+  createdAt            DateTime            @default(now())
+  company              Company             @relation(fields: [companyId], references: [id])
   employee             Employee?
   salaryHistories      SalaryHistory[]
-
+  performanceReviews   PerformanceReview[]
+  jobPostings          JobPosting[]
+  trainingPrograms     TrainingProgram[]
+  documents            Document[]
+  reviewsGiven         PerformanceReview[] @relation("ReviewerRelation")
+  jobPostingsCreated   JobPosting[]        @relation("JobCreatorRelation")
+  trainingsCreated     TrainingProgram[]   @relation("TrainingCreatorRelation")
+  documentsUploaded    Document[]          @relation("DocumentUploaderRelation")
 }
 
 model Department {
-  id             Int             @id @default(autoincrement())
-  companyId      Int
-  name           String
-  headId         Int?
-  status         String          @default("active")
-  createdAt      DateTime        @default(now())
-  company        Company         @relation(fields: [companyId], references: [id])
-  employees      Employee[]
-  shiftSchedules ShiftSchedule[]
+  id               Int               @id @default(autoincrement())
+  companyId        Int
+  name             String
+  headId           Int?
+  status           String            @default("active")
+  createdAt        DateTime          @default(now())
+  company          Company           @relation(fields: [companyId], references: [id])
+  employees        Employee[]
+  shiftSchedules   ShiftSchedule[]
+  jobPostings      JobPosting[]
+  trainingPrograms TrainingProgram[]
 }
 
 model Employee {
-  id              Int             @id @default(autoincrement())
-  companyId       Int
-  userId          Int             @unique
-  employeeCode    String
-  designation     String?
-  departmentId    Int?
-  roleId          Int?
-  salary          Float           @default(0)
-  joinDate        DateTime        @default(now())
-  status          String          @default("active")
-  createdAt       DateTime        @default(now())
-  company         Company         @relation(fields: [companyId], references: [id])
-  user            User            @relation(fields: [userId], references: [id])
-  department      Department?     @relation(fields: [departmentId], references: [id])
-  customRole      Role?           @relation(fields: [roleId], references: [id])
-  attendance      Attendance[]
-  leaves          Leave[]
-  leaveBalances   LeaveBalance[]
-  payrolls        Payroll[]
-  salaryHistories SalaryHistory[]
-
+  id                  Int                  @id @default(autoincrement())
+  companyId           Int
+  userId              Int                  @unique
+  employeeCode        String
+  designation         String?
+  departmentId        Int?
+  roleId              Int?
+  salary              Float                @default(0)
+  joinDate            DateTime             @default(now())
+  status              String               @default("active")
+  createdAt           DateTime             @default(now())
+  company             Company              @relation(fields: [companyId], references: [id])
+  user                User                 @relation(fields: [userId], references: [id])
+  department          Department?          @relation(fields: [departmentId], references: [id])
+  customRole          Role?                @relation(fields: [roleId], references: [id])
+  attendance          Attendance[]
+  leaves              Leave[]
+  leaveBalances       LeaveBalance[]
+  payrolls            Payroll[]
+  salaryHistories     SalaryHistory[]
+  performanceReviews  PerformanceReview[]
+  trainingEnrollments TrainingEnrollment[]
+  documents           Document[]
 }
 
 model Role {
@@ -232,4 +248,121 @@ model SalaryHistory {
   company   Company  @relation(fields: [companyId], references: [id])
   employee  Employee @relation(fields: [employeeId], references: [id])
   changedBy User     @relation(fields: [changedById], references: [id])
+}
+
+model PerformanceReview {
+  id            Int      @id @default(autoincrement())
+  companyId     Int
+  employeeId    Int
+  reviewerId    Int
+  period        String // "monthly" | "quarterly" | "annual"
+  reviewDate    DateTime
+  kpis          Json // [{ title, rating, comment }]
+  overallRating Float
+  comments      String?
+  status        String   @default("draft") // draft | submitted | acknowledged
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+  reviewer User     @relation("ReviewerRelation", fields: [reviewerId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+  userId   Int?
+}
+
+model JobPosting {
+  id           Int      @id @default(autoincrement())
+  companyId    Int
+  departmentId Int?
+  title        String
+  description  String?
+  requirements String?
+  salaryMin    Float?
+  salaryMax    Float?
+  status       String   @default("open") // open | closed
+  createdById  Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  createdBy  User        @relation("JobCreatorRelation", fields: [createdById], references: [id])
+  applicants Applicant[]
+  user       User?       @relation(fields: [userId], references: [id])
+  userId     Int?
+}
+
+model Applicant {
+  id            Int       @id @default(autoincrement())
+  companyId     Int
+  jobId         Int
+  name          String
+  email         String
+  phone         String?
+  status        String    @default("applied") // applied | shortlisted | interview | offered | hired | rejected
+  interviewDate DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company Company    @relation(fields: [companyId], references: [id])
+  job     JobPosting @relation(fields: [jobId], references: [id])
+}
+
+model TrainingProgram {
+  id              Int      @id @default(autoincrement())
+  companyId       Int
+  departmentId    Int?
+  title           String
+  description     String?
+  trainerName     String?
+  startDate       DateTime
+  endDate         DateTime
+  maxParticipants Int?
+  status          String   @default("upcoming") // upcoming | ongoing | completed
+  createdById     Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company     Company              @relation(fields: [companyId], references: [id])
+  department  Department?          @relation(fields: [departmentId], references: [id])
+  createdBy   User                 @relation("TrainingCreatorRelation", fields: [createdById], references: [id])
+  enrollments TrainingEnrollment[]
+  user        User?                @relation(fields: [userId], references: [id])
+  userId      Int?
+}
+
+model TrainingEnrollment {
+  id          Int       @id @default(autoincrement())
+  companyId   Int
+  programId   Int
+  employeeId  Int
+  status      String    @default("pending") // pending | completed | failed
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  company  Company         @relation(fields: [companyId], references: [id])
+  program  TrainingProgram @relation(fields: [programId], references: [id])
+  employee Employee        @relation(fields: [employeeId], references: [id])
+}
+
+model Document {
+  id           Int       @id @default(autoincrement())
+  companyId    Int
+  employeeId   Int
+  type         String // CNIC | Degree | Contract | Experience Letter | Other
+  name         String
+  url          String
+  expiryDate   DateTime?
+  notes        String?
+  uploadedById Int
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company    Company  @relation(fields: [companyId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  uploadedBy User     @relation("DocumentUploaderRelation", fields: [uploadedById], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+  userId     Int?
 }

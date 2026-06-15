@@ -61,6 +61,11 @@ export class AttendanceController {
         return this.attendanceService.findAll(Number(req.user.companyId), req.user);
     }
 
+    @Post('manual')
+    manualMark(@Body() dto: any, @Request() req) {
+        return this.attendanceService.manualMark(dto, Number(req.user.companyId), req.user);
+    }
+
     @Post('checkin')
     checkIn(@Request() req) {
         return this.attendanceService.checkIn(Number(req.user.employeeId), Number(req.user.companyId));

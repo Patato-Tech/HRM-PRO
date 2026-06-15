@@ -10,6 +10,10 @@ import { PlatformModule } from './platform/platform.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsGuard } from './auth/permissions.guard';
+import { PerformanceModule } from './performance/performance.module';
+import { RecruitmentModule } from './recruitment/recruitment.module';
+import { TrainingModule } from './training/training.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -22,6 +26,10 @@ import { PermissionsGuard } from './auth/permissions.guard';
     PayrollModule,
     PlatformModule,
     RolesModule,
+    PerformanceModule,
+    RecruitmentModule,
+    TrainingModule,
+    DocumentsModule,
   ],
   providers: [
     {
