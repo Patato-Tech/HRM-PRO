@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, hasPermission, canManageEmployees, canManagePayroll, canApproveLeaves } from '@/lib/withAuth';
+import { useAuth, hasPermission, canManageEmployees, canManagePayroll, canApproveLeaves, isCompanyAdmin } from '@/lib/withAuth';
 import { apiCall, getToken } from '@/lib/api';
 
 interface DashboardStats {
@@ -46,7 +46,7 @@ interface RecentEmployee {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth(false);
+  const { user, loading: authLoading } = useAuth(false);
   const [empStats, setEmpStats] = useState<DashboardStats | null>(null);
   const [attendance, setAttendance] = useState<AttendanceSummary | null>(null);
   const [payroll, setPayroll] = useState<PayrollSummary | null>(null);
@@ -125,13 +125,8 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (authLoading || !user) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
+
 
   const attendancePct = attendance?.totalEmployees
     ? Math.round((attendance.present / attendance.totalEmployees) * 100)
@@ -143,7 +138,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back, {user?.name?.split(' ')[0]}! 👋
+          Welcome back, {user?.name?.trim()?.split(' ')[0]}! 👋
         </h1>
         <p className="text-gray-500 text-sm mt-1">
           {user?.companyName} • {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -346,8 +341,8 @@ export default function DashboardPage() {
         <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Mark Attendance', icon: '📅', href: '/dashboard/attendance', color: 'bg-green-50 hover:bg-green-100 text-green-700' },
-            { label: 'Apply Leave', icon: '🌿', href: '/dashboard/leaves', color: 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700' },
+            (hasPermission(user, 'attendance', 'view') || isCompanyAdmin(user?.role || '') || canManageEmployees(user?.role || '')) && { label: 'Mark Attendance', icon: '📅', href: '/dashboard/attendance', color: 'bg-green-50 hover:bg-green-100 text-green-700' },
+            (hasPermission(user, 'leaves', 'view') || isCompanyAdmin(user?.role || '') || canApproveLeaves(user?.role || '')) && { label: 'Apply Leave', icon: '🌿', href: '/dashboard/leaves', color: 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700' },
             canManageEmployees(user?.role || '') && { label: 'Add Employee', icon: '👤', href: '/dashboard/employees', color: 'bg-blue-50 hover:bg-blue-100 text-blue-700' },
             canManagePayroll(user?.role || '') && { label: 'Process Payroll', icon: '💰', href: '/dashboard/payroll', color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
           ].filter(Boolean).map((action: any, i) => (

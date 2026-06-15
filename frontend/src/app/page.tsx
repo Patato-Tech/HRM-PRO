@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -52,7 +52,7 @@ export default function LoginPage() {
 
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user_role', data.user.role);
-      localStorage.setItem('user_name', data.user.name);
+      localStorage.setItem('user_name', (data.user.name || '').trim());
       localStorage.setItem('user_email', data.user.email);
       localStorage.setItem('user_id', data.user.id);
       localStorage.setItem('user_companyId', data.user.companyId);
