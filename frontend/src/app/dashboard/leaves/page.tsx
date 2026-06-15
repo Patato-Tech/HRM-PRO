@@ -294,8 +294,8 @@ export default function LeavesPage() {
               </button>
             </>
           )}
-          {!isCompanyAdmin(user?.role || '') && !user?.customRoleName && (
-            <button onClick={() => { setShowApplyModal(true); setError(''); }}
+          {!isCompanyAdmin(user?.role || '') && (
+            <button onClick={() => { setShowApplyModal(true); setError(''); if(user?.employeeId) setApplyForm(prev => ({ ...prev, employeeId: String(user.employeeId) })); }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
               + Apply Leave
             </button>
@@ -603,14 +603,20 @@ export default function LeavesPage() {
             </div>
             {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
             <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-                <select value={applyForm.employeeId} onChange={e => setApplyForm({ ...applyForm, employeeId: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                  <option value="">Select employee</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>)}
-                </select>
-              </div>
+              {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'leaves', 'manage')) ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
+                  <select value={applyForm.employeeId} onChange={e => setApplyForm({ ...applyForm, employeeId: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                    <option value="">Select employee</option>
+                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600">
+                  Applying for: <strong>{user?.name}</strong>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Leave Type *</label>
                 <select value={applyForm.leaveType} onChange={e => setApplyForm({ ...applyForm, leaveType: e.target.value })}

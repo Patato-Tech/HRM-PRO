@@ -103,6 +103,7 @@ export default function AttendancePage() {
   const [absentLoading, setAbsentLoading] = useState(false);
   const [checkOutLoading, setCheckOutLoading] = useState(false);
   const [todayRecord, setTodayRecord] = useState<any>(null);
+  const [myAttendance, setMyAttendance] = useState<any[]>([]);
 
   // Shift settings form
   const [shiftForm, setShiftForm] = useState({
@@ -150,6 +151,16 @@ export default function AttendancePage() {
       setEmployees(empData);
       setRecords(recordsData);
       setDepartments(deptData || []);
+      // Fetch own attendance for custom role users
+      if (user?.employeeId) {
+        apiCall(`/attendance/employee/${user.employeeId}`, {}, token)
+          .then(data => {
+            setMyAttendance(data || []);
+            const today = new Date().toISOString().split('T')[0];
+            const todayRec = (data || []).find((r: any) => r.date?.startsWith(today));
+            setTodayRecord(todayRec || null);
+          }).catch(() => {});
+      }
       // Load shifts only if allowed
       if (isCompanyAdmin(user?.role || '')) {
         // Load working days settings
@@ -546,44 +557,94 @@ export default function AttendancePage() {
 
       {/* TODAY TAB */}
       {(user?.role === "EMPLOYEE" || user?.customRoleName) && (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h2 className="font-semibold text-gray-900 mb-4">My Attendance</h2>
-          {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
-          <div className="flex gap-4">
-            <button
-              onClick={handleCheckIn}
-              disabled={checkInLoading}
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-3 rounded-xl font-medium"
-            >
-              {checkInLoading ? "Checking in..." : "✅ Check In"}
-            </button>
-            <button
-              onClick={handleCheckOut}
-              disabled={checkOutLoading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl font-medium"
-            >
-              {checkOutLoading ? "Checking out..." : "🚪 Check Out"}
-            </button>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-gray-900">My Attendance</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Your personal attendance summary</p>
+            </div>
+            <div className="flex gap-2">
+              {!todayRecord?.checkIn ? (
+                <button onClick={handleCheckIn} disabled={checkInLoading}
+                  className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-medium">
+                  {checkInLoading ? "Checking in..." : "✅ Check In"}
+                </button>
+              ) : !todayRecord?.checkOut ? (
+                <button onClick={handleCheckOut} disabled={checkOutLoading}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-medium">
+                  {checkOutLoading ? "Checking out..." : "🚪 Check Out"}
+                </button>
+              ) : (
+                <span className="text-xs bg-green-100 text-green-700 px-3 py-2 rounded-xl font-medium">✅ Done for today</span>
+              )}
+            </div>
           </div>
-          {records.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase">My Recent Attendance</p>
-            {records.filter((rec: any) => String(rec.employee?.user?.id) === String(user?.id) || String(rec.employeeId) === String(user?.employeeId)).slice(0,5).map((rec: any) => (
-              <div key={rec.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{new Date(rec.date).toLocaleDateString()}</p>
-                  <p className="text-xs text-gray-400">
-                    In: {rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "-"}
-                    {" "}Out: {rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "-"}
-                  </p>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full font-semibold ${rec.status === "present" ? "bg-green-100 text-green-700" : rec.status === "late" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
-                  {rec.status}
-                </span>
-              </div>
-            ))}
+          {error && <div className="bg-red-50 text-red-600 px-5 py-3 text-sm">{error}</div>}
+          <div className="p-5">
+            {(() => {
+              const presentDays = myAttendance.filter((r: any) => r.status === "present").length;
+              const lateDays = myAttendance.filter((r: any) => r.status === "late").length;
+              const absentDays = myAttendance.filter((r: any) => r.status === "absent").length;
+              const totalDays = myAttendance.length;
+              const attendanceRate = totalDays > 0 ? Math.round(((presentDays + lateDays) / totalDays) * 100) : 0;
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {[
+                      { label: "Present", value: presentDays, color: "text-green-600", bg: "bg-green-50" },
+                      { label: "Late", value: lateDays, color: "text-yellow-600", bg: "bg-yellow-50" },
+                      { label: "Absent", value: absentDays, color: "text-red-500", bg: "bg-red-50" },
+                    ].map((s, i) => (
+                      <div key={i} className={`${s.bg} rounded-xl p-3 text-center`}>
+                        <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">My Attendance Rate</span>
+                      <span className="text-xs font-bold text-blue-600">{attendanceRate}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${attendanceRate}%` }}></div>
+                    </div>
+                  </div>
+                  {todayRecord && (
+                    <div className="bg-blue-50 rounded-xl p-3 mb-4">
+                      <p className="text-xs font-semibold text-blue-700 mb-1">Today</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-600">
+                        <span>In: {todayRecord.checkIn ? new Date(todayRecord.checkIn).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "—"}</span>
+                        <span>Out: {todayRecord.checkOut ? new Date(todayRecord.checkOut).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "—"}</span>
+                        <span className={`px-2 py-0.5 rounded-full font-semibold ${todayRecord.status === "present" ? "bg-green-100 text-green-700" : todayRecord.status === "late" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-600"}`}>{todayRecord.status}</span>
+                      </div>
+                    </div>
+                  )}
+                  {myAttendance.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Recent History</p>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {myAttendance.slice(0, 10).map((rec: any) => (
+                          <div key={rec.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{new Date(rec.date).toLocaleDateString()}</p>
+                              <p className="text-xs text-gray-400">
+                                In: {rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "—"}
+                                {" "}Out: {rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "—"}
+                              </p>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${rec.status === "present" ? "bg-green-100 text-green-700" : rec.status === "late" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-600"}`}>
+                              {rec.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
-          )}
         </div>
       )}
       {activeTab === 'today' && (
