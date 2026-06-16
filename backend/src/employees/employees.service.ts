@@ -92,7 +92,9 @@ export class EmployeesService {
             throw new ForbiddenException('You can only view employees in your department.');
         }
 
-        if (!canViewSalary(user) && user.role !== 'COMPANY_ADMIN') {
+        // Show salary when viewing own profile
+        const isOwnProfile = Number(user.employeeId) === id;
+        if (!canViewSalary(user) && user.role !== 'COMPANY_ADMIN' && !isOwnProfile) {
             const { salary, ...rest } = employee as any;
             return rest;
         }

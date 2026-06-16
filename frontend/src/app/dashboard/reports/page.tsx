@@ -587,7 +587,7 @@ export default function ReportsPage() {
                   <div className="p-12 text-center text-gray-400 text-sm">No departments found.</div>
                 ) : (
                   <div className="divide-y divide-gray-50">
-                    {departments.map(dept => {
+                    {(isDeptMgr ? departments.filter(d => String(d.id) === String(user?.departmentId)) : departments).map(dept => {
                       const count = dept._count?.employees ?? 0;
                       const total = employeeStats?.total || 1;
                       const pct = Math.round((count / total) * 100);

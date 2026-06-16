@@ -461,7 +461,7 @@ export default function LeavesPage() {
                       )}
                     </div>
                   </div>
-                  {canApprove && (
+                  {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'leaves', 'manage')) && (
                     <div className="flex gap-2 shrink-0">
                       <button onClick={() => handleApprove(leave.id)}
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium">
@@ -485,7 +485,7 @@ export default function LeavesPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">{user?.role === 'EMPLOYEE' && !user?.customRoleName ? 'My Leave Balances' : 'Leave Balances by Employee'}</h2>
-            {canApprove && (
+            {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'leaves', 'manage')) && (
               <button onClick={() => { setShowBalanceModal(true); setError(''); }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium">
                 + Add Balance
