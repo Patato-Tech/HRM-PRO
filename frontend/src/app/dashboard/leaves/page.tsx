@@ -255,9 +255,9 @@ export default function LeavesPage() {
     const matchStatus = statusFilter === 'all' || l.status === statusFilter;
     const matchType = typeFilter === 'all' || l.leaveType === typeFilter;
     const matchDept = deptFilter === 'all' || (l.employee as any)?.department?.name === deptFilter;
-    return matchSearch && matchStatus && matchType && matchDept;
+    const isOwnRecord = !(user?.role === 'EMPLOYEE' && !user?.customRoleName) || String((l.employee as any)?.userId || l.employeeId) === String(user?.employeeId);
+    return matchSearch && matchStatus && matchType && matchDept && isOwnRecord;
   });
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -354,20 +354,22 @@ export default function LeavesPage() {
                 <option value="all">All Types</option>
                 {LEAVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-              <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                <option value="all">All Departments</option>
-                {employees.filter((emp: any) => emp.department).map((emp: any) => emp.department?.name).filter((v: any, i: any, a: any) => a.indexOf(v) === i).map((name: any) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
+              {!(user?.role === 'EMPLOYEE' && !user?.customRoleName) && (
+                <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+                  <option value="all">All Departments</option>
+                  {employees.filter((emp: any) => emp.department).map((emp: any) => emp.department?.name).filter((v: any, i: any, a: any) => a.indexOf(v) === i).map((name: any) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Employee', 'Department', 'Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status', 'Actions'].map(h => (
+                  {(user?.role === 'EMPLOYEE' && !user?.customRoleName ? ['Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status'] : ['Employee', 'Department', 'Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status', 'Actions']).map(h => (
                     <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -383,18 +385,8 @@ export default function LeavesPage() {
                 ) : (
                   filtered.map(leave => (
                     <tr key={leave.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-blue-100 text-blue-700 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0">
-                            {leave.employee?.user?.name?.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 text-sm">{leave.employee?.user?.name}</p>
-                            <p className="text-xs text-gray-400">{leave.employee?.employeeCode}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{(leave.employee as any)?.department?.name ? (<span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(leave.employee as any)?.department?.name}</span>) : (leave.employee as any)?.customRole?.scope === "all" ? (<span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>) : (<span className="text-xs text-gray-400">—</span>)}</td>
+                      {!(user?.role === 'EMPLOYEE' && !user?.customRoleName) && <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-700 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0">{leave.employee?.user?.name?.charAt(0).toUpperCase()}</div><div><p className="font-semibold text-gray-900 text-sm">{leave.employee?.user?.name}</p><p className="text-xs text-gray-400">{leave.employee?.employeeCode}</p></div></div></td>}
+                      {!(user?.role === 'EMPLOYEE' && !user?.customRoleName) && <td className="px-6 py-4 text-sm text-gray-600">{(leave.employee as any)?.department?.name ? (<span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{(leave.employee as any)?.department?.name}</span>) : (<span className="text-xs text-gray-400">—</span>)}</td>}
                       <td className="px-6 py-4">
                         <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{leave.leaveType}</span>
                       </td>
@@ -492,7 +484,7 @@ export default function LeavesPage() {
       {activeTab === 'balance' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Leave Balances by Employee</h2>
+            <h2 className="font-semibold text-gray-900">{user?.role === 'EMPLOYEE' && !user?.customRoleName ? 'My Leave Balances' : 'Leave Balances by Employee'}</h2>
             {canApprove && (
               <button onClick={() => { setShowBalanceModal(true); setError(''); }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium">
@@ -502,7 +494,7 @@ export default function LeavesPage() {
           </div>
           <div className="p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {employees.map(emp => (
+              {(user?.role === 'EMPLOYEE' && !user?.customRoleName ? employees.filter((emp: any) => String(emp.id) === String(user?.employeeId)) : employees).map(emp => (
                 <div key={emp.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
