@@ -156,8 +156,9 @@ export default function AttendancePage() {
         apiCall(`/attendance/employee/${user.employeeId}`, {}, token)
           .then(data => {
             setMyAttendance(data || []);
-            const today = new Date().toISOString().split('T')[0];
-            const todayRec = (data || []).find((r: any) => r.date?.startsWith(today));
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+            const todayRec = (data || []).find((r: any) => r.date?.startsWith(today) || new Date(r.date).toLocaleDateString() === new Date().toLocaleDateString());
             setTodayRecord(todayRec || null);
           }).catch(() => {});
       }
@@ -482,20 +483,24 @@ export default function AttendancePage() {
 
       </div>
 
-      {/* Today Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Present', value: summary?.present ?? 0, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
-          { label: 'Absent', value: summary?.absent ?? 0, color: 'text-red-500', bg: 'bg-red-50', icon: '❌' },
-          { label: 'Late', value: summary?.late ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏰' },
-        ].map((s, i) => (
-          <div key={i} className={`${s.bg} rounded-2xl p-5`}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-              <span className="text-xl">{s.icon}</span>
+
+      {/* Today Summary Cards - hide for plain employees */}
+      {/* Today Summary Cards - hide for plain employees */}
+      {!(user?.role === 'EMPLOYEE' && !user?.customRoleName) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Present', value: summary?.present ?? 0, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
+            { label: 'Absent', value: summary?.absent ?? 0, color: 'text-red-500', bg: 'bg-red-50', icon: '❌' },
+            { label: 'Late', value: summary?.late ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏰' },
+          ].map((s, i) => (
+            <div key={i} className={`${s.bg} rounded-2xl p-5`}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+                <span className="text-xl">{s.icon}</span>
+              </div>
+              <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
             </div>
-            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-          </div>
+
         ))}
         <div className="bg-blue-50 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-2">
@@ -512,8 +517,10 @@ export default function AttendancePage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Attendance Rate Bar */}
+      {/* Attendance Rate Bar - hide for plain employees */}
+      {!(user?.role === 'EMPLOYEE' && !user?.customRoleName) && (
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <p className="font-semibold text-gray-900">Today's Attendance Rate</p>
@@ -533,12 +540,13 @@ export default function AttendancePage() {
           <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-400 rounded-full inline-block"></span>Late</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded-full inline-block"></span>Absent</span>
         </div>
-      </div>
+        </div>
+      )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm flex-wrap">
-        {([
-          { key: 'today', label: '📅 Today' },
+      {/* Tabs - hide for plain employees */}
+      {!(user?.role === 'EMPLOYEE' && !user?.customRoleName) && (
+        <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm flex-wrap">
+          {([
           { key: 'history', label: '📋 By Date' },
           canManage && { key: 'bulk', label: '📝 Bulk Mark' },
           canSetShifts && { key: 'shifts', label: '⚙️ Shift Settings' },
@@ -554,6 +562,7 @@ export default function AttendancePage() {
           </button>
         ))}
       </div>
+      )}
 
       {/* TODAY TAB */}
       {(user?.role === "EMPLOYEE" || user?.customRoleName) && (
@@ -575,7 +584,14 @@ export default function AttendancePage() {
                   {checkOutLoading ? "Checking out..." : "🚪 Check Out"}
                 </button>
               ) : (
-                <span className="text-xs bg-green-100 text-green-700 px-3 py-2 rounded-xl font-medium">✅ Done for today</span>
+                <div className={`text-xs px-3 py-2 rounded-xl font-medium flex items-center gap-2 ${todayRecord?.status === 'half_day' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                  <span>{todayRecord?.status === 'half_day' ? '⚠️ Half Day' : '✅ Done for today'}</span>
+                  {todayRecord?.checkIn && todayRecord?.checkOut && (
+                    <span className="opacity-70">
+                      {Math.floor((new Date(todayRecord.checkOut).getTime() - new Date(todayRecord.checkIn).getTime()) / 3600000)}h {Math.floor(((new Date(todayRecord.checkOut).getTime() - new Date(todayRecord.checkIn).getTime()) % 3600000) / 60000)}m
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -647,7 +663,7 @@ export default function AttendancePage() {
           </div>
         </div>
       )}
-      {activeTab === 'today' && (
+      {activeTab === 'today' && !(user?.role === 'EMPLOYEE' && !user?.customRoleName) && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100">
             <div className="flex flex-col sm:flex-row gap-3">

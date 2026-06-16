@@ -88,7 +88,7 @@ export default function PayrollPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkForms, setBulkForms] = useState<Record<string, { basic: string; allowances: string; deductions: string }>>({});
 
-  const canManage = canManagePayroll(user?.role || '');
+  const canManage = canManagePayroll(user?.role || '') || hasPermission(user, 'payroll', 'process') || hasPermission(user, 'payroll', 'approve');
 
 
   // ✅ Page permission guard
