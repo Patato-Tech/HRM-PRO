@@ -235,6 +235,7 @@ export default function PerformancePage() {
                         <p className="font-semibold text-gray-900 text-sm">{review.employee?.user?.name}</p>
                         <p className="text-xs text-gray-400">{review.employee?.employeeCode}</p>
                       </div>
+                        <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">{(review.employee as any)?.customRole?.name || "Employee"}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">

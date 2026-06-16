@@ -351,6 +351,7 @@ export default function TrainingPage() {
                     <div>
                       <p className="font-semibold text-gray-900 text-sm">{enrollment.employee?.user?.name}</p>
                       {enrollment.completedAt && <p className="text-xs text-gray-400">Completed: {new Date(enrollment.completedAt).toLocaleDateString()}</p>}
+                      <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">{(enrollment.employee as any)?.customRole?.name || "Employee"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <select value={enrollment.status}

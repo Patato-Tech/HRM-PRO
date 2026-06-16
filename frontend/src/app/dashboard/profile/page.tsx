@@ -249,6 +249,78 @@ export default function ProfilePage() {
             className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all">
             {nameLoading ? 'Saving...' : 'Update Name'}
           </button>
+          {employeeInfo && !isAdmin && (
+            <button onClick={() => {
+              const win = window.open("", "_blank");
+              if (!win) return;
+              const today = new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+              win.document.write(`<!DOCTYPE html><html><head><title>Salary Certificate</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:40px;color:#111;font-size:12px}.hdr{text-align:center;border-bottom:4px solid #1e40af;padding-bottom:20px;margin-bottom:30px}.co{font-size:26px;font-weight:900;color:#1e40af}.sub{font-size:12px;color:#6b7280;margin-top:4px}.title{font-size:18px;font-weight:800;text-align:center;background:#1e40af;color:#fff;padding:12px;border-radius:8px;margin:20px 0;letter-spacing:2px;text-transform:uppercase}.body{line-height:2;font-size:13px;text-align:justify;margin:20px 0}.highlight{font-weight:800;color:#1e40af}.table{width:100%;border-collapse:collapse;margin:20px 0}.table td{padding:10px 14px;border:1px solid #e5e7eb;font-size:12px}.table tr:nth-child(even) td{background:#f9fafb}.table td:first-child{font-weight:700;color:#6b7280;width:40%;text-transform:uppercase;font-size:11px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:60px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:15mm}}</style></head><body>
+              <div class="hdr"><div class="co">${user?.companyName||"Company"}</div><div class="sub">Human Resources Department</div></div>
+              <div class="title">Salary Certificate</div>
+              <p class="body">This is to certify that <span class="highlight">${user?.name}</span> is a permanent employee of <span class="highlight">${user?.companyName||"our organization"}</span>. The details of employment are as follows:</p>
+              <table class="table">
+              <tr><td>Employee Name</td><td>${user?.name}</td></tr>
+              <tr><td>Employee Code</td><td>${employeeInfo?.employeeCode||"-"}</td></tr>
+              <tr><td>Designation</td><td>${employeeInfo?.designation||user?.designation||"-"}</td></tr>
+              <tr><td>Department</td><td>${employeeInfo?.department?.name||"Company Wide"}</td></tr>
+              <tr><td>Date of Joining</td><td>${employeeInfo?.joinDate ? new Date(employeeInfo.joinDate).toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"}) : "-"}</td></tr>
+              <tr><td>Employment Status</td><td><strong>Active</strong></td></tr>
+              <tr><td>Monthly Salary</td><td><strong>PKR ${employeeInfo?.salary?.toLocaleString()||"-"}</strong></td></tr>
+              </table>
+              <p class="body">This certificate is issued on <span class="highlight">${today}</span> at the request of the employee for their personal use.</p>
+              <div class="sigs"><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280;text-transform:uppercase">Employee Signature</div><div style="font-weight:700;margin-top:4px">${user?.name}</div></div></div><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280;text-transform:uppercase">Authorized Signature</div><div style="font-weight:700;margin-top:4px">${user?.companyName}</div><div style="font-size:10px;color:#6b7280">HR Department</div></div></div></div>
+              <div class="foot">This is a computer-generated certificate. Issued on ${today}.</div>
+              </body></html>`);
+              win.document.close();
+              setTimeout(() => win.print(), 500);
+            }}
+            className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-xl py-3 text-sm font-semibold transition-all mt-2">
+            📄 Generate Salary Certificate
+            </button>
+          )}
+          {employeeInfo && !isAdmin && (
+            <div className="border-t border-gray-100 pt-3 mt-1">
+              <p className="text-xs font-semibold text-gray-500 mb-2">Generate Draft Salary Slip</p>
+              <div className="flex gap-2 mb-2">
+                <select id="draftMonth" defaultValue={new Date().getMonth()+1}
+                  className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m,i) => (
+                    <option key={i} value={i+1}>{m}</option>
+                  ))}
+                </select>
+                <select id="draftYear" defaultValue={new Date().getFullYear()}
+                  className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {[2026,2025,2024,2023].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <button onClick={() => {
+                const month = Number((document.getElementById("draftMonth") as HTMLSelectElement)?.value || new Date().getMonth()+1);
+                const year = Number((document.getElementById("draftYear") as HTMLSelectElement)?.value || new Date().getFullYear());
+                const MN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                const salary = employeeInfo?.salary || 0;
+                const eobi = Math.round(salary * 0.01);
+                const net = salary - eobi;
+                const win = window.open("", "_blank");
+                if (!win) return;
+                win.document.write(`<!DOCTYPE html><html><head><title>Draft Salary Slip</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:30px;color:#111;font-size:12px}.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:15px;border-bottom:4px solid #1e40af;margin-bottom:20px}.co{font-size:22px;font-weight:900;color:#1e40af}.badge{background:#f59e0b;color:#fff;padding:10px 18px;border-radius:8px;text-align:center}.badge-m{font-size:16px;font-weight:900}.draft-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:80px;font-weight:900;color:rgba(239,68,68,0.08);pointer-events:none;z-index:0;white-space:nowrap}.emp{background:#eff6ff;border-left:5px solid #1e40af;padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.ef label{font-size:10px;color:#6b7280;text-transform:uppercase;display:block}.ef span{font-size:13px;font-weight:700}.tbls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}table{width:100%;border-collapse:collapse}.th-e{background:#059669;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}.th-d{background:#dc2626;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}.r{text-align:right;font-weight:600}.even td{background:#f9fafb}.te td{background:#d1fae5!important;font-weight:800;color:#065f46;border-top:2px solid #059669}.td td{background:#fee2e2!important;font-weight:800;color:#991b1b;border-top:2px solid #dc2626}.net{background:linear-gradient(135deg,#92400e,#d97706);color:#fff;padding:18px;border-radius:10px;text-align:center;margin:16px 0}.net-a{font-size:32px;font-weight:900;margin:6px 0}.draft-note{background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:12px;margin:16px 0;font-size:11px;color:#92400e;text-align:center;font-weight:700}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:10mm}}</style></head><body>
+                <div class="draft-watermark">DRAFT</div>
+                <div class="hdr"><div><div class="co">${user?.companyName||"Company"}</div><div style="font-size:11px;color:#6b7280">Official Salary Slip (Draft)</div></div><div class="badge"><div style="font-size:10px;opacity:.8">DRAFT SLIP</div><div class="badge-m">${MN[month-1]} ${year}</div></div></div>
+                <div class="draft-note">⚠️ DRAFT - This is an unofficial salary slip generated by the employee. Final slip will be issued by HR.</div>
+                <div class="emp"><div class="ef"><label>Employee Name</label><span>${user?.name}</span></div><div class="ef"><label>Employee Code</label><span>${employeeInfo?.employeeCode||"-"}</span></div><div class="ef"><label>Designation</label><span>${employeeInfo?.designation||user?.designation||"-"}</span></div><div class="ef"><label>Department</label><span>${employeeInfo?.department?.name||"Company Wide"}</span></div><div class="ef"><label>Pay Period</label><span>${MN[month-1]} ${year}</span></div><div class="ef"><label>Status</label><span>DRAFT</span></div></div>
+                <div class="tbls"><table><tr><th class="th-e" colspan="2">Earnings</th></tr><tr><td>Basic Salary</td><td class="r">PKR ${salary.toLocaleString()}</td></tr><tr class="te"><td><b>Gross Salary</b></td><td class="r"><b>PKR ${salary.toLocaleString()}</b></td></tr></table>
+                <table><tr><th class="th-d" colspan="2">Deductions</th></tr><tr><td>EOBI (1%)</td><td class="r">PKR ${eobi.toLocaleString()}</td></tr><tr class="td"><td><b>Total Deductions</b></td><td class="r"><b>PKR ${eobi.toLocaleString()}</b></td></tr></table></div>
+                <div class="net"><div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:3px">Estimated Net Pay</div><div class="net-a">PKR ${net.toLocaleString()}</div><div style="font-size:11px;opacity:.65">${MN[month-1]} ${year} &bull; DRAFT</div></div>
+                <div class="sigs"><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Employee Signature</div><div style="font-weight:700;margin-top:2px">${user?.name}</div></div></div><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Authorized By</div><div style="font-weight:700;margin-top:2px">${user?.companyName}</div></div></div></div>
+                <div class="foot">DRAFT - Computer-generated. Generated on ${new Date().toLocaleDateString()}. This slip is not official until approved by HR.</div>
+                </body></html>`);
+                win.document.close();
+                setTimeout(() => win.print(), 500);
+              }}
+              className="w-full border-2 border-yellow-500 text-yellow-700 hover:bg-yellow-50 rounded-xl py-3 text-sm font-semibold transition-all">
+              📋 Generate Draft Slip
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -310,27 +382,51 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {payrolls.map((p, i) => (
-                <div key={p.id} className={`px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${i === 0 ? 'bg-blue-50/50' : ''}`}>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-gray-900">{MONTHS[p.month - 1]} {p.year}</p>
-                      {i === 0 && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">Latest</span>}
-                    </div>
-                    <div className="flex gap-3 mt-1 text-xs text-gray-400">
-                      <span>Basic: PKR {p.basic.toLocaleString()}</span>
-                      <span className="text-green-500">+{p.allowances.toLocaleString()}</span>
-                      <span className="text-red-400">-{p.deductions.toLocaleString()}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">PKR {(p.netSalary || p.basic + p.allowances - p.deductions).toLocaleString()}</p>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 inline-block ${p.status === 'PAID' ? 'bg-green-100 text-green-700' : p.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {p.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+               {payrolls.map((p, i) => (
+                 <div key={p.id} className={`px-5 py-4 hover:bg-gray-50 transition-colors ${i === 0 ? "bg-blue-50/50" : ""}`}>
+                   <div className="flex items-center justify-between mb-2">
+                     <div className="flex items-center gap-2">
+                       <p className="text-sm font-bold text-gray-900">{MONTHS[p.month - 1]} {p.year}</p>
+                       {i === 0 && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">Latest</span>}
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.status === "paid" || p.status === "PAID" ? "bg-green-100 text-green-700" : p.status === "approved" || p.status === "APPROVED" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>{p.status}</span>
+                       <button onClick={() => {
+                         const win = window.open("", "_blank");
+                         if (!win) return;
+                         const MN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                         win.document.write(`<!DOCTYPE html><html><head><title>Salary Slip</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:30px;color:#111;font-size:12px}.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:15px;border-bottom:4px solid #1e40af;margin-bottom:20px}.co{font-size:22px;font-weight:900;color:#1e40af}.badge{background:#1e40af;color:#fff;padding:10px 18px;border-radius:8px;text-align:center}.badge-m{font-size:16px;font-weight:900}.emp{background:#eff6ff;border-left:5px solid #1e40af;padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.ef label{font-size:10px;color:#6b7280;text-transform:uppercase;display:block}.ef span{font-size:13px;font-weight:700}.tbls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}table{width:100%;border-collapse:collapse}.th-e{background:#059669;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}.th-d{background:#dc2626;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}.r{text-align:right;font-weight:600}.even td{background:#f9fafb}.te td{background:#d1fae5!important;font-weight:800;color:#065f46;border-top:2px solid #059669}.td td{background:#fee2e2!important;font-weight:800;color:#991b1b;border-top:2px solid #dc2626}.net{background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:18px;border-radius:10px;text-align:center;margin:16px 0}.net-a{font-size:32px;font-weight:900;margin:6px 0}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:10mm}}</style></head><body>
+         <div class="hdr"><div><div class="co">${user?.companyName||"Company"}</div></div><div class="badge"><div style="font-size:10px;opacity:.8">Salary Slip</div><div class="badge-m">${MN[p.month-1]} ${p.year}</div></div></div>
+         <div class="emp"><div class="ef"><label>Employee</label><span>${user?.name}</span></div><div class="ef"><label>Designation</label><span>${user?.designation||"-"}</span></div><div class="ef"><label>Pay Period</label><span>${MN[p.month-1]} ${p.year}</span></div><div class="ef"><label>Status</label><span>${p.status.toUpperCase()}</span></div></div>
+         <div class="tbls"><table><tr><th class="th-e" colspan="2">Earnings</th></tr><tr><td>Basic Salary</td><td class="r">PKR ${p.basic.toLocaleString()}</td></tr><tr class="even"><td>Allowances</td><td class="r">PKR ${p.allowances.toLocaleString()}</td></tr><tr class="te"><td><b>Gross Salary</b></td><td class="r"><b>PKR ${(p.basic+p.allowances).toLocaleString()}</b></td></tr></table>
+         <table><tr><th class="th-d" colspan="2">Deductions</th></tr><tr><td>Total Deductions</td><td class="r">PKR ${p.deductions.toLocaleString()}</td></tr><tr class="td"><td><b>Total</b></td><td class="r"><b>PKR ${p.deductions.toLocaleString()}</b></td></tr></table></div>
+         <div class="net"><div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:3px">Net Pay</div><div class="net-a">PKR ${p.netSalary.toLocaleString()}</div></div>
+         <div class="sigs"><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Employee Signature</div><div style="font-weight:700;margin-top:2px">${user?.name}</div></div></div><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Authorized By</div><div style="font-weight:700;margin-top:2px">${user?.companyName}</div></div></div></div>
+         <div class="foot">Computer-generated salary slip. ${new Date().toLocaleDateString()}</div></body></html>`);
+                         win.document.close();
+                         setTimeout(() => win.print(), 500);
+                       }}
+                       className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg">
+                         🖨️ Slip
+                       </button>
+                     </div>
+                   </div>
+                   <div className="grid grid-cols-3 gap-2 text-xs">
+                     <div className="bg-green-50 rounded-lg p-2 text-center">
+                       <p className="text-gray-400">Basic</p>
+                       <p className="font-bold text-gray-900">PKR {p.basic.toLocaleString()}</p>
+                     </div>
+                     <div className="bg-blue-50 rounded-lg p-2 text-center">
+                       <p className="text-gray-400">Gross</p>
+                       <p className="font-bold text-green-600">PKR {(p.basic + p.allowances).toLocaleString()}</p>
+                     </div>
+                     <div className="bg-red-50 rounded-lg p-2 text-center">
+                       <p className="text-gray-400">Net Pay</p>
+                       <p className="font-bold text-blue-700">PKR {p.netSalary.toLocaleString()}</p>
+                     </div>
+                   </div>
+                 </div>
+               ))}
             </div>
           )}
         </div>

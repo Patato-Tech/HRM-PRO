@@ -67,4 +67,9 @@ export class PayrollController {
     approve(@Param('id') id: string, @Request() req: any) {
         return this.payrollService.approve(parseInt(id), Number(req.user.companyId), req.user);
     }
+
+    @Put(':id/paid')
+    markPaid(@Param('id') id: string, @Request() req: any) {
+        return this.payrollService.markPaid(parseInt(id), Number(req.user.companyId), req.user);
+    }
 }

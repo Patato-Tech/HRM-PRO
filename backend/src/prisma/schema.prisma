@@ -218,19 +218,33 @@ model LeaveBalance {
 }
 
 model Payroll {
-  id         Int      @id @default(autoincrement())
-  companyId  Int
-  employeeId Int
-  month      Int
-  year       Int
-  basic      Float
-  allowances Float    @default(0)
-  deductions Float    @default(0)
-  netSalary  Float
-  status     String   @default("pending")
-  createdAt  DateTime @default(now())
-  company    Company  @relation(fields: [companyId], references: [id])
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  id                 Int      @id @default(autoincrement())
+  companyId          Int
+  employeeId         Int
+  month              Int
+  year               Int
+  basic              Float
+  houseRent          Float    @default(0)
+  medicalAllowance   Float    @default(0)
+  transportAllowance Float    @default(0)
+  otherAllowances    Float    @default(0)
+  bonus              Float    @default(0)
+  overtimePay        Float    @default(0)
+  grossSalary        Float    @default(0)
+  withholdingTax     Float    @default(0)
+  eobi               Float    @default(0)
+  loanDeduction      Float    @default(0)
+  otherDeductions    Float    @default(0)
+  totalDeductions    Float    @default(0)
+  netSalary          Float
+  allowances         Float    @default(0)
+  deductions         Float    @default(0)
+  notes              String?
+  status             String   @default("pending")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  company            Company  @relation(fields: [companyId], references: [id])
+  employee           Employee @relation(fields: [employeeId], references: [id])
 }
 
 model SalaryHistory {

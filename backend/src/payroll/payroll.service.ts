@@ -1,6 +1,5 @@
 ﻿import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreatePayrollDto, UpdatePayrollDto } from './dto/payroll.dto';
 import { checkPermission, getScopeFilter, isSelfOperation } from '../auth/rbac.util';
 
 @Injectable()
@@ -11,7 +10,6 @@ export class PayrollService {
         const isAdmin = user.role === 'COMPANY_ADMIN';
         const isPlainEmployee = user.role === 'EMPLOYEE' && !user.customRoleScope;
 
-        // Plain employee — own payslips only
         if (isPlainEmployee) {
             if (!user.employeeId) return [];
             return this.prisma.payroll.findMany({
@@ -26,7 +24,6 @@ export class PayrollService {
         }
 
         if (!isAdmin) checkPermission(user, 'payroll', 'view');
-
         const scopeFilter = getScopeFilter(user);
 
         return this.prisma.payroll.findMany({
@@ -82,7 +79,6 @@ export class PayrollService {
         const isAdmin = user.role === 'COMPANY_ADMIN';
         const isPlainEmployee = user.role === 'EMPLOYEE' && !user.customRoleScope;
 
-        // Plain employee can only view own records
         if (isPlainEmployee && Number(user.employeeId) !== employeeId) {
             throw new ForbiddenException('You can only view your own payroll records.');
         }
@@ -103,26 +99,53 @@ export class PayrollService {
         });
     }
 
-    async create(dto: CreatePayrollDto, companyId: number, user: any) {
+    async create(dto: any, companyId: number, user: any) {
         const isAdmin = user.role === 'COMPANY_ADMIN';
         if (!isAdmin) checkPermission(user, 'payroll', 'process');
 
         const empId = Number(dto.employeeId);
-        const autoDeductions = await this.calculateAutoDeductions(empId, companyId, dto.month, dto.year, dto.basic);
-        const allowances = dto.allowances || 0;
-        const deductions = (dto.deductions || 0) + autoDeductions;
-        const netSalary = dto.basic + allowances - deductions;
+        const basic = Number(dto.basic || 0);
+        const houseRent = Number(dto.houseRent || 0);
+        const medicalAllowance = Number(dto.medicalAllowance || 0);
+        const transportAllowance = Number(dto.transportAllowance || 0);
+        const otherAllowances = Number(dto.otherAllowances || 0);
+        const bonus = Number(dto.bonus || 0);
+        const overtimePay = Number(dto.overtimePay || 0);
+        const grossSalary = basic + houseRent + medicalAllowance + transportAllowance + otherAllowances + bonus + overtimePay;
+
+        const withholdingTax = Number(dto.withholdingTax || 0);
+        const eobi = Number(dto.eobi !== undefined ? dto.eobi : Math.round(basic * 0.01));
+        const loanDeduction = Number(dto.loanDeduction || 0);
+        const otherDeductions = Number(dto.otherDeductions || 0);
+        const totalDeductions = withholdingTax + eobi + loanDeduction + otherDeductions;
+        const netSalary = grossSalary - totalDeductions;
+
+        // Auto deductions from attendance
+        const autoDeductions = await this.calculateAutoDeductions(empId, companyId, Number(dto.month), Number(dto.year), basic);
 
         return this.prisma.payroll.create({
             data: {
                 companyId,
                 employeeId: empId,
-                month: dto.month,
-                year: dto.year,
-                basic: dto.basic,
-                allowances,
-                deductions,
-                netSalary,
+                month: Number(dto.month),
+                year: Number(dto.year),
+                basic,
+                houseRent,
+                medicalAllowance,
+                transportAllowance,
+                otherAllowances,
+                bonus,
+                overtimePay,
+                grossSalary,
+                withholdingTax,
+                eobi,
+                loanDeduction,
+                otherDeductions: otherDeductions + autoDeductions,
+                totalDeductions: totalDeductions + autoDeductions,
+                allowances: houseRent + medicalAllowance + transportAllowance + otherAllowances + bonus + overtimePay,
+                deductions: totalDeductions + autoDeductions,
+                netSalary: netSalary - autoDeductions,
+                notes: dto.notes || null,
                 status: 'pending',
             },
             include: {
@@ -209,21 +232,41 @@ export class PayrollService {
         });
     }
 
-    async update(id: number, dto: UpdatePayrollDto, companyId: number, user: any) {
+    async update(id: number, dto: any, companyId: number, user: any) {
         const isAdmin = user.role === 'COMPANY_ADMIN';
         if (!isAdmin) checkPermission(user, 'payroll', 'view');
 
         const payroll = await this.prisma.payroll.findFirst({ where: { id, companyId } });
         if (!payroll) throw new NotFoundException('Payroll record not found');
 
-        const basic = dto.basic ?? payroll.basic;
-        const allowances = dto.allowances ?? payroll.allowances;
-        const deductions = dto.deductions ?? payroll.deductions;
-        const netSalary = basic + allowances - deductions;
+        const basic = Number(dto.basic ?? payroll.basic);
+        const houseRent = Number(dto.houseRent ?? (payroll as any).houseRent ?? 0);
+        const medicalAllowance = Number(dto.medicalAllowance ?? (payroll as any).medicalAllowance ?? 0);
+        const transportAllowance = Number(dto.transportAllowance ?? (payroll as any).transportAllowance ?? 0);
+        const otherAllowances = Number(dto.otherAllowances ?? (payroll as any).otherAllowances ?? 0);
+        const bonus = Number(dto.bonus ?? (payroll as any).bonus ?? 0);
+        const overtimePay = Number(dto.overtimePay ?? (payroll as any).overtimePay ?? 0);
+        const grossSalary = basic + houseRent + medicalAllowance + transportAllowance + otherAllowances + bonus + overtimePay;
+
+        const withholdingTax = Number(dto.withholdingTax ?? (payroll as any).withholdingTax ?? 0);
+        const eobi = Number(dto.eobi ?? (payroll as any).eobi ?? Math.round(basic * 0.01));
+        const loanDeduction = Number(dto.loanDeduction ?? (payroll as any).loanDeduction ?? 0);
+        const otherDeductions = Number(dto.otherDeductions ?? (payroll as any).otherDeductions ?? 0);
+        const totalDeductions = withholdingTax + eobi + loanDeduction + otherDeductions;
+        const netSalary = grossSalary - totalDeductions;
 
         return this.prisma.payroll.update({
             where: { id },
-            data: { basic, allowances, deductions, netSalary, status: dto.status },
+            data: {
+                basic, houseRent, medicalAllowance, transportAllowance,
+                otherAllowances, bonus, overtimePay, grossSalary,
+                withholdingTax, eobi, loanDeduction, otherDeductions,
+                totalDeductions, netSalary,
+                allowances: houseRent + medicalAllowance + transportAllowance + otherAllowances + bonus + overtimePay,
+                deductions: totalDeductions,
+                notes: dto.notes ?? (payroll as any).notes,
+                status: dto.status ?? payroll.status,
+            },
         });
     }
 
@@ -234,6 +277,16 @@ export class PayrollService {
         const payroll = await this.prisma.payroll.findFirst({ where: { id, companyId } });
         if (!payroll) throw new NotFoundException('Payroll record not found');
         return this.prisma.payroll.update({ where: { id }, data: { status: 'approved' } });
+    }
+
+    async markPaid(id: number, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        if (!isAdmin) checkPermission(user, 'payroll', 'approve');
+
+        const payroll = await this.prisma.payroll.findFirst({ where: { id, companyId } });
+        if (!payroll) throw new NotFoundException('Payroll record not found');
+        if (payroll.status !== 'approved') throw new ForbiddenException('Payroll must be approved before marking as paid');
+        return this.prisma.payroll.update({ where: { id }, data: { status: 'paid' } });
     }
 
     async getPayslip(employeeId: number, month: number, year: number, companyId: number, user: any) {
@@ -255,18 +308,34 @@ export class PayrollService {
         });
         if (!payroll) throw new NotFoundException('Payslip not found for this period.');
 
-        const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { name: true } });
+        const company = await this.prisma.company.findUnique({
+            where: { id: companyId },
+            select: { name: true, address: true, industry: true },
+        });
 
         return {
             company: company?.name,
+            companyAddress: company?.address,
             employee: payroll.employee.user.name,
+            employeeCode: payroll.employee.employeeCode,
             designation: payroll.employee.designation,
             department: payroll.employee.department?.name,
             month, year,
             basic: payroll.basic,
-            allowances: payroll.allowances,
-            deductions: payroll.deductions,
+            houseRent: (payroll as any).houseRent || 0,
+            medicalAllowance: (payroll as any).medicalAllowance || 0,
+            transportAllowance: (payroll as any).transportAllowance || 0,
+            otherAllowances: (payroll as any).otherAllowances || 0,
+            bonus: (payroll as any).bonus || 0,
+            overtimePay: (payroll as any).overtimePay || 0,
+            grossSalary: (payroll as any).grossSalary || payroll.basic + payroll.allowances,
+            withholdingTax: (payroll as any).withholdingTax || 0,
+            eobi: (payroll as any).eobi || 0,
+            loanDeduction: (payroll as any).loanDeduction || 0,
+            otherDeductions: (payroll as any).otherDeductions || 0,
+            totalDeductions: (payroll as any).totalDeductions || payroll.deductions,
             netSalary: payroll.netSalary,
+            notes: (payroll as any).notes || null,
             status: payroll.status,
         };
     }
