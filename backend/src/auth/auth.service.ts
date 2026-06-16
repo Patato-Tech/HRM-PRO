@@ -40,7 +40,7 @@ export class AuthService {
 
         const company = await this.prisma.company.findUnique({ where: { id: companyId } });
         if (!company) throw new ConflictException('Company not found');
-        if (company.status === 'pending') throw new UnauthorizedException('Your account is pending approval by the platform administrator.');
+        if (company.status === 'pending') throw new UnauthorizedException('pending approval: Your account is pending approval by the platform administrator.');
         if (company.status === 'inactive') throw new UnauthorizedException('Your company account has been deactivated.');
 
         if (dto.actorRole) {
@@ -154,7 +154,7 @@ export class AuthService {
             const company = await this.prisma.company.findUnique({ where: { id: user.companyId } });
             if (!company || company.status === 'deleted') throw new UnauthorizedException('COMPANY_DELETED: Your company has been permanently deleted.');
             if (company.status === 'inactive') throw new UnauthorizedException('COMPANY_DEACTIVATED: Your company has been deactivated by the platform administrator.');
-            if (company.status === 'pending') throw new UnauthorizedException('Your account is pending approval.');
+            if (company.status === 'pending') throw new UnauthorizedException('pending approval: Your company account is awaiting platform administrator approval.');
         }
 
         const employee = await this.prisma.employee.findUnique({

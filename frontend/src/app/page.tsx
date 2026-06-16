@@ -6,7 +6,7 @@ import { apiCall } from '@/lib/api';
 
 function getErrorPopup(message: string) {
   if (message.includes('pending approval')) {
-    return { icon: '⏳', title: 'Account Pending Approval', message: 'Your company registration is awaiting approval from the platform administrator. Please wait for confirmation.', color: 'yellow' };
+    return { icon: '⏳', title: 'Account Pending Approval', message: 'Your company registration is currently under review by the platform administrator. You will be able to login once your account is approved. Please try again later or contact support.', color: 'yellow' };
   }
   if (message.includes('COMPANY_DELETED') || message.includes('removed from the platform')) {
     return { icon: '🗑️', title: 'Company Account Deleted', message: 'Your company account has been permanently deleted. Please contact support.', color: 'red' };
