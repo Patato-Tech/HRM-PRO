@@ -173,7 +173,7 @@ export default function AttendancePage() {
           setHolidays(h || []);
         }).catch(() => {});
       }
-      if (isCompanyAdmin(user?.role || '') || isHRManager(user?.role || '')) {
+      if (isCompanyAdmin(user?.role || '') || hasPermission(user, 'attendance', 'manage')) {
         const shiftData = await apiCall('/attendance/shift', {}, token).catch(() => []);
         setShifts(shiftData || []);
       }

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -164,7 +164,7 @@ export const isPlatformAdmin = (role: string) => role === 'PLATFORM_ADMIN';
 export const canManageEmployees = (role: string) => ['COMPANY_ADMIN', 'HR_MANAGER', 'DEPT_MANAGER'].includes(role);
 export const canManagePayroll = (role: string) => ['COMPANY_ADMIN', 'HR_MANAGER'].includes(role);
 export const canManageDepartments = (role: string) => ['COMPANY_ADMIN'].includes(role);
-export const canApproveLeaves = (role: string) => ['COMPANY_ADMIN', 'HR_MANAGER', 'DEPT_MANAGER'].includes(role);
+export const canApproveLeaves = (role: string) => role === 'COMPANY_ADMIN';
 
 // ? Universal role badge helper - use everywhere
 export const getRoleName = (userRole: string, customRole?: { name: string } | null): string => {
