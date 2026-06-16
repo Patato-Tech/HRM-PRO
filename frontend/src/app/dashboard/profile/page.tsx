@@ -39,6 +39,7 @@ export default function ProfilePage() {
   const [toast, setToast] = useState('');
   const [editName, setEditName] = useState('');
   const [nameLoading, setNameLoading] = useState(false);
+  const [editDesignation, setEditDesignation] = useState('');
   const [nameError, setNameError] = useState('');
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
   const [pwLoading, setPwLoading] = useState(false);
@@ -56,6 +57,7 @@ export default function ProfilePage() {
     if (user) {
       setEditName(user.name || '');
       fetchEmployeeInfo();
+      setEditDesignation(user.designation || '');
     }
   }, [authLoading, user]);
 
@@ -209,7 +211,13 @@ export default function ProfilePage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1">Designation</label>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{user.designation || employeeInfo?.designation || 'Not set'}</div>
+              {isAdmin ? (
+                <input type="text" value={editDesignation} onChange={e => setEditDesignation(e.target.value)}
+                placeholder="Enter designation"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{user.designation || employeeInfo?.designation || 'Not set'}</div>
+              )}
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1">Role</label>
@@ -249,9 +257,22 @@ export default function ProfilePage() {
             className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all">
             {nameLoading ? 'Saving...' : 'Update Name'}
           </button>
+          {isAdmin && (
+            <button onClick={async () => {
+              try {
+                const token = (typeof window !== "undefined" ? localStorage.getItem("token") : "") || "";
+                await fetch(`http://localhost:5001/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ designation: editDesignation }) });
+                if (typeof window !== "undefined") localStorage.setItem("user_designation", editDesignation);
+                setToast("Designation updated!");
+                setTimeout(() => setToast(""), 3000);
+              } catch (e) { console.error(e); }
+            }} disabled={editDesignation === (user.designation || "")}
+            className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-all">
+            Save Designation
+            </button>
+          )}
           {employeeInfo && !isAdmin && (
             <button onClick={() => {
-              const win = window.open("", "_blank");
               if (!win) return;
               const today = new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
               win.document.write(`<!DOCTYPE html><html><head><title>Salary Certificate</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:40px;color:#111;font-size:12px}.hdr{text-align:center;border-bottom:4px solid #1e40af;padding-bottom:20px;margin-bottom:30px}.co{font-size:26px;font-weight:900;color:#1e40af}.sub{font-size:12px;color:#6b7280;margin-top:4px}.title{font-size:18px;font-weight:800;text-align:center;background:#1e40af;color:#fff;padding:12px;border-radius:8px;margin:20px 0;letter-spacing:2px;text-transform:uppercase}.body{line-height:2;font-size:13px;text-align:justify;margin:20px 0}.highlight{font-weight:800;color:#1e40af}.table{width:100%;border-collapse:collapse;margin:20px 0}.table td{padding:10px 14px;border:1px solid #e5e7eb;font-size:12px}.table tr:nth-child(even) td{background:#f9fafb}.table td:first-child{font-weight:700;color:#6b7280;width:40%;text-transform:uppercase;font-size:11px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:60px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:15mm}}</style></head><body>

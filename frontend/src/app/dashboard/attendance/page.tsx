@@ -487,13 +487,14 @@ export default function AttendancePage() {
       {/* Today Summary Cards - hide for plain employees */}
       {/* Today Summary Cards - hide for plain employees */}
       {!(user?.role === 'EMPLOYEE' && !user?.customRoleName) && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {[
             { label: 'Present', value: summary?.present ?? 0, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
             { label: 'Absent', value: summary?.absent ?? 0, color: 'text-red-500', bg: 'bg-red-50', icon: '❌' },
             { label: 'Late', value: summary?.late ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏰' },
+            { label: 'Half Day', value: summary?.halfDay ?? 0, color: 'text-orange-500', bg: 'bg-orange-50', icon: '🌓' },
           ].map((s, i) => (
-            <div key={i} className={`${s.bg} rounded-2xl p-5`}>
+     <div key={i} className={`${s.bg} rounded-2xl p-5`}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-gray-500 font-medium">{s.label}</p>
                 <span className="text-xl">{s.icon}</span>

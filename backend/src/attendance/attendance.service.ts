@@ -180,15 +180,16 @@ export class AttendanceService {
         const scopeFilter = getScopeFilter(user);
         const empFilter = scopeFilter.employee || {};
 
-        const [present, absent, late, totalEmployees] = await Promise.all([
+        const [present, absent, late, halfDay, totalEmployees] = await Promise.all([
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'present', ...scopeFilter } }),
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'absent', ...scopeFilter } }),
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'late', ...scopeFilter } }),
+            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'half_day', ...scopeFilter } }),
             this.prisma.employee.count({ where: { companyId, status: 'active', ...empFilter } }),
         ]);
-        return { present, absent, late, totalEmployees };
-    }
+        return { present, absent, late, halfDay, totalEmployees };
 
+    }
     async findByDate(date: string, companyId: number, user: any) {
         const start = new Date(date);
         start.setHours(0, 0, 0, 0);
