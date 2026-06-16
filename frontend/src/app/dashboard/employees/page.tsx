@@ -572,25 +572,26 @@ export default function EmployeesPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                   <input type="text" value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })}
-                    placeholder="John Doe" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                    placeholder="Enter full name" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                   <input type="email" value={addForm.email} onChange={e => setAddForm({ ...addForm, email: e.target.value })}
-                    placeholder="john@company.com" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                    placeholder="Enter email address" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                   <input type="password" value={addForm.password} onChange={e => setAddForm({ ...addForm, password: e.target.value })}
-                    placeholder="••••••••" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                    placeholder="Enter password" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
                   <input type="text" value={addForm.designation} onChange={e => setAddForm({ ...addForm, designation: e.target.value })}
-                    placeholder="Software Engineer" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                    placeholder="Enter designation" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
                 </div>
               </div>
 
@@ -635,6 +636,7 @@ export default function EmployeesPage() {
               <button onClick={() => { setShowAddModal(false); setError(''); }} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
               <button onClick={handleAdd} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Add Employee</button>
             </div>
+          </div>
           </div>
         </div>
       )}

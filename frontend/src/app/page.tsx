@@ -123,7 +123,7 @@ export default function LoginPage() {
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
               onKeyDown={handleKeyDown}
-              placeholder="you@company.com"
+              placeholder="Enter your email"
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
