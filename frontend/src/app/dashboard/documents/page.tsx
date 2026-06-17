@@ -60,6 +60,8 @@ export default function DocumentsPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ type: 'CNIC', name: '', expiryDate: '', notes: '' });
   const [form, setForm] = useState({
     employeeId: '', departmentId: '', type: 'CNIC',
     name: '', url: '', expiryDate: '', notes: '',
@@ -283,10 +285,17 @@ export default function DocumentsPage() {
                         Details
                       </button>
                       {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'documents', 'upload')) && (
-                        <button onClick={() => handleDelete(doc.id)}
-                          className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg">
-                          Delete
-                        </button>
+                        <>
+                          <button onClick={() => {
+                            setSelectedDoc(doc);
+                            setEditForm({ type: doc.type, name: doc.name, expiryDate: doc.expiryDate ? new Date(doc.expiryDate).toISOString().split('T')[0] : '', notes: doc.notes || '' });
+                            setShowEditModal(true);
+                          }} className="text-xs bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-2.5 py-1.5 rounded-lg">Edit</button>
+                          <button onClick={() => handleDelete(doc.id)}
+                            className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg">
+                            Delete
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -441,6 +450,59 @@ export default function DocumentsPage() {
               <button onClick={() => setShowViewModal(false)}
                 className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEditModal && selectedDoc && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Document</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Document Type</label>
+                <select value={editForm.type} onChange={e => setEditForm({ ...editForm, type: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {["CNIC", "Degree", "Contract", "Experience Letter", "Medical Certificate", "Other"].map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Document Name</label>
+                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Expiry Date</label>
+                <input type="date" value={editForm.expiryDate} onChange={e => setEditForm({ ...editForm, expiryDate: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Notes</label>
+                <textarea value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
+                  rows={2} className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setShowEditModal(false)}
+                className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
+              <button onClick={async () => {
+                try {
+                  const token = getToken() || "";
+                  await apiCall(`/documents/${selectedDoc.id}`, { method: "PUT", body: JSON.stringify(editForm) }, token);
+                  setShowEditModal(false);
+                  setSuccess("Document updated!");
+                  setTimeout(() => setSuccess(""), 3000);
+                  const data = await apiCall("/documents", {}, token);
+                  setDocuments(data || []);
+                } catch (err: any) { setError(err.message); }
+              }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">
+                Update
               </button>
             </div>
           </div>

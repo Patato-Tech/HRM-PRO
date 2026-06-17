@@ -49,6 +49,11 @@ export default function ProfilePage() {
   const [payrollLoading, setPayrollLoading] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadForm, setUploadForm] = useState({ type: 'CNIC', name: '', expiryDate: '' });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo | null>(null);
   const [salaryHistory, setSalaryHistory] = useState<any[]>([]);
 
@@ -101,6 +106,37 @@ export default function ProfilePage() {
       showToast('Profile updated!');
     } catch (e: any) { setNameError(e?.message || 'Failed to update.'); }
     finally { setNameLoading(false); }
+  };
+
+  const handleUploadDocument = async () => {
+    setUploadError("");
+    if (!uploadFile || !uploadForm.name) { setUploadError("File and document name are required"); return; }
+    if (!user.employeeId) { setUploadError("Employee profile not found"); return; }
+    setUploadLoading(true);
+    try {
+      const token = getToken() || "";
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("employeeId", String(user.employeeId));
+      formData.append("type", uploadForm.type);
+      formData.append("name", uploadForm.name);
+      if (uploadForm.expiryDate) formData.append("expiryDate", uploadForm.expiryDate);
+      const res = await fetch("http://localhost:5001/documents", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      setShowUploadModal(false);
+      setUploadFile(null);
+      setUploadForm({ type: "CNIC", name: "", expiryDate: "" });
+      setToast("Document uploaded successfully!");
+      setTimeout(() => setToast(""), 3000);
+      // Refresh documents
+      const data = await apiCall(`/documents/employee/${user.employeeId}`, {}, token);
+      setDocuments(data || []);
+    } catch (err: any) { setUploadError(err.message || "Upload failed"); }
+    finally { setUploadLoading(false); }
   };
 
   const handleChangePassword = async () => {
@@ -464,9 +500,15 @@ export default function ProfilePage() {
       )}
       {activeTab === "documents" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">📄 My Documents</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Your uploaded documents</p>
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-gray-900">📄 My Documents</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Your uploaded documents</p>
+            </div>
+            <button onClick={() => { setShowUploadModal(true); setUploadError(''); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-medium">
+              + Upload Document
+            </button>
           </div>
           {docsLoading ? (
             <div className="flex items-center justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
@@ -502,6 +544,54 @@ export default function ProfilePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Upload Document</h3>
+              <button onClick={() => setShowUploadModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            {uploadError && <div className="bg-red-50 text-red-600 rounded-xl p-3 text-sm mb-3">{uploadError}</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Document Type *</label>
+                <select value={uploadForm.type} onChange={e => setUploadForm({ ...uploadForm, type: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {["CNIC", "Degree", "Contract", "Experience Letter", "Medical Certificate", "Other"].map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Document Name *</label>
+                <input type="text" value={uploadForm.name} onChange={e => setUploadForm({ ...uploadForm, name: e.target.value })}
+                  placeholder="Enter document name"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Expiry Date (optional)</label>
+                <input type="date" value={uploadForm.expiryDate} onChange={e => setUploadForm({ ...uploadForm, expiryDate: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">File *</label>
+                <input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC up to 10MB</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setShowUploadModal(false)}
+                className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
+              <button onClick={handleUploadDocument} disabled={uploadLoading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-medium">
+                {uploadLoading ? "Uploading..." : "Upload"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

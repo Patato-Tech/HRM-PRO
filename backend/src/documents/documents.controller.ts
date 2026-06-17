@@ -33,7 +33,7 @@ export class DocumentsController {
     }))
     create(@UploadedFile() file: Express.Multer.File, @Body() dto: any, @Request() req: any) {
         const url = file
-            ? `${process.env.BASE_URL || 'http://localhost:3000'}/uploads/${file.filename}`
+            ? `${process.env.BASE_URL || 'http://localhost:5001'}/uploads/${file.filename}`
             : dto.url;
         return this.documentsService.create({ ...dto, url }, Number(req.user.companyId), req.user);
     }
