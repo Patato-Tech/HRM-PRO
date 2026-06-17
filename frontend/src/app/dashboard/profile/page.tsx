@@ -30,7 +30,7 @@ const ROLE_COLORS: Record<string, string> = {
   EMPLOYEE: 'bg-green-100 text-green-700',
 };
 
-type TabKey = 'info' | 'security' | 'payroll';
+type TabKey = 'info' | 'security' | 'payroll' | 'documents';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -47,6 +47,8 @@ export default function ProfilePage() {
   const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
   const [payrollLoading, setPayrollLoading] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
   const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo | null>(null);
   const [salaryHistory, setSalaryHistory] = useState<any[]>([]);
 
@@ -63,6 +65,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
+    if (activeTab === 'documents' && user.employeeId) {
+      setDocsLoading(true);
+      apiCall(`/documents?employeeId=${user.employeeId}`, {}, getToken() || '')
+        .then(data => setDocuments((data || []).filter((d: any) => String(d.employeeId) === String(user.employeeId))))
+        .catch(() => setDocuments([]))
+        .finally(() => setDocsLoading(false));
+    }
     if (activeTab === 'payroll' && user.employeeId) {
       setPayrollLoading(true);
       apiCall(`/payroll/employee/${user.employeeId}`, {}, getToken() || '')
@@ -132,6 +141,7 @@ export default function ProfilePage() {
     { key: 'info', label: '👤 My Info' },
     { key: 'security', label: '🔒 Security' },
     ...(!isAdmin ? [{ key: 'payroll' as TabKey, label: '💰 Payroll History' }] : []),
+    { key: 'documents' as TabKey, label: '📄 Documents' },
   ];
 
   return (
@@ -448,6 +458,48 @@ export default function ProfilePage() {
                    </div>
                  </div>
                ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab === "documents" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <h2 className="font-bold text-gray-900">📄 My Documents</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Your uploaded documents</p>
+          </div>
+          {docsLoading ? (
+            <div className="flex items-center justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
+          ) : documents.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-3xl mb-2">📄</p>
+              <p className="text-gray-500 font-medium">No documents uploaded yet</p>
+              <p className="text-gray-400 text-xs mt-1">Contact HR to upload your documents</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {documents.map((doc: any) => (
+                <div key={doc.id} className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 text-blue-700 w-10 h-10 rounded-xl flex items-center justify-center text-lg">📄</div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{doc.name}</p>
+                      <p className="text-xs text-gray-400">{doc.type} • {new Date(doc.createdAt).toLocaleDateString()}</p>
+                      {doc.expiryDate && <p className="text-xs text-yellow-600">Expires: {new Date(doc.expiryDate).toLocaleDateString()}</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg">
+                      Open
+                    </a>
+                    <a href={doc.url} download={doc.name}
+                      className="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-3 py-1.5 rounded-lg">
+                      ⬇️ Download
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

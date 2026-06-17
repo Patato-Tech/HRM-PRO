@@ -274,6 +274,10 @@ export default function DocumentsPage() {
                         className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg">
                         Open
                       </a>
+                      <a href={doc.url} download={doc.name}
+                        className="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-2.5 py-1.5 rounded-lg">
+                        ⬇️ Download
+                      </a>
                       <button onClick={() => { setSelectedDoc(doc); setShowViewModal(true); }}
                         className="text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 px-2.5 py-1.5 rounded-lg">
                         Details
