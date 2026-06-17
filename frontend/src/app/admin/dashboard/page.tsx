@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/withAuth';
@@ -312,7 +312,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="bg-blue-100 text-blue-700 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm shrink-0">{company.name.charAt(0).toUpperCase()}</div>
-                          <div><p className="font-semibold text-gray-900 text-sm">{company.name}</p><p className="text-xs text-gray-400 font-mono">{company.id.slice(0, 10)}...</p></div>
+                          <div><p className="font-semibold text-gray-900 text-sm">{company.name}</p><p className="text-xs text-gray-400 font-mono">{String(company.id).slice(0, 10)}...</p></div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{company.industry || '—'}</td>
@@ -400,6 +400,13 @@ export default function AdminDashboard() {
               <button onClick={() => { setResetPassword(''); setResetConfirm(''); setError(''); setShowResetModal(true); }} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-medium">Reset Pwd</button>
               <button onClick={() => handleToggleStatus(selectedCompany)} className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${selectedCompany.status === 'active' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
                 {selectedCompany.status === 'active' ? 'Deactivate' : 'Activate'}
+              </button>
+              <button onClick={() => {
+                setShowDetailModal(false);
+                setDeleteConfirmed(false);
+                setShowDeleteModal(true);
+              }} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium">
+                Delete
               </button>
             </div>
           </div>

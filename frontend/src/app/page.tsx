@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiCall } from '@/lib/api';
 
@@ -27,6 +27,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [popup, setPopup] = useState<{ icon: string; title: string; message: string; color: string } | null>(null);
   const [form, setForm] = useState({ email: '', password: '' });
+  const [pendingEmail, setPendingEmail] = useState('');
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const sessionMsg = localStorage.getItem('session_message');
@@ -83,6 +85,7 @@ export default function LoginPage() {
     yellow: 'bg-yellow-50 border-yellow-200 text-yellow-800',
     red: 'bg-red-50 border-red-200 text-red-800',
     blue: 'bg-blue-50 border-blue-200 text-blue-800',
+    green: 'bg-green-50 border-green-200 text-green-800',
   };
 
   return (
@@ -123,7 +126,7 @@ export default function LoginPage() {
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
               onKeyDown={handleKeyDown}
-              placeholder="Enter your email"
+              placeholder="Enter email address"
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -135,7 +138,7 @@ export default function LoginPage() {
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 onKeyDown={handleKeyDown}
-                placeholder="••••••••"
+                placeholder="Enter password"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
               />
               <button

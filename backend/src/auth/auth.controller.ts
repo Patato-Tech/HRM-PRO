@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Request, UseGuards } from '@nestjs/common';
+﻿import { Controller, Post, Get, Put, Body, Request, UseGuards, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -39,5 +39,10 @@ export class AuthController {
     @Get('company')
     getCompany(@Request() req) {
         return this.authService.getCompanyInfo(req.user.companyId);
+    }
+
+    @Get('company-status')
+    getCompanyStatus(@Query('email') email: string) {
+        return this.authService.getCompanyStatusByEmail(email);
     }
 }

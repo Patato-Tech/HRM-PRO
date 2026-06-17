@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiCall } from '@/lib/api';
 
@@ -9,6 +9,25 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (submitted && registeredEmail && !approved) {
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`http://localhost:5001/auth/company-status?email=${encodeURIComponent(registeredEmail)}`);
+          const data = await res.json();
+          if (data.status === 'active') {
+            if (pollingRef.current) clearInterval(pollingRef.current);
+            setApproved(true);
+          }
+        } catch {}
+      }, 30000);
+    }
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, [submitted, registeredEmail]);
   const [form, setForm] = useState({
     companyName: '', industry: '', address: '',
     adminName: '', adminEmail: '', adminPassword: '', confirmPassword: '',
@@ -31,6 +50,7 @@ function RegisterForm() {
         }),
       });
       setSubmitted(true);
+      setRegisteredEmail(form.adminEmail);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {
@@ -42,17 +62,39 @@ function RegisterForm() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
-          <div className="text-6xl mb-4">⏳</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Registration Submitted!</h1>
-          <p className="text-gray-500 text-sm mb-4">Your company registration has been submitted. The platform administrator will review and activate your account.</p>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-            <p className="text-yellow-700 text-sm font-medium">⚠️ Your account is pending approval</p>
-            <p className="text-yellow-600 text-xs mt-1">You will be able to login once the administrator approves your request.</p>
-          </div>
-          <button onClick={() => router.push('/')}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-sm">
-            Go to Login
-          </button>
+          {approved ? (
+            <>
+              <div className="text-6xl mb-4">🎉</div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Company Approved!</h1>
+              <p className="text-gray-500 text-sm mb-4">Your company account has been approved by the platform administrator. You can now log in.</p>
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                <p className="text-green-700 text-sm font-medium">✅ Account is now active</p>
+                <p className="text-green-600 text-xs mt-1">Click below to login to your dashboard.</p>
+              </div>
+              <button onClick={() => router.push('/')}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 rounded-xl text-sm">
+                Login Now →
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="text-6xl mb-4">⏳</div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Registration Submitted!</h1>
+              <p className="text-gray-500 text-sm mb-4">Your company registration has been submitted. The platform administrator will review and activate your account.</p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+                <p className="text-yellow-700 text-sm font-medium">⚠️ Your account is pending approval</p>
+                <p className="text-yellow-600 text-xs mt-1">This page will automatically update when your account is approved (checking every 30 seconds).</p>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-gray-400 text-xs mb-4">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
+                Checking approval status...
+              </div>
+              <button onClick={() => router.push('/')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-sm">
+                Go to Login
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -76,20 +118,20 @@ function RegisterForm() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
                 <input type="text" value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })}
-                  placeholder="Acme Corporation"
+                  placeholder="Enter company name"
                   className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
                   <input type="text" value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })}
-                    placeholder="Technology"
+                    placeholder="Enter industry"
                     className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                   <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
-                    placeholder="Lahore, Pakistan"
+                    placeholder="Enter company address"
                     className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
@@ -102,26 +144,26 @@ function RegisterForm() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                 <input type="text" value={form.adminName} onChange={e => setForm({ ...form, adminName: e.target.value })}
-                  placeholder="John Doe"
+                  placeholder="Enter full name"
                   className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                 <input type="email" value={form.adminEmail} onChange={e => setForm({ ...form, adminEmail: e.target.value })}
-                  placeholder="admin@acme.com"
+                  placeholder="Enter email address"
                   className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                   <input type="password" value={form.adminPassword} onChange={e => setForm({ ...form, adminPassword: e.target.value })}
-                    placeholder="••••••••"
+                    placeholder="Enter password"
                     className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
                   <input type="password" value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-                    placeholder="••••••••"
+                    placeholder="Enter password"
                     className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>

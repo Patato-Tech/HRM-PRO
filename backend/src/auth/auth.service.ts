@@ -197,4 +197,14 @@ export class AuthService {
         if (!company) throw new UnauthorizedException('Company not found');
         return company;
     }
+
+    async getCompanyStatusByEmail(email: string) {
+        if (!email) return { status: 'unknown' };
+        const user = await this.prisma.user.findFirst({
+            where: { email },
+            include: { company: { select: { status: true, name: true } } }
+        });
+        if (!user) return { status: 'unknown' };
+        return { status: (user as any).company?.status || 'unknown', companyName: (user as any).company?.name };
+    }
 }
