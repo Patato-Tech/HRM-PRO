@@ -13,6 +13,7 @@ export interface AuthUser {
   companyName?: string;
   employeeId?: string;
   departmentId?: string;
+  departmentName?: string;
   designation?: string;
   customRoleName?: string;
   permissions?: any;
@@ -55,6 +56,7 @@ export function useAuth(isPlatform = false) {
     const companyName = localStorage.getItem('user_companyName') || '';
     const employeeId = localStorage.getItem('user_employeeId') || undefined;
     const departmentId = localStorage.getItem('user_departmentId') || undefined;
+    const departmentName = localStorage.getItem('user_departmentName') || undefined;
     const designation = localStorage.getItem('user_designation') || undefined;
     const customRoleName = localStorage.getItem('user_customRoleName') || undefined;
     const permissionsRaw = localStorage.getItem('user_permissions');
@@ -67,7 +69,7 @@ export function useAuth(isPlatform = false) {
     // ✅ Initial session check
     apiCall('/auth/profile', {}, token)
       .then(() => {
-        setUser({ id, name, email, role, companyId, companyName, employeeId, departmentId, designation, customRoleName, permissions, customRoleScope });
+        setUser({ id, name, email, role, companyId, companyName, employeeId, departmentId, departmentName, designation, customRoleName, permissions, customRoleScope });
         setLoading(false);
       })
       .catch(() => {
@@ -197,3 +199,4 @@ export const usePermissions = () => {
     user,
   };
 };
+

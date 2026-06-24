@@ -164,16 +164,16 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-6">
-      {success && <div className="fixed top-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">✅ {success}</div>}
+      {success && <div className="fixed top-6 right-6 text-white px-5 py-3.5 rounded-2xl z-50 text-sm font-bold" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 8px 25px rgba(16,185,129,0.4)"}}>✅ {success}</div>}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
-          <p className="text-gray-500 text-sm mt-1">{documents.length} total documents</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Documents</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{documents.length} total documents</p>
         </div>
         {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'documents', 'upload')) && (
           <button onClick={() => { setShowAddModal(true); setError(''); }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
+            className="text-white px-4 py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
             + Add Document
           </button>
         )}
@@ -186,25 +186,30 @@ export default function DocumentsPage() {
           { label: 'Expired', value: expiredCount, bg: 'bg-red-50', color: 'text-red-500' },
           { label: 'Active', value: documents.length - expiredCount, bg: 'bg-green-50', color: 'text-green-600' },
         ].map((s, i) => (
-          <div key={i} className={`${s.bg} rounded-2xl p-5 text-center`}>
-            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+          <div key={i} className="rounded-2xl p-4 relative overflow-hidden"
+            style={{background:["linear-gradient(135deg,#1d4ed8,#3b82f6)","linear-gradient(135deg,#d97706,#f59e0b)","linear-gradient(135deg,#dc2626,#ef4444)","linear-gradient(135deg,#059669,#10b981)"][i],boxShadow:"0 4px 15px rgba(0,0,0,0.15)"}}>
+            <div className="absolute top-0 right-0 w-12 h-12 rounded-full opacity-10" style={{background:"white",transform:"translate(30%,-30%)"}} />
+            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{color:"rgba(255,255,255,0.75)"}}>{s.label}</p>
+            <p className="text-3xl font-black text-white">{s.value}</p>
           </div>
         ))}
       </div>
 
       {expiringCount > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <p className="text-yellow-700 text-sm font-medium">⚠️ {expiringCount} document(s) expiring within 30 days</p>
+        <div className="rounded-2xl p-4 border border-yellow-200 flex items-center gap-3" style={{background:"linear-gradient(135deg,#fffbeb,#fef3c7)"}}>
+          <div className="w-9 h-9 bg-yellow-100 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">⚠️</div>
+          <p className="text-yellow-800 text-sm font-bold">{expiringCount} document(s) expiring within 30 days</p>
         </div>
       )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-5 border-b border-gray-100">
           <div className="flex flex-col sm:flex-row gap-3">
-            <input type="text" placeholder="Search by employee or document name..."
-              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+              <input type="text" placeholder="Search by employee or document name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                className="w-full border-2 border-gray-100 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50" />
+            </div>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
               className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
               <option value="all">All Types</option>
@@ -220,10 +225,10 @@ export default function DocumentsPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {['Employee', 'Department', 'Document', 'Type', 'Expiry', 'Uploaded By', 'Actions'].map(h => (
-                  <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
+            <thead>
+              <tr style={{background:"linear-gradient(135deg,#0f172a,#1e293b)"}}>
+                {["Employee", "Department", "Document", "Type", "Expiry", "Uploaded By", "Actions"].map(h => (
+                  <th key={h} className="text-left px-6 py-3.5 text-xs font-black text-slate-300 uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -292,9 +297,9 @@ export default function DocumentsPage() {
                             setShowEditModal(true);
                           }} className="text-xs bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-2.5 py-1.5 rounded-lg">Edit</button>
                           <button onClick={() => handleDelete(doc.id)}
-                            className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg">
-                            Delete
-                          </button>
+
+                            className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg">Delete</button>
+
                         </>
                       )}
                     </div>
@@ -328,7 +333,7 @@ export default function DocumentsPage() {
                 <select value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
                   <option value="">Select employee</option>
-                  {employees.filter((emp: any) => !form.departmentId || String(emp.departmentId) === String(form.departmentId)).map((emp: any) => (
+                  {employees.filter((emp: any) => emp.status === "active" && (!form.departmentId || String(emp.departmentId) === String(form.departmentId))).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>
                   ))}
                 </select>
@@ -399,7 +404,7 @@ export default function DocumentsPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowAddModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleAdd} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Add Document</button>
+              <button onClick={handleAdd} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Add Document</button>
             </div>
           </div>
         </div>
@@ -438,14 +443,14 @@ export default function DocumentsPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <a href={selectedDoc.url} target="_blank" rel="noopener noreferrer"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium text-center">
+                className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold text-center" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
                 Open Document
               </a>
               {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'documents', 'upload')) && (
-                <button onClick={() => handleDelete(selectedDoc.id)}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium">
-                  Delete
-                </button>
+                <button onClick={() => { if (selectedDoc) handleDelete(selectedDoc.id); }}
+
+                  className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#dc2626,#ef4444)"}}>Delete</button>
+
               )}
               <button onClick={() => setShowViewModal(false)}
                 className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">
@@ -501,7 +506,7 @@ export default function DocumentsPage() {
                   const data = await apiCall("/documents", {}, token);
                   setDocuments(data || []);
                 } catch (err: any) { setError(err.message); }
-              }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">
+              }} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
                 Update
               </button>
             </div>
@@ -511,3 +516,7 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+
+
+

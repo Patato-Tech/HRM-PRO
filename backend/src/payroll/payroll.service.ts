@@ -121,7 +121,7 @@ export class PayrollService {
         const netSalary = grossSalary - totalDeductions;
 
         // Auto deductions from attendance
-        const autoDeductions = await this.calculateAutoDeductions(empId, companyId, Number(dto.month), Number(dto.year), basic);
+        const { total: autoDeductions, breakdown } = await this.calculateAutoDeductionsWithBreakdown(empId, companyId, Number(dto.month), Number(dto.year), basic);
 
         return this.prisma.payroll.create({
             data: {
@@ -145,7 +145,7 @@ export class PayrollService {
                 allowances: houseRent + medicalAllowance + transportAllowance + otherAllowances + bonus + overtimePay,
                 deductions: totalDeductions + autoDeductions,
                 netSalary: netSalary - autoDeductions,
-                notes: dto.notes || null,
+                notes: dto.notes ? dto.notes + (breakdown.length ? ' | AUTO_DEDUCTIONS:' + JSON.stringify(breakdown) : '') : (breakdown.length ? 'AUTO_DEDUCTIONS:' + JSON.stringify(breakdown) : null),
                 status: 'pending',
             },
             include: {
@@ -203,6 +203,39 @@ export class PayrollService {
         return Math.round(totalDeduction);
     }
 
+    private async calculateAutoDeductionsWithBreakdown(
+        employeeId: number, companyId: number, month: number, year: number, basicSalary: number
+    ): Promise<{ total: number; breakdown: any[] }> {
+        const rules = await this.prisma.deductionRule.findMany({ where: { companyId, isActive: true } });
+        if (!rules.length) return { total: 0, breakdown: [] };
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59);
+        const attendance = await this.prisma.attendance.findMany({ where: { employeeId, companyId, date: { gte: startDate, lte: endDate } } });
+        const unapprovedLeaves = await this.prisma.leave.findMany({ where: { employeeId, companyId, status: 'rejected', startDate: { gte: startDate }, endDate: { lte: endDate } } });
+        const lateCount = attendance.filter(a => a.status === 'late').length;
+        const halfDayCount = attendance.filter(a => a.status === 'half_day').length;
+        const unapprovedLeaveDays = unapprovedLeaves.reduce((s, l) => s + l.days, 0);
+        const perDaySalary = basicSalary / 26;
+        let total = 0;
+        const breakdown: any[] = [];
+        for (const rule of rules) {
+            if (rule.type === 'LATE_ARRIVAL' && lateCount > 0) {
+                const amount = Math.round((perDaySalary * (rule.deductPercentage / 100)) * lateCount);
+                total += amount; breakdown.push({ type: 'Late Arrival', count: lateCount, amount });
+            }
+            if (rule.type === 'HALF_DAY' && halfDayCount > 0) {
+                const amount = Math.round((perDaySalary * 0.5) * halfDayCount);
+                total += amount; breakdown.push({ type: 'Half Day', count: halfDayCount, amount });
+            }
+            if (rule.type === 'UNAPPROVED_LEAVE' && unapprovedLeaveDays > 0) {
+                const amount = Math.round(perDaySalary * unapprovedLeaveDays);
+                total += amount; breakdown.push({ type: 'Unapproved Leave', count: unapprovedLeaveDays, amount });
+            }
+        }
+        return { total, breakdown };
+    }
+
+
     async setDeductionRule(companyId: number, user: any, dto: { type: string; deductPercentage: number; isActive: boolean }) {
         if (user.role !== 'COMPANY_ADMIN') throw new ForbiddenException('Only Company Admin can configure deduction rules.');
         return this.prisma.deductionRule.upsert({
@@ -210,6 +243,11 @@ export class PayrollService {
             create: { companyId, type: dto.type, deductPercentage: dto.deductPercentage, isActive: dto.isActive },
             update: { deductPercentage: dto.deductPercentage, isActive: dto.isActive },
         });
+    }
+
+    async getDeductionPreview(employeeId: number, month: number, year: number, basic: number, companyId: number) {
+        const { total, breakdown } = await this.calculateAutoDeductionsWithBreakdown(employeeId, companyId, month, year, basic);
+        return { total, breakdown };
     }
 
     async getDeductionRules(companyId: number, user: any) {
@@ -277,6 +315,14 @@ export class PayrollService {
         const payroll = await this.prisma.payroll.findFirst({ where: { id, companyId } });
         if (!payroll) throw new NotFoundException('Payroll record not found');
         return this.prisma.payroll.update({ where: { id }, data: { status: 'approved' } });
+    }
+
+    async delete(id: number, companyId: number, user: any) {
+        const isAdmin = user.role === 'COMPANY_ADMIN';
+        if (!isAdmin) checkPermission(user, 'payroll', 'process');
+        const payroll = await this.prisma.payroll.findFirst({ where: { id, companyId } });
+        if (!payroll) throw new NotFoundException('Payroll record not found');
+        return this.prisma.payroll.delete({ where: { id } });
     }
 
     async markPaid(id: number, companyId: number, user: any) {

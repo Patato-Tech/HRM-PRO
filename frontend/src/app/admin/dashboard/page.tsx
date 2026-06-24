@@ -179,31 +179,63 @@ export default function AdminDashboard() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 text-white w-9 h-9 rounded-xl flex items-center justify-center font-bold text-lg">H</div>
-          <div><span className="font-bold text-gray-900">HRMPro Enterprise</span><span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Platform Admin</span></div>
-        </div>
+    <div className="min-h-screen" style={{background:"#f8fafc"}}>
+      <style>{`
+        @keyframes slideDown { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+        .nav-item { transition: all 0.2s ease; }
+        .nav-item:hover { background: rgba(255,255,255,0.1) !important; }
+        .stat-card { transition: all 0.2s ease; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.1) !important; }
+        .tab-btn { transition: all 0.2s ease; }
+        .company-row { transition: all 0.15s ease; }
+        .company-row:hover { background: #f8fafc !important; }
+        .action-btn { transition: all 0.15s ease; }
+        .action-btn:hover { transform: translateY(-1px); }
+      `}</style>
+      <nav style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",borderBottom:"1px solid rgba(255,255,255,0.08)"}} className="px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block"><p className="text-sm font-semibold text-gray-900">{user.name}</p><p className="text-xs text-gray-400">{user.email}</p></div>
-          <button onClick={logout} className="text-sm bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-xl font-medium">Logout</button>
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg shadow-lg" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+            <span className="text-white">H</span>
+          </div>
+          <div>
+            <p className="font-black text-white text-sm tracking-tight">HRMPro Enterprise</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-1.5 h-1.5 bg-green-400 rounded-full" style={{animation:"pulse 2s infinite"}} />
+              <span className="text-xs text-slate-400 font-medium">Platform Administration</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-bold text-white">{user.name}</p>
+            <p className="text-xs text-slate-400">{user.email}</p>
+          </div>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+            <span className="text-white">{user.name?.charAt(0).toUpperCase()}</span>
+          </div>
+          <button onClick={logout} className="text-xs font-semibold px-4 py-2 rounded-xl transition-all" style={{background:"rgba(239,68,68,0.15)",color:"#fca5a5",border:"1px solid rgba(239,68,68,0.2)"}}>
+            Logout
+          </button>
         </div>
       </nav>
 
-      {success && <div className="fixed top-20 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">✅ {success}</div>}
+      {success && <div className="fixed top-20 right-6 text-white px-5 py-3.5 rounded-2xl shadow-2xl z-50 text-sm font-semibold flex items-center gap-2" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 8px 30px rgba(16,185,129,0.4)"}}>✅ {success}</div>}
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">Platform Dashboard</h1><p className="text-gray-500 text-sm mt-1">Manage all registered companies</p></div>
+      <div className="max-w-7xl mx-auto px-8 py-6">
+        <div className="mb-8 pt-2">
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Platform Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-1">Manage and monitor all registered companies</p>
+        </div>
 
-        <div className="flex gap-2 mb-6 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm flex-wrap">
+        <div className="flex gap-2 mb-8 flex-wrap">
           {([
             { key: 'overview', label: '📊 Overview' },
             { key: 'companies', label: '🏢 Companies' },
             { key: 'pending', label: `⏳ Pending${stats?.pendingCompanies ? ` (${stats.pendingCompanies})` : ''}` },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className="tab-btn px-5 py-2.5 rounded-2xl text-sm font-bold transition-all border"
+              style={activeTab === tab.key ? {background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",color:"white",border:"transparent",boxShadow:"0 4px 15px rgba(59,130,246,0.4)"} : {background:"white",color:"#6b7280",border:"1px solid #e5e7eb"}}>
               {tab.label}
             </button>
           ))}
@@ -213,24 +245,38 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: 'Total Companies', value: stats?.totalCompanies ?? 0, color: 'text-gray-900', bg: 'bg-blue-50', icon: '🏢' },
-                { label: 'Active', value: stats?.activeCompanies ?? 0, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
-                { label: 'Inactive', value: stats?.inactiveCompanies ?? 0, color: 'text-red-500', bg: 'bg-red-50', icon: '🚫' },
-                { label: 'Pending Approval', value: stats?.pendingCompanies ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏳' },
+                { label: 'Total Companies', value: stats?.totalCompanies ?? 0, color: '#1e40af', bg: 'linear-gradient(135deg,#eff6ff,#dbeafe)', icon: '🏢', border: '#bfdbfe' },
+                { label: 'Active', value: stats?.activeCompanies ?? 0, color: '#065f46', bg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', icon: '✅', border: '#bbf7d0' },
+                { label: 'Inactive', value: stats?.inactiveCompanies ?? 0, color: '#991b1b', bg: 'linear-gradient(135deg,#fef2f2,#fee2e2)', icon: '🚫', border: '#fecaca' },
+                { label: 'Pending Approval', value: stats?.pendingCompanies ?? 0, color: '#92400e', bg: 'linear-gradient(135deg,#fffbeb,#fef3c7)', icon: '⏳', border: '#fde68a' },
               ].map((s, i) => (
-                <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between mb-3"><p className="text-sm text-gray-500 font-medium">{s.label}</p><div className={`${s.bg} w-10 h-10 rounded-xl flex items-center justify-center text-xl`}>{s.icon}</div></div>
-                  <p className={`text-4xl font-bold ${s.color}`}>{s.value}</p>
+                <div key={i} className="stat-card rounded-2xl p-6 border" style={{background:s.bg,borderColor:s.border,boxShadow:"0 2px 15px rgba(0,0,0,0.05)"}}>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{color:s.color,opacity:0.7}}>{s.label}</p>
+                    <span className="text-2xl">{s.icon}</span>
+                  </div>
+                  <p className="text-4xl font-black" style={{color:s.color}}>{s.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Your Account</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gray-50 rounded-xl p-4"><p className="text-xs text-gray-500 mb-1">Name</p><p className="font-semibold text-gray-900">{user.name}</p></div>
-                <div className="bg-gray-50 rounded-xl p-4"><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-semibold text-gray-900">{user.email}</p></div>
-                <div className="bg-gray-50 rounded-xl p-4"><p className="text-xs text-gray-500 mb-1">Role</p><span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-semibold">Platform Admin</span></div>
+            <div className="rounded-2xl p-6 border border-blue-100 overflow-hidden relative" style={{background:"linear-gradient(135deg,#0f172a,#1e293b)"}}>
+              <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-5" style={{background:"radial-gradient(circle,white,transparent)",transform:"translate(30%,-30%)"}} />
+              <div className="relative z-10 flex items-center gap-5">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl flex-shrink-0" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                  <span className="text-white">{user.name?.charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-black text-white text-lg">{user.name}</p>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{background:"rgba(59,130,246,0.2)",color:"#93c5fd",border:"1px solid rgba(59,130,246,0.3)"}}>Platform Admin</span>
+                  </div>
+                  <p className="text-slate-400 text-sm">{user.email}</p>
+                </div>
+                <div className="hidden sm:flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full" style={{background:"rgba(16,185,129,0.15)",color:"#6ee7b7",border:"1px solid rgba(16,185,129,0.2)"}}>
+                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                  Active Session
+                </div>
               </div>
             </div>
 
@@ -266,16 +312,30 @@ export default function AdminDashboard() {
                 <button onClick={() => setActiveTab('companies')} className="text-sm text-blue-600 hover:underline">View all →</button>
               </div>
               {companies.length === 0 ? (
-                <div className="text-center py-10"><p className="text-4xl mb-3">🏢</p><p className="text-gray-500 font-medium">No active companies yet</p><p className="text-gray-400 text-xs mt-1">Companies appear here after approval</p></div>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">🏢</div>
+                  <p className="text-gray-600 font-semibold">No active companies yet</p>
+                  <p className="text-gray-400 text-xs mt-1">Companies appear here after approval</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {companies.slice(0, 5).map(company => (
-                    <div key={company.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer" onClick={() => { setSelectedCompany(company); setShowDetailModal(true); }}>
+                <div className="space-y-2">
+                  {companies.slice(0, 5).map((company, i) => (
+                    <div key={company.id} className="company-row flex items-center justify-between p-4 rounded-2xl cursor-pointer border border-transparent hover:border-blue-100" style={{background:"#f8fafc"}} onClick={() => { setSelectedCompany(company); setShowDetailModal(true); }}>
                       <div className="flex items-center gap-3">
-                        <div className="bg-blue-100 text-blue-700 w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm">{company.name.charAt(0).toUpperCase()}</div>
-                        <div><p className="font-semibold text-gray-900 text-sm">{company.name}</p><p className="text-xs text-gray-400">{company.industry || 'No industry'} · {new Date(company.createdAt).toLocaleDateString()}</p></div>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white flex-shrink-0" style={{background:`linear-gradient(135deg,${['#1d4ed8','#7c3aed','#059669','#dc2626','#d97706'][i%5]},${['#3b82f6','#8b5cf6','#10b981','#ef4444','#f59e0b'][i%5]})`}}>
+                          {company.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 text-sm">{company.name}</p>
+                          <p className="text-xs text-gray-400">{company.industry || 'No industry'} · {new Date(company.createdAt).toLocaleDateString()}</p>
+                        </div>
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${company.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{company.status}</span>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${company.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {company.status === 'active' ? '● Active' : '● Inactive'}
+                        </span>
+                        <span className="text-gray-300 text-xs">→</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -285,30 +345,39 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'companies' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100">
-              <div><h2 className="text-lg font-semibold text-gray-900">All Companies</h2><p className="text-xs text-gray-400 mt-0.5">{companies.length} companies</p></div>
-              <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
-                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-gray-900">All Companies</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">{companies.length} registered companies</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input type="text" placeholder="Search companies..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                    className="border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50 w-64" />
+                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
+                    className="border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>{['Company', 'Industry', 'Plan', 'Status', 'Created', 'Actions'].map(h => <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr>
+                <thead>
+                  <tr style={{background:"linear-gradient(135deg,#0f172a,#1e293b)"}}>
+                    {['Company', 'Industry', 'Plan', 'Status', 'Created', 'Actions'].map(h => (
+                      <th key={h} className="text-left px-6 py-3.5 text-xs font-bold text-slate-300 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredCompanies.length === 0 ? (
                     <tr><td colSpan={6} className="px-6 py-16 text-center"><p className="text-4xl mb-3">🔍</p><p className="text-gray-500">No companies found</p></td></tr>
                   ) : filteredCompanies.map(company => (
-                    <tr key={company.id} className="hover:bg-gray-50">
+                    <tr key={company.id} className="company-row border-b border-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="bg-blue-100 text-blue-700 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm shrink-0">{company.name.charAt(0).toUpperCase()}</div>
@@ -317,17 +386,21 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{company.industry || '—'}</td>
                       <td className="px-6 py-4">{company.planId ? <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-semibold">{company.planId}</span> : <span className="text-xs text-gray-400">No plan</span>}</td>
-                      <td className="px-6 py-4"><span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${company.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{company.status}</span></td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs px-2.5 py-1.5 rounded-full font-bold ${company.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {company.status === 'active' ? '● Active' : '● Inactive'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-500">{new Date(company.createdAt).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <button onClick={() => { setSelectedCompany(company); setShowDetailModal(true); }} className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg">View</button>
-                          <button onClick={() => openEditModal(company)} className="text-xs bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-2.5 py-1.5 rounded-lg">Edit</button>
-                          <button onClick={() => { setSelectedCompany(company); setResetPassword(''); setResetConfirm(''); setError(''); setShowResetModal(true); }} className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg">Reset Pwd</button>
-                          <button onClick={() => handleToggleStatus(company)} className={`text-xs px-2.5 py-1.5 rounded-lg ${company.status === 'active' ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
+                          <button onClick={() => { setSelectedCompany(company); setShowDetailModal(true); }} className="action-btn text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-xl">View</button>
+                          <button onClick={() => openEditModal(company)} className="action-btn text-xs font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100 px-3 py-1.5 rounded-xl">Edit</button>
+                          <button onClick={() => { setSelectedCompany(company); setResetPassword(''); setResetConfirm(''); setError(''); setShowResetModal(true); }} className="action-btn text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-xl">Reset Pwd</button>
+                          <button onClick={() => handleToggleStatus(company)} className={`action-btn text-xs font-semibold px-3 py-1.5 rounded-xl ${company.status === 'active' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
                             {company.status === 'active' ? 'Deactivate' : 'Activate'}
                           </button>
-                          <button onClick={() => { setSelectedCompany(company); setDeleteConfirmed(false); setError(''); setShowDeleteModal(true); }} className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg">Delete</button>
+
                         </div>
                       </td>
                     </tr>
@@ -339,36 +412,54 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'pending' && (
-          <div className="space-y-4">
-            <div><h2 className="text-lg font-semibold text-gray-900">Pending Approvals</h2><p className="text-xs text-gray-400 mt-0.5">{pendingCompanies.length} companies waiting</p></div>
-            {pendingCompanies.length === 0 ? (
-              <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-gray-100">
-                <p className="text-5xl mb-4">✅</p><p className="text-gray-700 font-semibold">No pending approvals</p><p className="text-gray-400 text-sm mt-1">All registrations have been processed</p>
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">Pending Approvals</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{pendingCompanies.length} companies waiting for review</p>
               </div>
-            ) : pendingCompanies.map(company => (
-              <div key={company.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              {pendingCompanies.length > 0 && (
+                <span className="text-xs font-bold px-3 py-1.5 rounded-full" style={{background:"#fef3c7",color:"#92400e"}}>
+                  ⏳ {pendingCompanies.length} Pending
+                </span>
+              )}
+            </div>
+            {pendingCompanies.length === 0 ? (
+              <div className="bg-white rounded-3xl p-16 text-center border border-gray-100" style={{boxShadow:"0 4px 30px rgba(0,0,0,0.05)"}}>
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">✅</div>
+                <p className="text-gray-800 font-black text-lg">All clear!</p>
+                <p className="text-gray-400 text-sm mt-1">No pending approvals at this time</p>
+              </div>
+            ) : pendingCompanies.map((company, i) => (
+              <div key={company.id} className="bg-white rounded-3xl p-6 border border-yellow-100 overflow-hidden relative" style={{boxShadow:"0 4px 20px rgba(0,0,0,0.06)"}}>
+                <div className="absolute top-0 left-0 w-1 h-full bg-yellow-400" />
                 <div className="flex items-start justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="bg-yellow-100 text-yellow-700 w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg">{company.name.charAt(0).toUpperCase()}</div>
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl text-white flex-shrink-0" style={{background:`linear-gradient(135deg,${['#d97706','#7c3aed','#059669','#dc2626','#1d4ed8'][i%5]},${['#f59e0b','#8b5cf6','#10b981','#ef4444','#3b82f6'][i%5]})`}}>
+                      {company.name.charAt(0).toUpperCase()}
+                    </div>
                     <div>
-                      <p className="font-bold text-gray-900">{company.name}</p>
-                      <p className="text-sm text-gray-500">{company.industry || 'No industry'}{company.address ? ` · ${company.address}` : ''}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Registered {new Date(company.createdAt).toLocaleDateString()}</p>
+                      <p className="font-black text-gray-900 text-lg">{company.name}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">{company.industry || 'No industry'}{company.address ? ` · ${company.address}` : ''}</p>
+                      <p className="text-xs text-gray-400 mt-1">Registered {new Date(company.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => handleApprove(company)} disabled={approveLoading === company.id}
-                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-5 py-2 rounded-xl text-sm font-medium">
+                      className="font-bold text-white px-6 py-2.5 rounded-2xl text-sm transition-all disabled:opacity-50"
+                      style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 4px 15px rgba(16,185,129,0.3)"}}>
                       {approveLoading === company.id ? 'Approving...' : '✅ Approve'}
                     </button>
                     <button onClick={() => handleReject(company)} disabled={rejectLoading === company.id}
-                      className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-5 py-2 rounded-xl text-sm font-medium">
+                      className="font-bold text-white px-6 py-2.5 rounded-2xl text-sm transition-all disabled:opacity-50"
+                      style={{background:"linear-gradient(135deg,#dc2626,#ef4444)",boxShadow:"0 4px 15px rgba(239,68,68,0.3)"}}>
                       {rejectLoading === company.id ? 'Rejecting...' : '❌ Reject'}
                     </button>
                   </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2.5 py-1 rounded-full font-semibold">⏳ Pending Approval</span>
+                <div className="mt-4 pt-4 border-t border-yellow-50 flex items-center gap-2">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700">⏳ Awaiting Approval</span>
+                  <span className="text-xs text-gray-400">{company._count?.employees || 0} employees · {company._count?.users || 0} users</span>
                 </div>
               </div>
             ))}
@@ -400,13 +491,6 @@ export default function AdminDashboard() {
               <button onClick={() => { setResetPassword(''); setResetConfirm(''); setError(''); setShowResetModal(true); }} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-medium">Reset Pwd</button>
               <button onClick={() => handleToggleStatus(selectedCompany)} className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${selectedCompany.status === 'active' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
                 {selectedCompany.status === 'active' ? 'Deactivate' : 'Activate'}
-              </button>
-              <button onClick={() => {
-                setShowDetailModal(false);
-                setDeleteConfirmed(false);
-                setShowDeleteModal(true);
-              }} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium">
-                Delete
               </button>
             </div>
           </div>

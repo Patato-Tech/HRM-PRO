@@ -82,14 +82,14 @@ export default function DepartmentsPage() {
   };
 
   const handleAdd = async () => {
-    setError('');
-    if (!addForm.name) { setError('Department name is required'); return; }
+    setError("");
+    const errors: string[] = [];
+    if (!addForm.name.trim()) errors.push("Department name is required.");
+    else if (departments.some((d: any) => d.name.toLowerCase() === addForm.name.trim().toLowerCase())) errors.push("A department with this name already exists.");
+    if (errors.length > 0) { setError(errors.join(" | ")); return; }
     try {
-      const token = getToken() || '';
-      await apiCall('/departments', {
-        method: 'POST',
-        body: JSON.stringify(addForm),
-      }, token);
+      const token = getToken() || "";
+      await apiCall("/departments", { method: "POST", body: JSON.stringify(addForm) }, token);
       setShowAddModal(false);
       setAddForm({ name: '', headId: '' });
       showSuccessMsg('Department created successfully!');
@@ -118,6 +118,7 @@ export default function DepartmentsPage() {
 
   const handleDelete = async () => {
     if (!selectedDept) return;
+    if ((selectedDept._count?.employees || 0) > 0) { setError("Cannot delete a department that has employees. Please reassign employees first."); setShowDeleteModal(false); return; }
     try {
       const token = getToken() || '';
       await apiCall(`/departments/${selectedDept.id}`, { method: 'DELETE' }, token);
@@ -179,63 +180,45 @@ export default function DepartmentsPage() {
 
       {/* Success Toast */}
       {success && (
-        <div className="fixed top-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">
+        <div className="fixed top-6 right-6 text-white px-5 py-3.5 rounded-2xl z-50 text-sm font-bold" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 8px 25px rgba(16,185,129,0.4)"}}>
           ✅ {success}
         </div>
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
-          <p className="text-gray-500 text-sm mt-1">{departments.length} departments</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Departments</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{departments.length} departments in your organization</p>
         </div>
         {canManage && (
-          <button
-            onClick={() => { setShowAddModal(true); setError(''); }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
-          >
+          <button onClick={() => { setShowAddModal(true); setError(''); }}
+            className="text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+            style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
             + Add Department
           </button>
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-blue-50 rounded-2xl p-5 text-center">
-          <p className="text-3xl font-bold text-blue-600">{departments.length}</p>
-          <p className="text-xs text-gray-500 mt-1">Total Departments</p>
-        </div>
-        <div className="bg-green-50 rounded-2xl p-5 text-center">
-          <p className="text-3xl font-bold text-green-600">{departments.filter(d => d.status === 'active').length}</p>
-          <p className="text-xs text-gray-500 mt-1">Active</p>
-        </div>
-        <div className="bg-red-50 rounded-2xl p-5 text-center">
-          <p className="text-3xl font-bold text-red-500">{departments.filter(d => d.status === 'inactive').length}</p>
-          <p className="text-xs text-gray-500 mt-1">Inactive</p>
-        </div>
-        <div className="bg-purple-50 rounded-2xl p-5 text-center">
-          <p className="text-3xl font-bold text-purple-600">
-            {departments.reduce((sum, d) => sum + (d._count?.employees || 0), 0)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Total Employees</p>
-          <div className="flex flex-wrap gap-1 mt-2 justify-center">
-            {departments.flatMap(d => d.employees || []).map((emp: any) => (
-              <span key={emp.id} className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${emp.customRole ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                {emp.customRole?.name || 'Employee'}
-              </span>
-            ))}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          {label:"Total",value:departments.length,color:"#1d4ed8",bg:"linear-gradient(135deg,#eff6ff,#dbeafe)",border:"#bfdbfe"},
+          {label:"Active",value:departments.filter(d=>d.status==='active').length,color:"#059669",bg:"linear-gradient(135deg,#f0fdf4,#dcfce7)",border:"#bbf7d0"},
+          {label:"Inactive",value:departments.filter(d=>d.status==='inactive').length,color:"#dc2626",bg:"linear-gradient(135deg,#fef2f2,#fee2e2)",border:"#fecaca"},
+          {label:"Total Employees",value:departments.reduce((sum,d)=>sum+(d._count?.employees||0),0),color:"#7c3aed",bg:"linear-gradient(135deg,#faf5ff,#ede9fe)",border:"#ddd6fe"},
+        ].map((s,i) => (
+          <div key={i} className="rounded-2xl p-4 border" style={{background:s.bg,borderColor:s.border,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+            <p className="text-3xl font-black" style={{color:s.color}}>{s.value}</p>
+            <p className="text-xs font-semibold text-gray-400 mt-1 uppercase tracking-wide">{s.label}</p>
           </div>
-        </div>
+        ))}
       </div>
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <input
-          type="text"
-          placeholder="Search departments..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-        />
+      <div className="bg-white rounded-2xl p-4 border border-gray-100" style={{boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+          <input type="text" placeholder="Search departments..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            className="w-full border-2 border-gray-100 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50 transition-all" />
+        </div>
       </div>
 
       {/* Department Cards */}
@@ -254,66 +237,53 @@ export default function DepartmentsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(dept => (
-            <div key={dept.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-100 text-blue-700 w-11 h-11 rounded-xl flex items-center justify-center font-bold text-lg">
-                    {dept.name.charAt(0).toUpperCase()}
+          {filtered.map((dept, i) => (
+            <div key={dept.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-200 hover:-translate-y-1"
+              style={{boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+              {/* Card top accent */}
+              <div className="h-1.5 w-full" style={{background:`linear-gradient(135deg,${["#1d4ed8","#7c3aed","#059669","#dc2626","#d97706"][i%5]},${["#3b82f6","#8b5cf6","#10b981","#ef4444","#f59e0b"][i%5]})`}} />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg text-white flex-shrink-0"
+                      style={{background:`linear-gradient(135deg,${["#1d4ed8","#7c3aed","#059669","#dc2626","#d97706"][i%5]},${["#3b82f6","#8b5cf6","#10b981","#ef4444","#f59e0b"][i%5]})`}}>
+                      {dept.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-black text-gray-900">{dept.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Created {new Date(dept.createdAt).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-900">{dept.name}</p>
-                    <p className="text-xs text-gray-400">
-                      Created {new Date(dept.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mb-4">
-                <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-                  <p className="text-xl font-bold text-gray-900">{dept._count?.employees || 0}</p>
-                  <p className="text-xs text-gray-500">Employees</p>
-                </div>
-                <div className="flex gap-1">
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${dept.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {dept.status}
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${dept.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {dept.status === 'active' ? 'Active' : 'Inactive'}
                   </span>
+                </div>
+                <div className="flex items-center gap-3 mb-4 p-3 rounded-xl" style={{background:"#f8fafc"}}>
+                  <div className="text-center flex-1">
+                    <p className="text-2xl font-black text-gray-900">{dept._count?.employees || 0}</p>
+                    <p className="text-xs text-gray-400 font-medium">Employees</p>
+                  </div>
                   {(dept._count?.employees || 0) === 0 && (
-                    <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-gray-100 text-gray-500">Empty</span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-400 font-medium">Empty</span>
                   )}
                 </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleViewDetail(dept)}
-                  className="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 py-2 rounded-xl text-xs font-medium transition-colors"
-                >
-                  View Members
-                </button>
-                {canManage && (
-                  <>
-                    <button
-                      onClick={() => openEditModal(dept)}
-                      className="flex-1 bg-yellow-50 text-yellow-600 hover:bg-yellow-100 py-2 rounded-xl text-xs font-medium transition-colors"
-                    >
+                <div className="flex gap-2">
+                  <button onClick={() => handleViewDetail(dept)}
+                    className="flex-1 py-2 rounded-xl text-xs font-bold transition-all text-white"
+                    style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                    View Members
+                  </button>
+                  {canManage && (<>
+                    <button onClick={() => openEditModal(dept)}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all">
                       Edit
                     </button>
-                    <button
-                      onClick={() => handleToggleStatus(dept)}
-                      className={`px-3 py-2 rounded-xl text-xs transition-colors ${dept.status === 'active' ? 'bg-orange-50 text-orange-500 hover:bg-orange-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
-                    >
-                      {dept.status === 'active' ? '⏸️' : '▶️'}
+                    <button onClick={() => handleToggleStatus(dept)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${dept.status === 'active' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
+                      {dept.status === 'active' ? 'Deactivate' : 'Activate'}
                     </button>
-                    <button
-                      onClick={() => { setSelectedDept(dept); setShowDeleteModal(true); }}
-                      className="bg-red-50 text-red-500 hover:bg-red-100 px-3 py-2 rounded-xl text-xs transition-colors"
-                    >
-                      🗑️
-                    </button>
-                  </>
-                )}
+                  </>)}
+                </div>
               </div>
             </div>
           ))}
@@ -367,7 +337,7 @@ export default function DepartmentsPage() {
               <button onClick={() => setShowDetailModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Close</button>
               {canManage && (
                 <button onClick={() => { setShowDetailModal(false); openEditModal(selectedDept); }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">
+                  className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
                   Edit Department
                 </button>
               )}
@@ -381,7 +351,7 @@ export default function DepartmentsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Add Department</h3>
+              <h3 className="text-lg font-black text-gray-900">Add Department</h3>
               <button onClick={() => { setShowAddModal(false); setError(''); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
@@ -390,12 +360,12 @@ export default function DepartmentsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Department Name *</label>
                 <input type="text" value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })}
                   placeholder="e.g. Engineering, HR, Finance"
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+                  className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowAddModal(false); setError(''); }} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleAdd} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Create Department</button>
+              <button onClick={() => { setShowAddModal(false); setError(""); }} className="flex-1 border-2 border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={handleAdd} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>Create Department</button>
             </div>
           </div>
         </div>
@@ -406,7 +376,7 @@ export default function DepartmentsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Edit Department</h3>
+              <h3 className="text-lg font-black text-gray-900">Edit Department</h3>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
@@ -418,8 +388,8 @@ export default function DepartmentsPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleEdit} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Save Changes</button>
+              <button onClick={() => setShowEditModal(false)} className="flex-1 border-2 border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={handleEdit} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -437,8 +407,8 @@ export default function DepartmentsPage() {
               Employees in this department will be unassigned but not deleted.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowDeleteModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-sm font-medium">Yes, Delete</button>
+              <button onClick={() => setShowDeleteModal(false)} className="flex-1 border-2 border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={handleDelete} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#dc2626,#ef4444)",boxShadow:"0 4px 12px rgba(239,68,68,0.3)"}}>Yes, Delete</button>
             </div>
           </div>
         </div>
@@ -446,3 +416,6 @@ export default function DepartmentsPage() {
     </div>
   );
 }
+
+
+

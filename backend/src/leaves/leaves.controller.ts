@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Request, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Post, Put, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
 import { LeavesService } from './leaves.service';
 import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -42,6 +42,10 @@ export class LeavesController {
     approve(@Param('id') id: string, @Request() req) {
         return this.leavesService.approve(parseInt(id), Number(req.user.companyId), Number(req.user.userId));
     }
+    @Put(':id/cancel')
+    cancel(@Param('id') id: string, @Request() req) {
+        return this.leavesService.cancel(parseInt(id), Number(req.user.companyId), Number(req.user.employeeId));
+    }
     @Put(':id/reject')
     @RequirePermission('leaves', 'approve')
     reject(@Param('id') id: string, @Request() req) {
@@ -51,5 +55,9 @@ export class LeavesController {
     @RequirePermission('leaves', 'manage')
     createBalance(@Body() dto: CreateLeaveBalanceDto, @Request() req) {
         return this.leavesService.createBalance(dto, Number(req.user.companyId));
+    }
+    @Delete(':id')
+    remove(@Param('id') id: string, @Request() req) {
+        return this.leavesService.remove(parseInt(id), Number(req.user.companyId), req.user);
     }
 }

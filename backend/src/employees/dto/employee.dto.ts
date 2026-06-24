@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, IsNumber } from 'class-validator';
+﻿import { IsEmail, IsOptional, IsString, IsNumber } from 'class-validator';
 
 export class CreateEmployeeDto {
     @IsString()
@@ -26,6 +26,26 @@ export class CreateEmployeeDto {
     @IsString()
     role?: string;
     roleId?: number;
+
+    @IsOptional()
+    @IsString()
+    phone?: string;
+
+    @IsOptional()
+    @IsString()
+    cnic?: string;
+
+    @IsOptional()
+    @IsString()
+    gender?: string;
+
+    @IsOptional()
+    @IsString()
+    employmentType?: string;
+
+    @IsOptional()
+    @IsString()
+    joinDate?: string;
 }
 
 export class UpdateEmployeeDto {
@@ -48,6 +68,27 @@ export class UpdateEmployeeDto {
     @IsOptional()
     @IsString()
     status?: string;
+
     @IsOptional()
     roleId?: number;
+
+    @IsOptional()
+    @IsString()
+    phone?: string;
+
+    @IsOptional()
+    @IsString()
+    cnic?: string;
+
+    @IsOptional()
+    @IsString()
+    gender?: string;
+
+    @IsOptional()
+    @IsString()
+    employmentType?: string;
+
+    @IsOptional()
+    @IsString()
+    joinDate?: string;
 }

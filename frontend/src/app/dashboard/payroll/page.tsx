@@ -51,8 +51,13 @@ export default function PayrollPage() {
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'month' | 'process'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'month' | 'process' | 'settings'>('all');
+  const [deductionRules, setDeductionRules] = useState<any[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [rulesSaved, setRulesSaved] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [autoDeductPreview, setAutoDeductPreview] = useState<any[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -63,6 +68,8 @@ export default function PayrollPage() {
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear());
   const [monthPayrolls, setMonthPayrolls] = useState<PayrollRecord[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [departments, setDepartments] = useState<any[]>([]);
   const slipRef = useRef<HTMLDivElement>(null);
 
   const canManage = isCompanyAdmin(user?.role || '') || hasPermission(user, 'payroll', 'process') || hasPermission(user, 'payroll', 'approve');
@@ -76,12 +83,14 @@ export default function PayrollPage() {
   const fetchData = async () => {
     const token = getToken() || '';
     try {
-      const [payrollData, empData] = await Promise.all([
+      const [payrollData, empData, deptData] = await Promise.all([
         apiCall('/payroll', {}, token),
         apiCall('/employees', {}, token),
+        apiCall('/departments', {}, token),
       ]);
       setPayrolls(payrollData || []);
       setEmployees(empData || []);
+      setDepartments(deptData || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -115,16 +124,36 @@ export default function PayrollPage() {
       updated.eobi = String(Math.round((Number(value) || 0) * 0.01));
     }
     setForm(updated);
+
+    // Fetch auto-deduction preview
+    if (field === 'employeeId' && !value) { setAutoDeductPreview([]); }
+    const empId = field === 'employeeId' ? value : updated.employeeId;
+    const month = field === 'month' ? value : updated.month;
+    const year = field === 'year' ? value : updated.year;
+    const basic = field === 'basic' ? value : updated.basic;
+    if (empId && month && year && basic && ['employeeId', 'month', 'year', 'basic'].includes(field)) {
+      setPreviewLoading(true);
+      apiCall(`/payroll/deduction-preview?employeeId=${empId}&month=${month}&year=${year}&basic=${basic}`, {}, getToken() || '')
+        .then(data => setAutoDeductPreview(data?.breakdown || []))
+        .catch(() => setAutoDeductPreview([]))
+        .finally(() => setPreviewLoading(false));
+    }
   };
 
   const handleAdd = async () => {
-    setError('');
-    if (!form.employeeId || !form.basic) { setError('Employee and basic salary are required'); return; }
+    setError("");
+    const errors: string[] = [];
+    if (!form.employeeId) errors.push("Please select an employee.");
+    if (!form.basic || Number(form.basic) <= 0) errors.push("Basic salary must be greater than 0.");
+    if (calcNet(form) < 0) errors.push("Net salary cannot be negative. Please check deductions.");
+    const existingPayroll = payrolls.find((p: any) => String(p.employee?.id) === String(form.employeeId) && p.month === Number(form.month) && p.year === Number(form.year));
+    if (existingPayroll) errors.push("Payroll already exists for this employee for the selected month.");
+    if (errors.length > 0) { setError(errors.join(" | ")); return; }
     try {
-      const token = getToken() || '';
-      await apiCall('/payroll', { method: 'POST', body: JSON.stringify(form) }, token);
+      const token = getToken() || "";
+      await apiCall("/payroll", { method: "POST", body: JSON.stringify(form) }, token);
       setShowAddModal(false);
-      setForm(emptyForm());
+      setAutoDeductPreview([]);
       showSuccessMsg('Payroll created!');
       fetchData();
     } catch (err: any) { setError(err.message); }
@@ -151,6 +180,16 @@ export default function PayrollPage() {
     } catch (err) { console.error(err); }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this payroll record? This cannot be undone.')) return;
+    try {
+      const token = getToken() || '';
+      await apiCall(`/payroll/${id}`, { method: 'DELETE' }, token);
+      showSuccessMsg('Payroll deleted!');
+      fetchData();
+    } catch (err: any) { setError(err.message); }
+  };
+
   const handleMarkPaid = async (id: string) => {
     try {
       const token = getToken() || '';
@@ -170,11 +209,21 @@ export default function PayrollPage() {
 
   useEffect(() => { if (activeTab === 'month') fetchMonthPayrolls(); }, [activeTab, monthFilter, yearFilter]);
 
+  useEffect(() => {
+    if (activeTab === 'settings' && isCompanyAdmin(user?.role || '')) {
+      setRulesLoading(true);
+      apiCall('/payroll/deduction-rules', {}, getToken() || '')
+        .then(data => setDeductionRules(data || []))
+        .catch(() => {})
+        .finally(() => setRulesLoading(false));
+    }
+  }, [activeTab]);
+
   const handleBulkProcess = async () => {
     setBulkLoading(true);
     try {
       const token = getToken() || '';
-      const unprocessed = employees.filter((emp: any) => !payrolls.some((p: any) => String(p.employee?.id) === String(emp.id) && p.month === monthFilter && p.year === yearFilter));
+      const unprocessed = employees.filter((emp: any) => emp.status === "active" && !payrolls.some((p: any) => String(p.employee?.id) === String(emp.id) && p.month === monthFilter && p.year === yearFilter));
       for (const emp of unprocessed) {
         const payload = {
           employeeId: emp.id, month: monthFilter, year: yearFilter,
@@ -307,31 +356,43 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
       {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 text-sm">{error}</div>}
 
       {!showEditModal && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Employee *</label>
-            <select value={form.employeeId} onChange={e => handleFormChange('employeeId', e.target.value)}
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Filter by Department</label>
+            <select value={deptFilter} onChange={e => { setDeptFilter(e.target.value); handleFormChange("employeeId", ""); }}
               className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Select employee</option>
-              {employees.map((emp: any) => (
-                <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>
+              <option value="all">All Departments</option>
+              {departments.map((d: any) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Month *</label>
-              <select value={form.month} onChange={e => handleFormChange('month', e.target.value)}
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Employee *</label>
+              <select value={form.employeeId} onChange={e => handleFormChange("employeeId", e.target.value)}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                <option value="">Select employee</option>
+                {employees.filter((emp: any) => emp.status === "active" && (deptFilter === "all" || String(emp.departmentId) === String(deptFilter))).map((emp: any) => (
+                  <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>
+                ))}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Year *</label>
-              <select value={form.year} onChange={e => handleFormChange('year', e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {[2026,2025,2024,2023].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Month *</label>
+                <select value={form.month} onChange={e => handleFormChange("month", e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Year *</label>
+                <select value={form.year} onChange={e => handleFormChange("year", e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {[2026,2025,2024,2023].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -352,7 +413,8 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
           ].map(field => (
             <div key={field.key}>
               <label className="block text-xs font-semibold text-gray-500 mb-1">{field.label}</label>
-              <input type="number" value={(form as any)[field.key]}
+              <input type="number" defaultValue={(form as any)[field.key] || ""}
+                key={field.key + String((form as any)[field.key])}
                 onChange={e => handleFormChange(field.key, e.target.value)}
                 placeholder="0" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -376,7 +438,8 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
           ].map(field => (
             <div key={field.key}>
               <label className="block text-xs font-semibold text-gray-500 mb-1">{field.label}</label>
-              <input type="number" value={(form as any)[field.key]}
+              <input type="number" defaultValue={(form as any)[field.key] || ""}
+                key={field.key + String((form as any)[field.key])}
                 onChange={e => handleFormChange(field.key, e.target.value)}
                 placeholder="0" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -405,27 +468,26 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
         <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setError(''); }}
           className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
         <button onClick={onSubmit}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">{submitLabel}</button>
+          className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>{submitLabel}</button>
       </div>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {success && <div className="fixed top-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">✅ {success}</div>}
+      {success && <div className="fixed top-6 right-6 text-white px-5 py-3.5 rounded-2xl z-50 text-sm font-bold" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 8px 25px rgba(16,185,129,0.4)"}}>✅ {success}</div>}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payroll</h1>
-          <p className="text-gray-500 text-sm mt-1">{payrolls.length} total records</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Payroll</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{payrolls.length} total records</p>
         </div>
         {canProcess && (
-          <div className="flex gap-2">
-            <button onClick={() => { setShowAddModal(true); setForm(emptyForm()); setError(''); }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
-              + Add Payroll
-            </button>
-          </div>
+          <button onClick={() => { setShowAddModal(true); setForm(emptyForm()); setError(''); setAutoDeductPreview([]); }}
+            className="text-white px-4 py-2.5 rounded-xl text-sm font-bold"
+            style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
+            + Add Payroll
+          </button>
         )}
       </div>
 
@@ -436,24 +498,27 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
           { label: 'Pending Amount', value: `PKR ${(totalPending/1000).toFixed(0)}K`, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '⏳' },
           { label: 'Pending Records', value: payrolls.filter(p => p.status === 'pending').length, color: 'text-red-500', bg: 'bg-red-50', icon: '⚠️' },
         ].map((s, i) => (
-          <div key={i} className={`${s.bg} rounded-2xl p-5`}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500">{s.label}</p>
-              <span className="text-xl">{s.icon}</span>
-            </div>
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+          <div key={i} className="rounded-2xl p-4 relative overflow-hidden"
+            style={{background:["linear-gradient(135deg,#1d4ed8,#3b82f6)","linear-gradient(135deg,#059669,#10b981)","linear-gradient(135deg,#d97706,#f59e0b)","linear-gradient(135deg,#dc2626,#ef4444)"][i],boxShadow:["0 4px 15px rgba(59,130,246,0.3)","0 4px 15px rgba(16,185,129,0.3)","0 4px 15px rgba(245,158,11,0.3)","0 4px 15px rgba(239,68,68,0.3)"][i]}}>
+            <div className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-10" style={{background:"white",transform:"translate(30%,-30%)"}} />
+            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{color:"rgba(255,255,255,0.75)"}}>{s.label}</p>
+            <p className="text-2xl font-black text-white">{s.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm">
+      <div className="flex gap-2 flex-wrap">
         {([
           { key: 'all', label: '📋 All Records' },
           { key: 'month', label: '📅 By Month' },
           canProcess && { key: 'process', label: '⚡ Process' },
+          isCompanyAdmin(user?.role || '') && { key: 'settings', label: '⚙️ Settings' },
         ] as any[]).filter(Boolean).map((tab: any) => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+            className="px-4 py-2.5 rounded-xl text-sm font-bold transition-all border"
+            style={activeTab === tab.key
+              ? {background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",color:"white",border:"transparent",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}
+              : {background:"white",color:"#6b7280",border:"1px solid #e5e7eb"}}>
             {tab.label}
           </button>
         ))}
@@ -520,6 +585,10 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                           <button onClick={() => openEditModal(p)}
                             className="text-xs bg-yellow-50 text-yellow-600 hover:bg-yellow-100 px-2.5 py-1.5 rounded-lg">Edit</button>
                         )}
+
+
+
+
                         {canApprove && p.status === 'pending' && (
                           <button onClick={() => handleApprove(p.id)}
                             className="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-2.5 py-1.5 rounded-lg">Approve</button>
@@ -618,7 +687,7 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                 {[2026,2025,2024,2023].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <button onClick={handleBulkProcess} disabled={bulkLoading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-xl text-sm font-medium">
+                className="text-white px-6 py-2 rounded-xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
                 {bulkLoading ? 'Processing...' : `⚡ Process ${employees.filter((emp: any) => !payrolls.some((p: any) => String(p.employee?.id) === String(emp.id) && p.month === monthFilter && p.year === yearFilter)).length} Payrolls`}
               </button>
             </div>
@@ -670,7 +739,7 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                     </div>
                     {canApprove && (
                       <button onClick={() => handleApprove(p.id)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-xs font-medium">
+                        className="text-white px-4 py-1.5 rounded-lg text-xs font-bold" style={{background:"linear-gradient(135deg,#059669,#10b981)"}}>
                         Approve
                       </button>
                     )}
@@ -682,6 +751,79 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
         </div>
       )}
 
+      {activeTab === "settings" && isCompanyAdmin(user?.role || "") && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-bold text-gray-900">⚙️ Deduction Rules</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Configure automatic salary deductions</p>
+              </div>
+              <button onClick={async () => {
+                try {
+                  const token = getToken() || "";
+                  for (const rule of deductionRules) {
+                    await apiCall("/payroll/deduction-rules", { method: "POST", body: JSON.stringify(rule) }, token);
+                  }
+                  setRulesSaved(true);
+                  setTimeout(() => setRulesSaved(false), 3000);
+                } catch (err) { console.error(err); }
+              }} className="text-white px-4 py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                {rulesSaved ? "✅ Saved!" : "Save Rules"}
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { type: "LATE_ARRIVAL", label: "Late Arrival", icon: "⏰", desc: "Deduct % of daily salary per late arrival" },
+                { type: "HALF_DAY", label: "Half Day", icon: "🌓", desc: "Deduct 50% of daily salary automatically" },
+                { type: "UNAPPROVED_LEAVE", label: "Unapproved Leave", icon: "🌿", desc: "Deduct 1 day salary per unapproved leave day" },
+              ].map(ruleType => {
+                const existing = deductionRules.find(r => r.type === ruleType.type);
+                const isActive = existing?.isActive || false;
+                const percentage = existing?.deductPercentage || (ruleType.type === "LATE_ARRIVAL" ? 50 : ruleType.type === "HALF_DAY" ? 50 : 100);
+                return (
+                  <div key={ruleType.type} className={`rounded-xl p-4 border-2 transition-all ${isActive ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-gray-50"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{ruleType.icon}</span>
+                        <div>
+                          <p className="font-semibold text-gray-900">{ruleType.label}</p>
+                          <p className="text-xs text-gray-400">{ruleType.desc}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {ruleType.type === "LATE_ARRIVAL" && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-gray-500">Deduct %:</label>
+                            <input type="number" value={percentage} min="1" max="100"
+                              onChange={e => {
+                                const newRules = deductionRules.filter(r => r.type !== ruleType.type);
+                                setDeductionRules([...newRules, { type: ruleType.type, deductPercentage: Number(e.target.value), isActive }]);
+                              }}
+                              className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                          </div>
+                        )}
+                        <button onClick={() => {
+                          const newRules = deductionRules.filter(r => r.type !== ruleType.type);
+                          setDeductionRules([...newRules, { type: ruleType.type, deductPercentage: percentage, isActive: !isActive }]);
+                        }} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isActive ? "bg-blue-600" : "bg-gray-200"}`}>
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isActive ? "translate-x-6" : "translate-x-1"}`} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <p className="text-xs text-yellow-700 font-semibold mb-1">ℹ️ How deductions work:</p>
+              <p className="text-xs text-yellow-600">These rules automatically apply when creating payroll. The system checks attendance records for the selected month and calculates deductions accordingly.</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ADD MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -690,6 +832,23 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
               <h3 className="text-lg font-semibold text-gray-900">Create Payroll</h3>
               <button onClick={() => { setShowAddModal(false); setError(''); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
+            {autoDeductPreview.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-3">
+                <p className="text-xs font-bold text-orange-700 mb-2">⚠️ Auto Deductions Preview</p>
+                <div className="space-y-1">
+                  {autoDeductPreview.map((item: any, i: number) => (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span className="text-orange-600">{item.type} ({item.count}x)</span>
+                      <span className="font-semibold text-orange-700">- PKR {item.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs font-bold border-t border-orange-200 pt-1 mt-1">
+                    <span className="text-orange-700">Total Auto Deductions</span>
+                    <span className="text-orange-700">- PKR {autoDeductPreview.reduce((s: number, i: any) => s + i.amount, 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <PayrollForm onSubmit={handleAdd} submitLabel="Create Payroll" />
           </div>
         </div>
@@ -703,7 +862,71 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
               <h3 className="text-lg font-semibold text-gray-900">Edit Payroll — {selectedPayroll.employee?.user?.name}</h3>
               <button onClick={() => { setShowEditModal(false); setError(''); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
-            <PayrollForm onSubmit={handleEdit} submitLabel="Update Payroll" />
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              {error && <div className="bg-red-50 text-red-600 rounded-xl p-3 text-sm">{error}</div>}
+              <div className="bg-green-50 rounded-xl p-4">
+                <p className="text-xs font-bold text-green-700 uppercase mb-3">💰 Earnings</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'basic', label: 'Basic Salary *' },
+                    { key: 'houseRent', label: 'House Rent' },
+                    { key: 'medicalAllowance', label: 'Medical Allowance' },
+                    { key: 'transportAllowance', label: 'Transport Allowance' },
+                    { key: 'otherAllowances', label: 'Other Allowances' },
+                    { key: 'bonus', label: 'Bonus' },
+                    { key: 'overtimePay', label: 'Overtime Pay' },
+                  ].map(field => (
+                    <div key={field.key}>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">{field.label}</label>
+                      <input type="number" value={Number((form as any)[field.key]) || ''}
+                        onChange={e => handleFormChange(field.key, e.target.value)}
+                        placeholder="0" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 bg-green-100 rounded-lg px-3 py-2 flex justify-between">
+                  <span className="text-xs font-semibold text-green-700">Gross Salary</span>
+                  <span className="text-sm font-bold text-green-700">PKR {calcGross(form).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="bg-red-50 rounded-xl p-4">
+                <p className="text-xs font-bold text-red-700 uppercase mb-3">➖ Deductions</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'withholdingTax', label: 'Withholding Tax' },
+                    { key: 'eobi', label: 'EOBI (1% auto)' },
+                    { key: 'loanDeduction', label: 'Loan Deduction' },
+                    { key: 'otherDeductions', label: 'Other Deductions' },
+                  ].map(field => (
+                    <div key={field.key}>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">{field.label}</label>
+                      <input type="number" value={Number((form as any)[field.key]) || ''}
+                        onChange={e => handleFormChange(field.key, e.target.value)}
+                        placeholder="0" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 bg-red-100 rounded-lg px-3 py-2 flex justify-between">
+                  <span className="text-xs font-semibold text-red-700">Total Deductions</span>
+                  <span className="text-sm font-bold text-red-700">PKR {calcDeductions(form).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="bg-blue-600 rounded-xl px-4 py-3 flex justify-between items-center">
+                <span className="text-sm font-bold text-white">NET PAY</span>
+                <span className="text-xl font-bold text-white">PKR {calcNet(form).toLocaleString()}</span>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Notes</label>
+                <textarea value={form.notes} onChange={e => handleFormChange('notes', e.target.value)}
+                  rows={2} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => { setShowEditModal(false); setError(''); }}
+                  className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
+                <button onClick={handleEdit}
+                  className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>Update Payroll</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -716,7 +939,7 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
               <h3 className="text-lg font-semibold text-gray-900">Salary Slip</h3>
               <div className="flex gap-2">
                 <button onClick={handlePrint}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium">
+                  className="text-white px-4 py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
                   🖨️ Print / PDF
                 </button>
                 <button onClick={() => setShowSlipModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -788,7 +1011,7 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                         { label: 'Withholding Tax', value: selectedPayroll.withholdingTax || 0 },
                         { label: 'EOBI (1%)', value: selectedPayroll.eobi || 0 },
                         { label: 'Loan Deduction', value: selectedPayroll.loanDeduction || 0 },
-                        { label: 'Other Deductions', value: selectedPayroll.otherDeductions || 0 },
+                        { label: 'Other Deductions', value: (() => { try { const m = (selectedPayroll.notes||'').match(/AUTO_DEDUCTIONS:(\[.*\])/); if(m){ const items=JSON.parse(m[1]); const autoAmt=items.reduce((s:number,i:any)=>s+i.amount,0); return Math.max(0,(selectedPayroll.otherDeductions||0)-autoAmt); } } catch{} return selectedPayroll.otherDeductions||0; })() },
                       ].map((item, i) => (
                         <tr key={i} className={i % 2 === 0 ? 'bg-gray-50' : ''}>
                           <td className="px-3 py-1.5 text-xs text-gray-600">{item.label}</td>
@@ -801,6 +1024,26 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                       </tr>
                     </tbody>
                   </table>
+                  {(() => {
+                    const notes = selectedPayroll.notes || "";
+                    const match = notes.match(/AUTO_DEDUCTIONS:(\[.*\])/);
+                    if (!match) return null;
+                    try {
+                      const items = JSON.parse(match[1]);
+                      if (!items.length) return null;
+                      return (
+                        <div className="mt-2 bg-orange-50 rounded-lg p-3 border border-orange-200">
+                          <p className="text-xs font-bold text-orange-700 mb-2">⚠️ Auto Deductions</p>
+                          {items.map((item: any, i: number) => (
+                            <div key={i} className="flex justify-between text-xs py-0.5">
+                              <span className="text-orange-600">{item.type} ({item.count}x)</span>
+                              <span className="font-semibold text-orange-700">- PKR {item.amount.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    } catch { return null; }
+                  })()}
                 </div>
               </div>
 
@@ -811,9 +1054,9 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                 <p className="net-period text-xs opacity-60 mt-1">{MONTHS[selectedPayroll.month - 1]} {selectedPayroll.year} • {selectedPayroll.status.toUpperCase()}</p>
               </div>
 
-              {selectedPayroll.notes && (
+              {selectedPayroll.notes && selectedPayroll.notes.replace(/AUTO_DEDUCTIONS:.*/, '').trim() && (
                 <div className="bg-gray-50 rounded-xl p-3 mb-4">
-                  <p className="text-xs text-gray-500">Notes: {selectedPayroll.notes}</p>
+                  <p className="text-xs text-gray-500">Notes: {selectedPayroll.notes.replace(/AUTO_DEDUCTIONS:.*/, '').trim()}</p>
                 </div>
               )}
 

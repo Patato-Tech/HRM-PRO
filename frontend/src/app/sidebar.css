@@ -1,0 +1,3 @@
+﻿.dd-item:hover { background-color: rgba(71,85,105,0.8) !important; color: white !important; }
+.dd-logout:hover { background-color: rgba(127,29,29,0.5) !important; }
+nav::-webkit-scrollbar { display: none; }

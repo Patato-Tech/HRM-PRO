@@ -30,7 +30,7 @@ const ROLE_COLORS: Record<string, string> = {
   EMPLOYEE: 'bg-green-100 text-green-700',
 };
 
-type TabKey = 'info' | 'security' | 'payroll' | 'documents';
+type TabKey = 'info' | 'security' | 'payroll' | 'documents' | 'salary';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -47,15 +47,11 @@ export default function ProfilePage() {
   const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([]);
   const [payrollLoading, setPayrollLoading] = useState(false);
+  const [salaryHistory, setSalaryHistory] = useState<any[]>([]);
+  const [salaryLoading, setSalaryLoading] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadForm, setUploadForm] = useState({ type: 'CNIC', name: '', expiryDate: '' });
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
   const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo | null>(null);
-  const [salaryHistory, setSalaryHistory] = useState<any[]>([]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
@@ -108,37 +104,6 @@ export default function ProfilePage() {
     finally { setNameLoading(false); }
   };
 
-  const handleUploadDocument = async () => {
-    setUploadError("");
-    if (!uploadFile || !uploadForm.name) { setUploadError("File and document name are required"); return; }
-    if (!user.employeeId) { setUploadError("Employee profile not found"); return; }
-    setUploadLoading(true);
-    try {
-      const token = getToken() || "";
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      formData.append("employeeId", String(user.employeeId));
-      formData.append("type", uploadForm.type);
-      formData.append("name", uploadForm.name);
-      if (uploadForm.expiryDate) formData.append("expiryDate", uploadForm.expiryDate);
-      const res = await fetch("http://localhost:5001/documents", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      setShowUploadModal(false);
-      setUploadFile(null);
-      setUploadForm({ type: "CNIC", name: "", expiryDate: "" });
-      setToast("Document uploaded successfully!");
-      setTimeout(() => setToast(""), 3000);
-      // Refresh documents
-      const data = await apiCall(`/documents/employee/${user.employeeId}`, {}, token);
-      setDocuments(data || []);
-    } catch (err: any) { setUploadError(err.message || "Upload failed"); }
-    finally { setUploadLoading(false); }
-  };
-
   const handleChangePassword = async () => {
     setPwError('');
     if (!pwForm.current || !pwForm.newPw || !pwForm.confirm) { setPwError('All fields are required.'); return; }
@@ -178,63 +143,67 @@ export default function ProfilePage() {
     { key: 'security', label: '🔒 Security' },
     ...(!isAdmin ? [{ key: 'payroll' as TabKey, label: '💰 Payroll History' }] : []),
     { key: 'documents' as TabKey, label: '📄 Documents' },
+    ...(!isAdmin ? [{ key: 'salary' as TabKey, label: '📈 Salary History' }] : []),
   ];
-
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       {toast && (
-        <div className="fixed top-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">
+        <div className="fixed top-6 right-6 text-white px-5 py-3.5 rounded-2xl z-50 text-sm font-bold" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 8px 25px rgba(16,185,129,0.4)"}}>
           ✅ {toast}
         </div>
       )}
 
       {/* Profile Header */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-        <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-3xl font-bold flex-shrink-0 shadow-lg">
-            {user.name?.charAt(0)?.toUpperCase() || '?'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
-            <p className="text-sm text-gray-500">{user.email}</p>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${roleColor}`}>{roleName}</span>
-              {employeeInfo?.employeeCode && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">{employeeInfo.employeeCode}</span>
-              )}
-              {employeeInfo?.department?.name && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">🏢 {employeeInfo.department.name}</span>
-              )}
-              {user.companyName && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">🏛️ {user.companyName}</span>
-              )}
+      <div className="rounded-2xl overflow-hidden" style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",boxShadow:"0 8px 30px rgba(0,0,0,0.15)"}}>
+        <div className="p-6">
+          <div className="flex items-center gap-5">
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl font-black flex-shrink-0 shadow-lg"
+              style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+              {user.name?.charAt(0)?.toUpperCase() || "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-black text-white">{user.name}</h1>
+              <p className="text-sm text-slate-400 mt-0.5">{user.email}</p>
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{background:"rgba(59,130,246,0.2)",color:"#93c5fd"}}>{roleName}</span>
+                {employeeInfo?.employeeCode && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.6)"}}>{employeeInfo.employeeCode}</span>
+                )}
+                {employeeInfo?.department?.name && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{background:"rgba(139,92,246,0.2)",color:"#c4b5fd"}}>{employeeInfo.department.name}</span>
+                )}
+                {user.companyName && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{background:"rgba(16,185,129,0.2)",color:"#6ee7b7"}}>{user.companyName}</span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Quick Stats */}
         {employeeInfo && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-gray-100">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5" style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
             {[
-              { label: 'Employee Code', value: employeeInfo.employeeCode || '—' },
-              { label: 'Department', value: employeeInfo.department?.name || 'Company Wide' },
-              { label: 'Current Salary', value: employeeInfo.salary ? `PKR ${employeeInfo.salary.toLocaleString()}` : '—' },
-              { label: 'Joined', value: employeeInfo.joinDate ? new Date(employeeInfo.joinDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—' },
+              { label: "Employee Code", value: employeeInfo.employeeCode || "—" },
+              { label: "Department", value: employeeInfo.department?.name || "Company Wide" },
+              { label: "Current Salary", value: employeeInfo.salary ? `PKR ${employeeInfo.salary.toLocaleString()}` : "—" },
+              { label: "Joined", value: employeeInfo.joinDate ? new Date(employeeInfo.joinDate).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—" },
             ].map((stat, i) => (
-              <div key={i} className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-400 mb-1">{stat.label}</p>
-                <p className="text-sm font-semibold text-gray-900 truncate">{stat.value}</p>
+              <div key={i} className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.06)"}}>
+                <p className="text-xs font-medium mb-1" style={{color:"rgba(255,255,255,0.4)"}}>{stat.label}</p>
+                <p className="text-sm font-bold text-white truncate">{stat.value}</p>
               </div>
             ))}
           </div>
         )}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+      <div className="flex gap-2 flex-wrap">
         {tabs.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className="px-4 py-2.5 rounded-xl text-sm font-bold transition-all border"
+            style={activeTab === tab.key
+              ? {background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",color:"white",border:"transparent",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}
+              : {background:"white",color:"#6b7280",border:"1px solid #e5e7eb"}}>
             {tab.label}
           </button>
         ))}
@@ -242,150 +211,192 @@ export default function ProfilePage() {
 
       {/* MY INFO TAB */}
       {activeTab === 'info' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-4">
-          <h2 className="font-bold text-gray-900">Personal Details</h2>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Full Name</label>
-            <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
-              className="w-full text-gray-900 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Your full name" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Email Address</label>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-400">{user.email}</div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Designation</label>
-              {isAdmin ? (
-                <input type="text" value={editDesignation} onChange={e => setEditDesignation(e.target.value)}
-                placeholder="Enter designation"
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              ) : (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{user.designation || employeeInfo?.designation || 'Not set'}</div>
+        <div className="space-y-4">
+          {/* Personal Details Card */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="w-7 h-7 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xs">👤</span>
+              Personal Details
+            </h2>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">Full Name</label>
+                <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
+                  className="w-full text-gray-900 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white"
+                  placeholder="Your full name" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">Email Address</label>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-400">{user.email}</div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">Designation</label>
+                {isAdmin ? (
+                  <input type="text" value={editDesignation} onChange={e => setEditDesignation(e.target.value)}
+                  placeholder="Enter designation"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white" />
+                ) : (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{user.designation || employeeInfo?.designation || 'Not set'}</div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">Role</label>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{roleName}</div>
+              </div>
+              {employeeInfo && <>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1">Department</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo.department?.name || 'Company Wide'}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1">Employee Code</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo.employeeCode}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1">Join Date</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{new Date(employeeInfo.joinDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1">Company</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{user.companyName || '—'}</div>
+                </div>
+              </>}
+              {employeeInfo?.salary && (
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-gray-500 block mb-1">Current Salary</label>
+                  <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm font-bold text-green-700">PKR {employeeInfo.salary.toLocaleString()}</div>
+                </div>
               )}
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Role</label>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{roleName}</div>
+            {/* Personal Info */}
+            {employeeInfo && (employeeInfo.phone || employeeInfo.cnic || employeeInfo.gender || employeeInfo.employmentType) && (
+              <div className="border-t border-gray-100 pt-4 mt-2">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-3">Personal Information</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {employeeInfo.phone && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">📞 Phone</label>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo.phone}</div>
+                    </div>
+                  )}
+                  {employeeInfo.cnic && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">🪪 CNIC</label>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo.cnic}</div>
+                    </div>
+                  )}
+                  {employeeInfo.gender && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">👤 Gender</label>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium capitalize">{employeeInfo.gender}</div>
+                    </div>
+                  )}
+                  {employeeInfo.employmentType && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">💼 Employment Type</label>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo.employmentType.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {nameError && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2 text-sm mb-3">{nameError}</div>}
+            <div className="flex gap-3">
+              <button onClick={handleSaveName} disabled={nameLoading || editName.trim() === user.name}
+                className="flex-1 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
+                {nameLoading ? "Saving..." : "Update Name"}
+              </button>
+              {isAdmin && (
+                <button onClick={async () => {
+                  try {
+                    const token = (typeof window !== "undefined" ? localStorage.getItem("token") : "") || "";
+                    await fetch(`http://localhost:5001/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ designation: editDesignation }) });
+                    if (typeof window !== "undefined") localStorage.setItem("user_designation", editDesignation);
+                    setToast("Designation updated!");
+                    setTimeout(() => setToast(""), 3000);
+                  } catch (e) { console.error(e); }
+                }} disabled={editDesignation === (user.designation || "")}
+                className="flex-1 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 4px 12px rgba(16,185,129,0.3)"}}>
+                Save Designation
+                </button>
+              )}
             </div>
           </div>
-          {employeeInfo && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 block mb-1">Department</label>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{employeeInfo.department?.name || 'Company Wide'}</div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 block mb-1">Employee Code</label>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{employeeInfo.employeeCode}</div>
-              </div>
-            </div>
-          )}
-          {employeeInfo?.salary && (
-            <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Current Salary</label>
-              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm font-semibold text-green-700">PKR {employeeInfo.salary.toLocaleString()}</div>
-            </div>
-          )}
-          {employeeInfo?.joinDate && (
-            <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Join Date</label>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{new Date(employeeInfo.joinDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-            </div>
-          )}
-          <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Company</label>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">{user.companyName || '—'}</div>
-          </div>
-          {nameError && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2 text-sm">{nameError}</div>}
-          <button onClick={handleSaveName} disabled={nameLoading || editName.trim() === user.name}
-            className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all">
-            {nameLoading ? 'Saving...' : 'Update Name'}
-          </button>
-          {isAdmin && (
-            <button onClick={async () => {
-              try {
-                const token = (typeof window !== "undefined" ? localStorage.getItem("token") : "") || "";
-                await fetch(`http://localhost:5001/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ designation: editDesignation }) });
-                if (typeof window !== "undefined") localStorage.setItem("user_designation", editDesignation);
-                setToast("Designation updated!");
-                setTimeout(() => setToast(""), 3000);
-              } catch (e) { console.error(e); }
-            }} disabled={editDesignation === (user.designation || "")}
-            className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-all">
-            Save Designation
-            </button>
-          )}
+          {/* Documents Section */}
           {employeeInfo && !isAdmin && (
-            <button onClick={() => {
-              if (!win) return;
-              const today = new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
-              win.document.write(`<!DOCTYPE html><html><head><title>Salary Certificate</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:40px;color:#111;font-size:12px}.hdr{text-align:center;border-bottom:4px solid #1e40af;padding-bottom:20px;margin-bottom:30px}.co{font-size:26px;font-weight:900;color:#1e40af}.sub{font-size:12px;color:#6b7280;margin-top:4px}.title{font-size:18px;font-weight:800;text-align:center;background:#1e40af;color:#fff;padding:12px;border-radius:8px;margin:20px 0;letter-spacing:2px;text-transform:uppercase}.body{line-height:2;font-size:13px;text-align:justify;margin:20px 0}.highlight{font-weight:800;color:#1e40af}.table{width:100%;border-collapse:collapse;margin:20px 0}.table td{padding:10px 14px;border:1px solid #e5e7eb;font-size:12px}.table tr:nth-child(even) td{background:#f9fafb}.table td:first-child{font-weight:700;color:#6b7280;width:40%;text-transform:uppercase;font-size:11px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:60px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:15mm}}</style></head><body>
-              <div class="hdr"><div class="co">${user?.companyName||"Company"}</div><div class="sub">Human Resources Department</div></div>
-              <div class="title">Salary Certificate</div>
-              <p class="body">This is to certify that <span class="highlight">${user?.name}</span> is a permanent employee of <span class="highlight">${user?.companyName||"our organization"}</span>. The details of employment are as follows:</p>
-              <table class="table">
-              <tr><td>Employee Name</td><td>${user?.name}</td></tr>
-              <tr><td>Employee Code</td><td>${employeeInfo?.employeeCode||"-"}</td></tr>
-              <tr><td>Designation</td><td>${employeeInfo?.designation||user?.designation||"-"}</td></tr>
-              <tr><td>Department</td><td>${employeeInfo?.department?.name||"Company Wide"}</td></tr>
-              <tr><td>Date of Joining</td><td>${employeeInfo?.joinDate ? new Date(employeeInfo.joinDate).toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"}) : "-"}</td></tr>
-              <tr><td>Employment Status</td><td><strong>Active</strong></td></tr>
-              <tr><td>Monthly Salary</td><td><strong>PKR ${employeeInfo?.salary?.toLocaleString()||"-"}</strong></td></tr>
-              </table>
-              <p class="body">This certificate is issued on <span class="highlight">${today}</span> at the request of the employee for their personal use.</p>
-              <div class="sigs"><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280;text-transform:uppercase">Employee Signature</div><div style="font-weight:700;margin-top:4px">${user?.name}</div></div></div><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280;text-transform:uppercase">Authorized Signature</div><div style="font-weight:700;margin-top:4px">${user?.companyName}</div><div style="font-size:10px;color:#6b7280">HR Department</div></div></div></div>
-              <div class="foot">This is a computer-generated certificate. Issued on ${today}.</div>
-              </body></html>`);
-              win.document.close();
-              setTimeout(() => win.print(), 500);
-            }}
-            className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-xl py-3 text-sm font-semibold transition-all mt-2">
-            📄 Generate Salary Certificate
-            </button>
-          )}
-          {employeeInfo && !isAdmin && (
-            <div className="border-t border-gray-100 pt-3 mt-1">
-              <p className="text-xs font-semibold text-gray-500 mb-2">Generate Draft Salary Slip</p>
-              <div className="flex gap-2 mb-2">
-                <select id="draftMonth" defaultValue={new Date().getMonth()+1}
-                  className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m,i) => (
-                    <option key={i} value={i+1}>{m}</option>
-                  ))}
-                </select>
-                <select id="draftYear" defaultValue={new Date().getFullYear()}
-                  className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {[2026,2025,2024,2023].map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-3">
+              <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-7 h-7 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-xs">📄</span>
+                Official Documents
+              </h2>
               <button onClick={() => {
-                const month = Number((document.getElementById("draftMonth") as HTMLSelectElement)?.value || new Date().getMonth()+1);
-                const year = Number((document.getElementById("draftYear") as HTMLSelectElement)?.value || new Date().getFullYear());
-                const MN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-                const salary = employeeInfo?.salary || 0;
-                const eobi = Math.round(salary * 0.01);
-                const net = salary - eobi;
                 const win = window.open("", "_blank");
                 if (!win) return;
-                win.document.write(`<!DOCTYPE html><html><head><title>Draft Salary Slip</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:30px;color:#111;font-size:12px}.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:15px;border-bottom:4px solid #1e40af;margin-bottom:20px}.co{font-size:22px;font-weight:900;color:#1e40af}.badge{background:#f59e0b;color:#fff;padding:10px 18px;border-radius:8px;text-align:center}.badge-m{font-size:16px;font-weight:900}.draft-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:80px;font-weight:900;color:rgba(239,68,68,0.08);pointer-events:none;z-index:0;white-space:nowrap}.emp{background:#eff6ff;border-left:5px solid #1e40af;padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.ef label{font-size:10px;color:#6b7280;text-transform:uppercase;display:block}.ef span{font-size:13px;font-weight:700}.tbls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}table{width:100%;border-collapse:collapse}.th-e{background:#059669;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}.th-d{background:#dc2626;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}.r{text-align:right;font-weight:600}.even td{background:#f9fafb}.te td{background:#d1fae5!important;font-weight:800;color:#065f46;border-top:2px solid #059669}.td td{background:#fee2e2!important;font-weight:800;color:#991b1b;border-top:2px solid #dc2626}.net{background:linear-gradient(135deg,#92400e,#d97706);color:#fff;padding:18px;border-radius:10px;text-align:center;margin:16px 0}.net-a{font-size:32px;font-weight:900;margin:6px 0}.draft-note{background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:12px;margin:16px 0;font-size:11px;color:#92400e;text-align:center;font-weight:700}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:10mm}}</style></head><body>
-                <div class="draft-watermark">DRAFT</div>
-                <div class="hdr"><div><div class="co">${user?.companyName||"Company"}</div><div style="font-size:11px;color:#6b7280">Official Salary Slip (Draft)</div></div><div class="badge"><div style="font-size:10px;opacity:.8">DRAFT SLIP</div><div class="badge-m">${MN[month-1]} ${year}</div></div></div>
-                <div class="draft-note">⚠️ DRAFT - This is an unofficial salary slip generated by the employee. Final slip will be issued by HR.</div>
-                <div class="emp"><div class="ef"><label>Employee Name</label><span>${user?.name}</span></div><div class="ef"><label>Employee Code</label><span>${employeeInfo?.employeeCode||"-"}</span></div><div class="ef"><label>Designation</label><span>${employeeInfo?.designation||user?.designation||"-"}</span></div><div class="ef"><label>Department</label><span>${employeeInfo?.department?.name||"Company Wide"}</span></div><div class="ef"><label>Pay Period</label><span>${MN[month-1]} ${year}</span></div><div class="ef"><label>Status</label><span>DRAFT</span></div></div>
-                <div class="tbls"><table><tr><th class="th-e" colspan="2">Earnings</th></tr><tr><td>Basic Salary</td><td class="r">PKR ${salary.toLocaleString()}</td></tr><tr class="te"><td><b>Gross Salary</b></td><td class="r"><b>PKR ${salary.toLocaleString()}</b></td></tr></table>
-                <table><tr><th class="th-d" colspan="2">Deductions</th></tr><tr><td>EOBI (1%)</td><td class="r">PKR ${eobi.toLocaleString()}</td></tr><tr class="td"><td><b>Total Deductions</b></td><td class="r"><b>PKR ${eobi.toLocaleString()}</b></td></tr></table></div>
-                <div class="net"><div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:3px">Estimated Net Pay</div><div class="net-a">PKR ${net.toLocaleString()}</div><div style="font-size:11px;opacity:.65">${MN[month-1]} ${year} &bull; DRAFT</div></div>
-                <div class="sigs"><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Employee Signature</div><div style="font-weight:700;margin-top:2px">${user?.name}</div></div></div><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Authorized By</div><div style="font-weight:700;margin-top:2px">${user?.companyName}</div></div></div></div>
-                <div class="foot">DRAFT - Computer-generated. Generated on ${new Date().toLocaleDateString()}. This slip is not official until approved by HR.</div>
+                const today = new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+                win.document.write(`<!DOCTYPE html><html><head><title>Salary Certificate</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:40px;color:#111;font-size:12px}.hdr{text-align:center;border-bottom:4px solid #1e40af;padding-bottom:20px;margin-bottom:30px}.co{font-size:26px;font-weight:900;color:#1e40af}.sub{font-size:12px;color:#6b7280;margin-top:4px}.title{font-size:18px;font-weight:800;text-align:center;background:#1e40af;color:#fff;padding:12px;border-radius:8px;margin:20px 0;letter-spacing:2px;text-transform:uppercase}.body{line-height:2;font-size:13px;text-align:justify;margin:20px 0}.highlight{font-weight:800;color:#1e40af}.table{width:100%;border-collapse:collapse;margin:20px 0}.table td{padding:10px 14px;border:1px solid #e5e7eb;font-size:12px}.table tr:nth-child(even) td{background:#f9fafb}.table td:first-child{font-weight:700;color:#6b7280;width:40%;text-transform:uppercase;font-size:11px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:60px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:15mm}}</style></head><body>
+                <div class="hdr"><div class="co">${user?.companyName||"Company"}</div><div class="sub">Human Resources Department</div></div>
+                <div class="title">Salary Certificate</div>
+                <p class="body">This is to certify that <span class="highlight">${user?.name}</span> is a permanent employee of <span class="highlight">${user?.companyName||"our organization"}</span>. The details of employment are as follows:</p>
+                <table class="table">
+                <tr><td>Employee Name</td><td>${user?.name}</td></tr>
+                <tr><td>Employee Code</td><td>${employeeInfo?.employeeCode||"-"}</td></tr>
+                <tr><td>Designation</td><td>${employeeInfo?.designation||user?.designation||"-"}</td></tr>
+                <tr><td>Department</td><td>${employeeInfo?.department?.name||"Company Wide"}</td></tr>
+                <tr><td>Date of Joining</td><td>${employeeInfo?.joinDate ? new Date(employeeInfo.joinDate).toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"}) : "-"}</td></tr>
+                <tr><td>Employment Status</td><td><strong>Active</strong></td></tr>
+                <tr><td>Monthly Salary</td><td><strong>PKR ${employeeInfo?.salary?.toLocaleString()||"-"}</strong></td></tr>
+                </table>
+                <p class="body">This certificate is issued on <span class="highlight">${today}</span> at the request of the employee for their personal use.</p>
+                <div class="sigs"><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280;text-transform:uppercase">Employee Signature</div><div style="font-weight:700;margin-top:4px">${user?.name}</div></div></div><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280;text-transform:uppercase">Authorized Signature</div><div style="font-weight:700;margin-top:4px">${user?.companyName}</div><div style="font-size:10px;color:#6b7280">HR Department</div></div></div></div>
+                <div class="foot">This is a computer-generated certificate. Issued on ${today}.</div>
                 </body></html>`);
                 win.document.close();
                 setTimeout(() => win.print(), 500);
               }}
-              className="w-full border-2 border-yellow-500 text-yellow-700 hover:bg-yellow-50 rounded-xl py-3 text-sm font-semibold transition-all">
-              📋 Generate Draft Slip
+              className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-xl py-3 text-sm font-semibold transition-all flex items-center justify-center gap-2">
+              📄 Generate Salary Certificate
               </button>
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-xs font-semibold text-gray-500 mb-3">📋 Generate Draft Salary Slip</p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <select id="draftMonth" defaultValue={new Date().getMonth()+1}
+                    className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m,i) => (
+                      <option key={i} value={i+1}>{m}</option>
+                    ))}
+                  </select>
+                  <select id="draftYear" defaultValue={new Date().getFullYear()}
+                    className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    {[2026,2025,2024,2023].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <button onClick={() => {
+                  const month = Number((document.getElementById("draftMonth") as HTMLSelectElement)?.value || new Date().getMonth()+1);
+                  const year = Number((document.getElementById("draftYear") as HTMLSelectElement)?.value || new Date().getFullYear());
+                  const MN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                  const salary = employeeInfo?.salary || 0;
+                  const eobi = Math.round(salary * 0.01);
+                  const net = salary - eobi;
+                  const win = window.open("", "_blank");
+                  if (!win) return;
+                  win.document.write(`<!DOCTYPE html><html><head><title>Draft Salary Slip</title><style>*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:30px;color:#111;font-size:12px}.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:15px;border-bottom:4px solid #1e40af;margin-bottom:20px}.co{font-size:22px;font-weight:900;color:#1e40af}.badge{background:#f59e0b;color:#fff;padding:10px 18px;border-radius:8px;text-align:center}.badge-m{font-size:16px;font-weight:900}.draft-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:80px;font-weight:900;color:rgba(239,68,68,0.08);pointer-events:none;z-index:0;white-space:nowrap}.emp{background:#eff6ff;border-left:5px solid #1e40af;padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.ef label{font-size:10px;color:#6b7280;text-transform:uppercase;display:block}.ef span{font-size:13px;font-weight:700}.tbls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}table{width:100%;border-collapse:collapse}.th-e{background:#059669;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}.th-d{background:#dc2626;color:#fff;padding:9px 12px;font-size:11px;font-weight:800;text-transform:uppercase}td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}.r{text-align:right;font-weight:600}.even td{background:#f9fafb}.te td{background:#d1fae5!important;font-weight:800;color:#065f46;border-top:2px solid #059669}.td td{background:#fee2e2!important;font-weight:800;color:#991b1b;border-top:2px solid #dc2626}.net{background:linear-gradient(135deg,#92400e,#d97706);color:#fff;padding:18px;border-radius:10px;text-align:center;margin:16px 0}.net-a{font-size:32px;font-weight:900;margin:6px 0}.draft-note{background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:12px;margin:16px 0;font-size:11px;color:#92400e;text-align:center;font-weight:700}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px}.sig{text-align:center}.sl{border-top:1.5px solid #374151;padding-top:6px;margin-top:40px}.foot{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af}@media print{@page{margin:10mm}}</style></head><body>
+                  <div class="draft-watermark">DRAFT</div>
+                  <div class="hdr"><div><div class="co">${user?.companyName||"Company"}</div><div style="font-size:11px;color:#6b7280">Official Salary Slip (Draft)</div></div><div class="badge"><div style="font-size:10px;opacity:.8">DRAFT SLIP</div><div class="badge-m">${MN[month-1]} ${year}</div></div></div>
+                  <div class="draft-note">⚠️ DRAFT - This is an unofficial salary slip generated by the employee. Final slip will be issued by HR.</div>
+                  <div class="emp"><div class="ef"><label>Employee Name</label><span>${user?.name}</span></div><div class="ef"><label>Employee Code</label><span>${employeeInfo?.employeeCode||"-"}</span></div><div class="ef"><label>Designation</label><span>${employeeInfo?.designation||user?.designation||"-"}</span></div><div class="ef"><label>Department</label><span>${employeeInfo?.department?.name||"Company Wide"}</span></div><div class="ef"><label>Pay Period</label><span>${MN[month-1]} ${year}</span></div><div class="ef"><label>Status</label><span>DRAFT</span></div></div>
+                  <div class="tbls"><table><tr><th class="th-e" colspan="2">Earnings</th></tr><tr><td>Basic Salary</td><td class="r">PKR ${salary.toLocaleString()}</td></tr><tr class="te"><td><b>Gross Salary</b></td><td class="r"><b>PKR ${salary.toLocaleString()}</b></td></tr></table>
+                  <table><tr><th class="th-d" colspan="2">Deductions</th></tr><tr><td>EOBI (1%)</td><td class="r">PKR ${eobi.toLocaleString()}</td></tr><tr class="td"><td><b>Total Deductions</b></td><td class="r"><b>PKR ${eobi.toLocaleString()}</b></td></tr></table></div>
+                  <div class="net"><div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:3px">Estimated Net Pay</div><div class="net-a">PKR ${net.toLocaleString()}</div><div style="font-size:11px;opacity:.65">${MN[month-1]} ${year} &bull; DRAFT</div></div>
+                  <div class="sigs"><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Employee Signature</div><div style="font-weight:700;margin-top:2px">${user?.name}</div></div></div><div class="sig"><div class="sl"><div style="font-size:10px;color:#6b7280">Authorized By</div><div style="font-weight:700;margin-top:2px">${user?.companyName}</div></div></div></div>
+                  <div class="foot">DRAFT - Computer-generated. Generated on ${new Date().toLocaleDateString()}. This slip is not official until approved by HR.</div>
+                  </body></html>`);
+                  win.document.close();
+                  setTimeout(() => win.print(), 500);
+                }}
+                className="w-full border-2 border-yellow-500 text-yellow-700 hover:bg-yellow-50 rounded-xl py-3 text-sm font-semibold transition-all flex items-center justify-center gap-2">
+                📋 Generate Draft Slip
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -416,8 +427,8 @@ export default function ProfilePage() {
           })}
           {pwError && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2 text-sm">{pwError}</div>}
           <button onClick={handleChangePassword} disabled={pwLoading}
-            className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all">
-            {pwLoading ? 'Updating...' : 'Change Password'}
+            className="w-full text-white rounded-xl py-3 text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
+            {pwLoading ? "Updating..." : "Change Password"}
           </button>
           <div className="pt-3 border-t border-gray-100">
             <p className="text-xs text-gray-400">Account created: {user.id ? 'Active Account' : '—'}</p>
@@ -500,15 +511,9 @@ export default function ProfilePage() {
       )}
       {activeTab === "documents" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="font-bold text-gray-900">📄 My Documents</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Your uploaded documents</p>
-            </div>
-            <button onClick={() => { setShowUploadModal(true); setUploadError(''); }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-medium">
-              + Upload Document
-            </button>
+          <div className="p-5 border-b border-gray-100">
+            <h2 className="font-bold text-gray-900">📄 My Documents</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Your uploaded documents</p>
           </div>
           {docsLoading ? (
             <div className="flex items-center justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
@@ -546,54 +551,54 @@ export default function ProfilePage() {
           )}
         </div>
       )}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Upload Document</h3>
-              <button onClick={() => setShowUploadModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            {uploadError && <div className="bg-red-50 text-red-600 rounded-xl p-3 text-sm mb-3">{uploadError}</div>}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Document Type *</label>
-                <select value={uploadForm.type} onChange={e => setUploadForm({ ...uploadForm, type: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {["CNIC", "Degree", "Contract", "Experience Letter", "Medical Certificate", "Other"].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Document Name *</label>
-                <input type="text" value={uploadForm.name} onChange={e => setUploadForm({ ...uploadForm, name: e.target.value })}
-                  placeholder="Enter document name"
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Expiry Date (optional)</label>
-                <input type="date" value={uploadForm.expiryDate} onChange={e => setUploadForm({ ...uploadForm, expiryDate: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">File *</label>
-                <input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)}
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC up to 10MB</p>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => setShowUploadModal(false)}
-                className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleUploadDocument} disabled={uploadLoading}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-medium">
-                {uploadLoading ? "Uploading..." : "Upload"}
-              </button>
-            </div>
+      {/* SALARY HISTORY TAB */}
+      {activeTab === "salary" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-bold text-gray-900">📈 Salary History</h2>
+            <button onClick={async () => {
+              setSalaryLoading(true);
+              try {
+                const token = getToken() || "";
+                const data = await apiCall(`/employees/${user?.employeeId}/salary-history`, {}, token);
+                setSalaryHistory(data || []);
+              } catch { setSalaryHistory([]); }
+              setSalaryLoading(false);
+            }} className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium">
+              {salaryLoading ? "Loading..." : "Load History"}
+            </button>
           </div>
+          {salaryHistory.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-3xl mb-2">📈</p>
+              <p className="text-gray-400 text-sm">Click "Load History" to view salary changes</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {salaryHistory.map((h: any, i: number) => (
+                <div key={i} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {h.type === "increment" ? "📈 Salary Increment" : "📉 Salary Decrement"}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">{h.reason || "No reason provided"}</p>
+                      <p className="text-xs text-gray-400">{new Date(h.createdAt).toLocaleDateString()} · By Administration</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-lg font-bold ${h.type === "increment" ? "text-green-600" : "text-red-500"}`}>
+                        {h.type === "increment" ? "+" : "-"}PKR {Number(h.amount).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-400">New: PKR {Number(h.newSalary).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+

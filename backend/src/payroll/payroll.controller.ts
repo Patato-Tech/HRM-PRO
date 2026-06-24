@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Post, Put, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Post, Put, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
 import { CreatePayrollDto, UpdatePayrollDto } from './dto/payroll.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,6 +21,12 @@ export class PayrollController {
     @Get('month')
     findByMonth(@Query('month') month: string, @Query('year') year: string, @Request() req: any) {
         return this.payrollService.findByMonth(+month, +year, Number(req.user.companyId), req.user);
+    }
+
+
+    @Get('deduction-preview')
+    getDeductionPreview(@Query('employeeId') employeeId: string, @Query('month') month: string, @Query('year') year: string, @Query('basic') basic: string, @Request() req: any) {
+        return this.payrollService.getDeductionPreview(+employeeId, +month, +year, +basic, Number(req.user.companyId));
     }
 
     @Get('employee/:id')
@@ -71,5 +77,10 @@ export class PayrollController {
     @Put(':id/paid')
     markPaid(@Param('id') id: string, @Request() req: any) {
         return this.payrollService.markPaid(parseInt(id), Number(req.user.companyId), req.user);
+    }
+
+    @Delete(':id')
+    delete(@Param('id') id: string, @Request() req: any) {
+        return this.payrollService.delete(parseInt(id), Number(req.user.companyId), req.user);
     }
 }

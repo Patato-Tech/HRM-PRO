@@ -173,16 +173,16 @@ export default function TrainingPage() {
 
   return (
     <div className="space-y-6">
-      {success && <div className="fixed top-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">✅ {success}</div>}
+      {success && <div className="fixed top-6 right-6 text-white px-5 py-3.5 rounded-2xl z-50 text-sm font-bold" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 8px 25px rgba(16,185,129,0.4)"}}>✅ {success}</div>}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Training & Development</h1>
-          <p className="text-gray-500 text-sm mt-1">{programs.length} programs</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Training & Development</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{programs.length} programs</p>
         </div>
         {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'training', 'manage')) && (
           <button onClick={() => { setShowAddModal(true); setError(''); }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
+            className="text-white px-4 py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
             + New Program
           </button>
         )}
@@ -195,18 +195,23 @@ export default function TrainingPage() {
           { label: 'Ongoing', value: programs.filter(p => p.status === 'ongoing').length, bg: 'bg-purple-50', color: 'text-purple-600' },
           { label: 'Completed', value: programs.filter(p => p.status === 'completed').length, bg: 'bg-green-50', color: 'text-green-600' },
         ].map((s, i) => (
-          <div key={i} className={`${s.bg} rounded-2xl p-5 text-center`}>
-            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+          <div key={i} className="rounded-2xl p-4 relative overflow-hidden"
+            style={{background:["linear-gradient(135deg,#1d4ed8,#3b82f6)","linear-gradient(135deg,#d97706,#f59e0b)","linear-gradient(135deg,#7c3aed,#8b5cf6)","linear-gradient(135deg,#059669,#10b981)"][i],boxShadow:"0 4px 15px rgba(0,0,0,0.15)"}}>
+            <div className="absolute top-0 right-0 w-12 h-12 rounded-full opacity-10" style={{background:"white",transform:"translate(30%,-30%)"}} />
+            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{color:"rgba(255,255,255,0.75)"}}>{s.label}</p>
+            <p className="text-3xl font-black text-white">{s.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-3">
-        <input type="text" placeholder="Search programs..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+      <div className="flex gap-3 bg-white rounded-2xl p-4 border border-gray-100" style={{boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
+        <div className="flex-1 relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+          <input type="text" placeholder="Search programs..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            className="w-full border-2 border-gray-100 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50" />
+        </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
+          className="border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50">
           <option value="all">All Status</option>
           <option value="upcoming">Upcoming</option>
           <option value="ongoing">Ongoing</option>
@@ -215,14 +220,15 @@ export default function TrainingPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-gray-100">
-          <p className="text-4xl mb-3">🎓</p>
-          <p className="text-gray-500 font-medium">No training programs found</p>
+        <div className="bg-white rounded-2xl p-16 text-center border border-gray-100" style={{boxShadow:"0 4px 20px rgba(0,0,0,0.05)"}}>
+          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">🎓</div>
+          <p className="text-gray-900 font-black text-lg mb-1">No training programs found</p>
+          <p className="text-gray-400 text-sm">Create a program to get started</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {filtered.map(program => (
-            <div key={program.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div key={program.id} className="bg-white rounded-2xl p-5 border border-gray-100 transition-all hover:-translate-y-0.5" style={{boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-bold text-gray-900">{program.title}</h3>
@@ -255,10 +261,9 @@ export default function TrainingPage() {
                         Complete
                       </button>
                     )}
-                    <button onClick={() => handleDelete(program.id)}
-                      className="text-xs bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 px-3 py-2 rounded-lg">
-                      Delete
-                    </button>
+
+
+
                   </>
                 )}
               </div>
@@ -320,7 +325,7 @@ export default function TrainingPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowAddModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleAdd} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Create Program</button>
+              <button onClick={handleAdd} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Create Program</button>
             </div>
           </div>
         </div>
@@ -335,7 +340,7 @@ export default function TrainingPage() {
             </div>
             {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'training', 'manage')) && (
               <button onClick={() => { setShowEnrollModal(true); setError(''); setEnrollEmployeeId(''); }}
-                className="w-full mb-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium">
+                className="w-full mb-4 text-white py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
                 + Enroll Employee
               </button>
             )}
@@ -398,7 +403,7 @@ export default function TrainingPage() {
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
                   <option value="">Select employee</option>
                   {employees
-                    .filter((emp: any) => !enrollDeptFilter || String(emp.departmentId) === String(enrollDeptFilter))
+                    .filter((emp: any) => emp.status === "active" && (!enrollDeptFilter || String(emp.departmentId) === String(enrollDeptFilter)))
                     .filter(emp => !selectedProgram.enrollments.some(e => String(e.employee?.id) === String(emp.id)))
                     .map((emp: any) => (
                       <option key={emp.id} value={emp.id}>{emp.user.name} ({emp.employeeCode})</option>
@@ -408,7 +413,7 @@ export default function TrainingPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowEnrollModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleEnroll} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Enroll</button>
+              <button onClick={handleEnroll} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Enroll</button>
             </div>
           </div>
         </div>
@@ -416,3 +421,6 @@ export default function TrainingPage() {
     </div>
   );
 }
+
+
+

@@ -1,4 +1,5 @@
-﻿import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+﻿import { Cron } from '@nestjs/schedule';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { checkPermission, getScopeFilter, isSelfOperation } from '../auth/rbac.util';
 
@@ -47,6 +48,7 @@ export class AttendanceService {
         const existing = await this.prisma.attendance.findFirst({
             where: { employeeId, companyId, date: { gte: today, lt: tomorrow } },
         });
+        if (existing && existing.status === 'on_leave') throw new BadRequestException('You are on approved leave today. Check-in is not allowed.');
         if (existing) throw new BadRequestException('Already checked in today');
 
         const shift = await this.getShiftForEmployee(companyId, employee.departmentId);
@@ -94,9 +96,13 @@ export class AttendanceService {
         if (!record) throw new NotFoundException('No check-in record found for today');
         if (record.checkOut) throw new BadRequestException('Already checked out today');
 
+        // Auto-detect half day (less than 4 hours)
+        const hoursWorked = (now.getTime() - record.checkIn!.getTime()) / (1000 * 60 * 60);
+        const newStatus = hoursWorked < 4 ? 'half_day' : record.status;
+
         return this.prisma.attendance.update({
             where: { id: record.id },
-            data: { checkOut: now },
+            data: { checkOut: now, status: newStatus },
         });
     }
 
@@ -180,14 +186,15 @@ export class AttendanceService {
         const scopeFilter = getScopeFilter(user);
         const empFilter = scopeFilter.employee || {};
 
-        const [present, absent, late, halfDay, totalEmployees] = await Promise.all([
+        const [present, late, halfDay, totalEmployees] = await Promise.all([
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'present', ...scopeFilter } }),
-            this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'absent', ...scopeFilter } }),
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'late', ...scopeFilter } }),
             this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'half_day', ...scopeFilter } }),
             this.prisma.employee.count({ where: { companyId, status: 'active', ...empFilter } }),
         ]);
-        return { present, absent, late, halfDay, totalEmployees };
+        const onLeave = await this.prisma.attendance.count({ where: { companyId, date: { gte: today, lt: tomorrow }, status: 'on_leave', ...scopeFilter } });
+        const absent = totalEmployees - present - late - halfDay - onLeave;
+        return { present, absent, late, halfDay, onLeave, totalEmployees };
 
     }
     async findByDate(date: string, companyId: number, user: any) {
@@ -211,7 +218,35 @@ export class AttendanceService {
                 },
             },
         });
-        return selfExcludeId ? dateRecords.filter(r => r.employeeId !== selfExcludeId) : dateRecords;
+
+        // Fetch all employees and add absent records for those without attendance
+        const allEmployees = await this.prisma.employee.findMany({
+            where: { companyId, status: 'active' },
+            include: {
+                user: { select: { id: true, name: true, email: true, role: true } },
+                department: { select: { id: true, name: true } },
+                customRole: true,
+            },
+        });
+
+        const markedEmployeeIds = new Set(dateRecords.map(r => r.employeeId));
+        const absentRecords = allEmployees
+            .filter(emp => !markedEmployeeIds.has(emp.id))
+            .filter(emp => !selfExcludeId || emp.id !== selfExcludeId)
+            .map(emp => ({
+                id: -emp.id,
+                companyId,
+                employeeId: emp.id,
+                date: start,
+                checkIn: null,
+                checkOut: null,
+                status: 'absent',
+                createdAt: start,
+                employee: emp,
+            }));
+
+        const allRecords = [...dateRecords, ...absentRecords];
+        return selfExcludeId ? allRecords.filter(r => r.employeeId !== selfExcludeId) : allRecords;
     }
 
     async findByEmployee(employeeId: number, companyId: number) {
@@ -246,6 +281,30 @@ export class AttendanceService {
         });
     }
 
+    @Cron('59 23 * * *')
+    async autoCheckout() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Find all attendance records with checkIn but no checkOut for today
+        const missing = await this.prisma.attendance.findMany({
+            where: { date: today, checkIn: { not: null }, checkOut: null },
+            include: { employee: { select: { id: true, departmentId: true, companyId: true } } },
+        });
+
+        for (const record of missing) {
+            const shift = await this.getShiftForEmployee(record.employee.companyId, record.employee.departmentId);
+            const checkoutTime = shift
+                ? this.parseTime(shift.shiftEnd, new Date())
+                : (() => { const d = new Date(); d.setHours(18, 0, 0, 0); return d; })();
+
+            await this.prisma.attendance.update({
+                where: { id: record.id },
+                data: { checkOut: checkoutTime },
+            });
+        }
+    }
+
     async setShift(dto: any, companyId: number, createdById: number) {
         const deptId = dto.departmentId ? Number(dto.departmentId) : null;
         await this.prisma.shiftSchedule.updateMany({
@@ -275,3 +334,4 @@ export class AttendanceService {
         });
     }
 }
+

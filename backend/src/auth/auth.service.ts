@@ -98,7 +98,7 @@ export class AuthService {
 
         const employee = await this.prisma.employee.findUnique({
             where: { userId: user.id },
-            include: { customRole: true },
+            include: { customRole: true, department: true },
         });
 
         const permissions = employee?.customRole?.permissions || null;
@@ -128,6 +128,7 @@ export class AuthService {
                 companyName: company?.name || '',
                 employeeId: employee?.id || null,
                 departmentId: employee?.departmentId || null,
+                departmentName: employee?.department?.name || null,
                 designation: employee?.designation || null,
                 customRoleName,
                 permissions,

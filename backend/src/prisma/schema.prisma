@@ -96,6 +96,10 @@ model Employee {
   joinDate            DateTime             @default(now())
   status              String               @default("active")
   createdAt           DateTime             @default(now())
+  phone               String?
+  cnic                String?
+  gender              String?
+  employmentType      String               @default("full_time")
   company             Company              @relation(fields: [companyId], references: [id])
   user                User                 @relation(fields: [userId], references: [id])
   department          Department?          @relation(fields: [departmentId], references: [id])

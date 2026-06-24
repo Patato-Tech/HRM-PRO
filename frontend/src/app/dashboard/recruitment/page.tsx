@@ -177,21 +177,22 @@ export default function RecruitmentPage() {
 
   return (
     <div className="space-y-6">
-      {success && <div className="fixed top-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">✅ {success}</div>}
+      {success && <div className="fixed top-6 right-6 text-white px-5 py-3.5 rounded-2xl z-50 text-sm font-bold" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 8px 25px rgba(16,185,129,0.4)"}}>✅ {success}</div>}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Recruitment</h1>
-          <p className="text-gray-500 text-sm mt-1">{jobs.filter(j => j.status === 'open').length} open positions</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Recruitment</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{jobs.filter(j => j.status === "open").length} open positions</p>
         </div>
-        {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'recruitment', 'manage')) && (
+        {(isCompanyAdmin(user?.role || "") || hasPermission(user, "recruitment", "manage")) && (
           <div className="flex gap-2">
-            <button onClick={() => { setShowApplicantModal(true); setError(''); }}
-              className="border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2.5 rounded-xl text-sm font-medium">
+            <button onClick={() => { setShowApplicantModal(true); setError(""); }}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-600 transition-all">
               + Add Applicant
             </button>
-            <button onClick={() => { setShowJobModal(true); setError(''); }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium">
+            <button onClick={() => { setShowJobModal(true); setError(""); }}
+              className="text-white px-4 py-2.5 rounded-xl text-sm font-bold"
+              style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
               + Post Job
             </button>
           </div>
@@ -205,17 +206,22 @@ export default function RecruitmentPage() {
           { label: 'Interviews', value: allApplicants.filter(a => a.status === 'interview').length, bg: 'bg-yellow-50', color: 'text-yellow-600' },
           { label: 'Hired', value: allApplicants.filter(a => a.status === 'hired').length, bg: 'bg-purple-50', color: 'text-purple-600' },
         ].map((s, i) => (
-          <div key={i} className={`${s.bg} rounded-2xl p-5 text-center`}>
-            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+          <div key={i} className="rounded-2xl p-4 relative overflow-hidden"
+            style={{background:["linear-gradient(135deg,#059669,#10b981)","linear-gradient(135deg,#1d4ed8,#3b82f6)","linear-gradient(135deg,#d97706,#f59e0b)","linear-gradient(135deg,#7c3aed,#8b5cf6)"][i],boxShadow:"0 4px 15px rgba(0,0,0,0.15)"}}>
+            <div className="absolute top-0 right-0 w-12 h-12 rounded-full opacity-10" style={{background:"white",transform:"translate(30%,-30%)"}} />
+            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{color:"rgba(255,255,255,0.75)"}}>{s.label}</p>
+            <p className="text-3xl font-black text-white">{s.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-2 bg-white rounded-xl p-1.5 border border-gray-100 w-fit shadow-sm">
-        {([{ key: 'jobs', label: '💼 Job Postings' }, { key: 'applicants', label: '👥 All Applicants' }] as const).map(tab => (
+      <div className="flex gap-2">
+        {([{ key: "jobs", label: "💼 Job Postings" }, { key: "applicants", label: "👥 All Applicants" }] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+            className="px-4 py-2.5 rounded-xl text-sm font-bold transition-all border"
+            style={activeTab === tab.key
+              ? {background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",color:"white",border:"transparent",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}
+              : {background:"white",color:"#6b7280",border:"1px solid #e5e7eb"}}>
             {tab.label}
           </button>
         ))}
@@ -224,8 +230,11 @@ export default function RecruitmentPage() {
       {activeTab === 'jobs' && (
         <div className="space-y-4">
           <div className="flex gap-3">
-            <input type="text" placeholder="Search jobs..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+              <input type="text" placeholder="Search jobs..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                className="w-full border-2 border-gray-100 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50" />
+            </div>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
               className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
               <option value="all">All Status</option>
@@ -240,7 +249,7 @@ export default function RecruitmentPage() {
               <p className="text-gray-500 font-medium">No job postings found</p>
             </div>
           ) : filteredJobs.map(job => (
-            <div key={job.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div key={job.id} className="bg-white rounded-2xl p-5 border border-gray-100 transition-all hover:-translate-y-0.5" style={{boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -270,10 +279,9 @@ export default function RecruitmentPage() {
                         className={`text-xs px-3 py-1.5 rounded-lg ${job.status === 'open' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
                         {job.status === 'open' ? 'Close' : 'Reopen'}
                       </button>
-                      <button onClick={() => handleDeleteJob(job.id)}
-                        className="text-xs bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 px-3 py-1.5 rounded-lg">
-                        Delete
-                      </button>
+
+
+
                     </>
                   )}
                 </div>
@@ -319,12 +327,6 @@ export default function RecruitmentPage() {
                       {applicant.interviewDate ? new Date(applicant.interviewDate).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-6 py-4">
-                      {(isCompanyAdmin(user?.role || '') || hasPermission(user, 'recruitment', 'manage')) && (
-                        <button onClick={() => handleDeleteApplicant(applicant.id)}
-                          className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg">
-                          Delete
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -383,7 +385,7 @@ export default function RecruitmentPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowJobModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleAddJob} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Post Job</button>
+              <button onClick={handleAddJob} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Post Job</button>
             </div>
           </div>
         </div>
@@ -430,7 +432,7 @@ export default function RecruitmentPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowApplicantModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleAddApplicant} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Add Applicant</button>
+              <button onClick={handleAddApplicant} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Add Applicant</button>
             </div>
           </div>
         </div>
@@ -484,3 +486,4 @@ export default function RecruitmentPage() {
     </div>
   );
 }
+
