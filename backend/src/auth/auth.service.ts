@@ -193,7 +193,7 @@ export class AuthService {
     async getCompanyInfo(companyId: number) {
         const company = await this.prisma.company.findUnique({
             where: { id: companyId },
-            select: { id: true, name: true, industry: true, address: true, status: true, createdAt: true },
+            select: { id: true, name: true, industry: true, address: true, city: true, country: true, phone: true, website: true, companySize: true, regNumber: true, logo: true, status: true, createdAt: true },
         });
         if (!company) throw new UnauthorizedException('Company not found');
         return company;
@@ -209,3 +209,4 @@ export class AuthService {
         return { status: (user as any).company?.status || 'unknown', companyName: (user as any).company?.name };
     }
 }
+
