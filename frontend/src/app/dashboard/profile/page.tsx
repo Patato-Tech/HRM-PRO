@@ -32,6 +32,29 @@ const ROLE_COLORS: Record<string, string> = {
 
 type TabKey = 'info' | 'security' | 'payroll' | 'documents' | 'salary';
 
+
+const validatePassword = (pw) => {
+  const errors = [];
+  if (pw.length < 8) errors.push("at least 8 characters");
+  if (!/[A-Z]/.test(pw)) errors.push("one uppercase letter");
+  if (!/[a-z]/.test(pw)) errors.push("one lowercase letter");
+  if (!/[0-9]/.test(pw)) errors.push("one number");
+  if (!/[@#$!%*?&]/.test(pw)) errors.push("one special character (@#$!%*?&)");
+  return errors;
+};
+const getPasswordStrength = (pw) => {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[@#$!%*?&]/.test(pw)) score++;
+  if (score <= 2) return { label: "Weak", color: "#ef4444", width: "25%" };
+  if (score <= 3) return { label: "Fair", color: "#f59e0b", width: "50%" };
+  if (score <= 4) return { label: "Good", color: "#3b82f6", width: "75%" };
+  return { label: "Strong", color: "#10b981", width: "100%" };
+};
 export default function ProfilePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth(false);
@@ -107,7 +130,7 @@ export default function ProfilePage() {
   const handleChangePassword = async () => {
     setPwError('');
     if (!pwForm.current || !pwForm.newPw || !pwForm.confirm) { setPwError('All fields are required.'); return; }
-    if (pwForm.newPw.length < 6) { setPwError('Password must be at least 6 characters.'); return; }
+    const pwErrors = validatePassword(pwForm.newPw); if (pwErrors.length > 0) { setPwError("Password must have: " + pwErrors.join(", ")); return; }
     if (pwForm.newPw !== pwForm.confirm) { setPwError('Passwords do not match.'); return; }
     setPwLoading(true);
     try {
@@ -406,7 +429,7 @@ export default function ProfilePage() {
       {activeTab === 'security' && (
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-4">
           <h2 className="font-bold text-gray-900">Change Password</h2>
-          <p className="text-sm text-gray-500">Choose a strong password at least 6 characters long.</p>
+          <p className="text-sm text-gray-500">Password must be 8+ chars with uppercase, lowercase, number and special character.</p>
           {(['current', 'newPw', 'confirm'] as const).map(field => {
             const label = field === 'current' ? 'Current Password' : field === 'newPw' ? 'New Password' : 'Confirm New Password';
             return (
@@ -422,18 +445,48 @@ export default function ProfilePage() {
                     {showPw[field] ? 'Hide' : 'Show'}
                   </button>
                 </div>
+                {field === "newPw" && pwForm.newPw && (
+
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Password strength</span>
+                      <span className="text-xs font-bold" style={{color: getPasswordStrength(pwForm.newPw).color}}>{getPasswordStrength(pwForm.newPw).label}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                      <div className="h-1.5 rounded-full transition-all" style={{width: getPasswordStrength(pwForm.newPw).width, background: getPasswordStrength(pwForm.newPw).color}}></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { label: "8+ characters", test: pwForm.newPw.length >= 8 },
+                        { label: "Uppercase letter", test: /[A-Z]/.test(pwForm.newPw) },
+                        { label: "Lowercase letter", test: /[a-z]/.test(pwForm.newPw) },
+                        { label: "Number", test: /[0-9]/.test(pwForm.newPw) },
+                        { label: "Special character", test: /[@#$!%*?&]/.test(pwForm.newPw) },
+                      ].map((req, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <span className={`text-xs font-bold ${req.test ? "text-green-500" : "text-gray-300"}`}>{req.test ? "✓" : "○"}</span>
+                          <span className={`text-xs ${req.test ? "text-green-600" : "text-gray-400"}`}>{req.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {field === "confirm" && pwForm.confirm && (
+                  <p className={`text-xs mt-1.5 font-medium ${pwForm.confirm === pwForm.newPw ? "text-green-600" : "text-red-500"}`}>
+                    {pwForm.confirm === pwForm.newPw ? "✓ Passwords match" : "✗ Passwords do not match"}
+                  </p>
+                )}
               </div>
             );
           })}
           {pwError && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2 text-sm">{pwError}</div>}
           <button onClick={handleChangePassword} disabled={pwLoading}
             className="w-full text-white rounded-xl py-3 text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
+
             {pwLoading ? "Updating..." : "Change Password"}
           </button>
-          <div className="pt-3 border-t border-gray-100">
-            <p className="text-xs text-gray-400">Account created: {user.id ? 'Active Account' : '—'}</p>
           </div>
-        </div>
+
       )}
 
       {/* PAYROLL HISTORY TAB */}
@@ -601,4 +654,6 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+
 

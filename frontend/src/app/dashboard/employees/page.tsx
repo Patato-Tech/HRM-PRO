@@ -44,6 +44,29 @@ const roleColors: Record<string, string> = {
   EMPLOYEE: "bg-green-100 text-green-700",
 };
 
+
+const validatePassword = (pw) => {
+  const errors = [];
+  if (pw.length < 8) errors.push("at least 8 characters");
+  if (!/[A-Z]/.test(pw)) errors.push("one uppercase letter");
+  if (!/[a-z]/.test(pw)) errors.push("one lowercase letter");
+  if (!/[0-9]/.test(pw)) errors.push("one number");
+  if (!/[@#$!%*?&]/.test(pw)) errors.push("one special character (@#$!%*?&)");
+  return errors;
+};
+const getPasswordStrength = (pw) => {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[@#$!%*?&]/.test(pw)) score++;
+  if (score <= 2) return { label: "Weak", color: "#ef4444", width: "25%" };
+  if (score <= 3) return { label: "Fair", color: "#f59e0b", width: "50%" };
+  if (score <= 4) return { label: "Good", color: "#3b82f6", width: "75%" };
+  return { label: "Strong", color: "#10b981", width: "100%" };
+};
 export default function EmployeesPage() {
   const { user, loading: authLoading } = useAuth(false);
   const router = useRouter();
@@ -182,7 +205,7 @@ export default function EmployeesPage() {
     const errors: string[] = [];
     if (!addForm.name.trim()) errors.push("Full name is required.");
     if (!addForm.email.trim() || !addForm.email.includes("@")) errors.push("Valid email address is required.");
-    if (!addForm.password || addForm.password.length < 6) errors.push("Password must be at least 6 characters.");
+    if (!addForm.password) { errors.push("Password is required."); } else { const pwErrors = validatePassword(addForm.password); if (pwErrors.length > 0) errors.push("Password must have: " + pwErrors.join(", ")); }
     if (addForm.salary && (isNaN(Number(addForm.salary)) || Number(addForm.salary) < 0)) errors.push("Salary must be a positive number.");
     if (addForm.phone && !/^03[0-9]{9}$/.test(addForm.phone.replace(/[-\s]/g, ""))) errors.push("Phone must be a valid Pakistani number (03XXXXXXXXX).");
     if (addForm.cnic && !/^[0-9]{5}-[0-9]{7}-[0-9]$/.test(addForm.cnic)) errors.push("CNIC format must be XXXXX-XXXXXXX-X.");
@@ -817,8 +840,8 @@ export default function EmployeesPage() {
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-semibold ${selectedEmployee.customRole ? "bg-blue-100 text-blue-700" : roleColors[selectedEmployee.user.role] || "bg-gray-100 text-gray-600"}`}
                 >
-                  {selectedEmployee.customRole?.name ||
-                    {selectedEmployee.customRole?.name || selectedEmployee.user.role.replace(/_/g, " ")}
+                  {selectedEmployee.customRole?.name || selectedEmployee.user.role.replace(/_/g, " ")}
+
                 </span>
               </div>
             </div>
@@ -986,6 +1009,31 @@ export default function EmployeesPage() {
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
                     />
                   </div>
+                  {addForm.password && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">Password strength</span>
+                        <span className="text-xs font-bold" style={{color: getPasswordStrength(addForm.password).color}}>{getPasswordStrength(addForm.password).label}</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                        <div className="h-1.5 rounded-full transition-all" style={{width: getPasswordStrength(addForm.password).width, background: getPasswordStrength(addForm.password).color}}></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {[
+                          { label: "8+ characters", test: addForm.password.length >= 8 },
+                          { label: "Uppercase letter", test: /[A-Z]/.test(addForm.password) },
+                          { label: "Lowercase letter", test: /[a-z]/.test(addForm.password) },
+                          { label: "Number", test: /[0-9]/.test(addForm.password) },
+                          { label: "Special character", test: /[@#$!%*?&]/.test(addForm.password) },
+                        ].map((req, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <span className={`text-xs font-bold ${req.test ? "text-green-500" : "text-gray-300"}`}>{req.test ? "✓" : "○"}</span>
+                            <span className={`text-xs ${req.test ? "text-green-600" : "text-gray-400"}`}>{req.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">
                       Phone
@@ -1338,6 +1386,31 @@ export default function EmployeesPage() {
                 </div>
               </div>
               <div>
+              {resetForm.newPassword && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-500">Password strength</span>
+                    <span className="text-xs font-bold" style={{color: getPasswordStrength(resetForm.newPassword).color}}>{getPasswordStrength(resetForm.newPassword).label}</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                    <div className="h-1.5 rounded-full transition-all" style={{width: getPasswordStrength(resetForm.newPassword).width, background: getPasswordStrength(resetForm.newPassword).color}}></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[
+                      { label: "8+ characters", test: resetForm.newPassword.length >= 8 },
+                      { label: "Uppercase letter", test: /[A-Z]/.test(resetForm.newPassword) },
+                      { label: "Lowercase letter", test: /[a-z]/.test(resetForm.newPassword) },
+                      { label: "Number", test: /[0-9]/.test(resetForm.newPassword) },
+                      { label: "Special character", test: /[@#$!%*?&]/.test(resetForm.newPassword) },
+                    ].map((req, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <span className={`text-xs font-bold ${req.test ? "text-green-500" : "text-gray-300"}`}>{req.test ? "✓" : "○"}</span>
+                        <span className={`text-xs ${req.test ? "text-green-600" : "text-gray-400"}`}>{req.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm Password *
                 </label>
