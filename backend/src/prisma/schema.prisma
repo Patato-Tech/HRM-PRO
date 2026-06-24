@@ -22,6 +22,12 @@ model Company {
   logo                String?
   industry            String?
   address             String?
+  city                String?
+  country             String?
+  phone               String?
+  website             String?
+  companySize         String?
+  regNumber           String?
   status              String               @default("active")
   planId              String?
   createdById         Int?

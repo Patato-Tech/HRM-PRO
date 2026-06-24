@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformLoginDto, UpdateCompanyDto } from './dto/platform.dto';
@@ -45,13 +45,14 @@ export class PlatformService {
 
     async registerCompany(dto: {
         companyName: string; industry?: string; address?: string;
+        city?: string; country?: string; companyPhone?: string;
+        website?: string; companySize?: string; regNumber?: string;
         adminName: string; adminEmail: string; adminPassword: string;
     }) {
         const existingUser = await this.prisma.user.findFirst({ where: { email: dto.adminEmail } });
         if (existingUser) throw new BadRequestException('An account with this email already exists');
-
         const company = await this.prisma.company.create({
-            data: { name: dto.companyName, industry: dto.industry, address: dto.address, status: 'pending' },
+            data: { name: dto.companyName, industry: dto.industry, address: dto.address, city: dto.city, country: dto.country, phone: dto.companyPhone, website: dto.website, companySize: dto.companySize, regNumber: dto.regNumber, status: 'pending' },
         });
         const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
         await this.prisma.user.create({
@@ -59,7 +60,6 @@ export class PlatformService {
         });
         return { message: 'Registration submitted. Pending approval by platform administrator.' };
     }
-
     async approveCompany(id: number) {
         const company = await this.prisma.company.findUnique({ where: { id } });
         if (!company) throw new NotFoundException('Company not found');

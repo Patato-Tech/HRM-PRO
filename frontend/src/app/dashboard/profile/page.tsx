@@ -30,7 +30,11 @@ const ROLE_COLORS: Record<string, string> = {
   EMPLOYEE: 'bg-green-100 text-green-700',
 };
 
-type TabKey = 'info' | 'security' | 'payroll' | 'documents' | 'salary';
+const INDUSTRIES = ['Technology','Finance','Healthcare','Education','Manufacturing','Retail','Construction','Transportation','Hospitality','Media','Real Estate','Agriculture','Other'];
+const COUNTRIES = ['Pakistan','United Arab Emirates','Saudi Arabia','United Kingdom','United States','Canada','Australia','Other'];
+const COMPANY_SIZES = ['1-10 employees','11-50 employees','51-200 employees','201-500 employees','500+ employees'];
+
+type TabKey = 'info' | 'security' | 'payroll' | 'documents' | 'salary' | 'company';
 
 
 const validatePassword = (pw) => {
@@ -59,6 +63,13 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth(false);
   const [activeTab, setActiveTab] = useState<TabKey>('info');
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [showEditCompany, setShowEditCompany] = useState(false);
+  const [customIndustry, setCustomIndustry] = useState(false);
+  const [customCountry, setCustomCountry] = useState(false);
+  const [editCompanyForm, setEditCompanyForm] = useState<any>({});
+  const [companyLoading, setCompanyLoading] = useState(false);
+  const [companyError, setCompanyError] = useState('');
   const [toast, setToast] = useState('');
   const [editName, setEditName] = useState('');
   const [nameLoading, setNameLoading] = useState(false);
@@ -83,6 +94,7 @@ export default function ProfilePage() {
     if (user) {
       setEditName(user.name || '');
       fetchEmployeeInfo();
+      fetchCompanyInfo();
       setEditDesignation(user.designation || '');
     }
   }, [authLoading, user]);
@@ -105,6 +117,28 @@ export default function ProfilePage() {
     }
   }, [activeTab, user]);
 
+  const fetchCompanyInfo = async () => {
+    if (!user) return;
+    try {
+      const token = localStorage.getItem("token") || "";
+      const data = await apiCall("/auth/company", {}, token);
+      setCompanyInfo(data);
+    } catch (e) { console.error(e); }
+  };
+  const handleSaveCompany = async () => {
+    setCompanyError("");
+    if (!editCompanyForm.name?.trim()) { setCompanyError("Company name is required."); return; }
+    if (editCompanyForm.phone && !/^03[0-9]{9}$/.test(editCompanyForm.phone.replace(/[-s]/g, ""))) { setCompanyError("Phone format must be 03XXXXXXXXX."); return; }
+    if (editCompanyForm.website && !editCompanyForm.website.includes(".")) { setCompanyError("Enter a valid website URL."); return; }
+    setCompanyLoading(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      const updated = await apiCall("/auth/company", { method: "PUT", body: JSON.stringify(editCompanyForm) }, token);
+      setCompanyInfo(updated);
+      setShowEditCompany(false);
+    } catch (e) { setCompanyError(e?.message || "Failed to update."); }
+    finally { setCompanyLoading(false); }
+  };
   const fetchEmployeeInfo = async () => {
     if (!user?.employeeId) return;
     try {
@@ -164,6 +198,7 @@ export default function ProfilePage() {
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'info', label: '👤 My Info' },
     { key: 'security', label: '🔒 Security' },
+    ...(isAdmin ? [{ key: 'company' as TabKey, label: '🏢 Company Info' }] : []),
     ...(!isAdmin ? [{ key: 'payroll' as TabKey, label: '💰 Payroll History' }] : []),
     { key: 'documents' as TabKey, label: '📄 Documents' },
     ...(!isAdmin ? [{ key: 'salary' as TabKey, label: '📈 Salary History' }] : []),
@@ -425,6 +460,41 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* COMPANY INFO TAB */}
+      {activeTab === 'company' && isAdmin && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-black text-gray-900 text-lg">Company Information</h2>
+            <div className="flex items-center gap-2">
+              <span className={companyInfo?.status === "active" ? "text-xs px-3 py-1 rounded-full font-bold bg-green-100 text-green-700" : "text-xs px-3 py-1 rounded-full font-bold bg-yellow-100 text-yellow-700"}>{companyInfo?.status || "—"}</span>
+              <button onClick={() => { setEditCompanyForm({name: companyInfo?.name||"", industry: companyInfo?.industry||"", address: companyInfo?.address||"", city: companyInfo?.city||"", country: companyInfo?.country||"", phone: companyInfo?.phone||"", website: companyInfo?.website||"", companySize: companyInfo?.companySize||"", regNumber: companyInfo?.regNumber||""}); setShowEditCompany(true); }} className="text-xs font-bold text-white px-3 py-1.5 rounded-xl" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Edit</button>
+            </div>
+          </div>
+          {companyInfo ? (
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: "Company Name", value: companyInfo.name },
+                { label: "Industry", value: companyInfo.industry },
+                { label: "Company Size", value: companyInfo.companySize },
+                { label: "Phone", value: companyInfo.phone },
+                { label: "Website", value: companyInfo.website },
+                { label: "City", value: companyInfo.city },
+                { label: "Country", value: companyInfo.country },
+                { label: "Address", value: companyInfo.address },
+                { label: "Reg. Number", value: companyInfo.regNumber },
+                { label: "Member Since", value: companyInfo.createdAt ? new Date(companyInfo.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : null },
+              ].map((item, i) => (
+                <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <p className="text-xs text-gray-400 mb-1">{item.label}</p>
+                  <p className="text-sm font-semibold text-gray-900">{item.value || "—"}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">Loading company info...</div>
+          )}
+        </div>
+      )}
       {/* SECURITY TAB */}
       {activeTab === 'security' && (
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-4">
@@ -649,6 +719,78 @@ export default function ProfilePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+      {showEditCompany && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="text-lg font-black text-gray-900">Edit Company Info</h3>
+              <button onClick={() => setShowEditCompany(false)} className="text-gray-400 hover:text-gray-600 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">x</button>
+            </div>
+            <div className="p-6 space-y-4">
+              {companyError && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{companyError}</div>}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Company Name *</label>
+                  <input type="text" value={editCompanyForm.name || ""} onChange={e => setEditCompanyForm({...editCompanyForm, name: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Industry</label>
+                  <select value={INDUSTRIES.includes(editCompanyForm.industry || "") ? editCompanyForm.industry || "" : "Other"} onChange={e => { if (e.target.value === "Other") { setCustomIndustry(true); setEditCompanyForm({...editCompanyForm, industry: ""}); } else { setCustomIndustry(false); setEditCompanyForm({...editCompanyForm, industry: e.target.value}); }}} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50">
+                    <option value="">Select industry</option>
+                    {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                  {customIndustry && (
+                    <input type="text" value={editCompanyForm.industry || ""} onChange={e => setEditCompanyForm({...editCompanyForm, industry: e.target.value})} placeholder="Enter custom industry" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Company Size</label>
+                  <select value={editCompanyForm.companySize || ""} onChange={e => setEditCompanyForm({...editCompanyForm, companySize: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50">
+                    <option value="">Select size</option>
+                    {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
+                  <input type="tel" value={editCompanyForm.phone || ""} onChange={e => setEditCompanyForm({...editCompanyForm, phone: e.target.value})} placeholder="03XXXXXXXXX" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Website</label>
+                  <input type="text" value={editCompanyForm.website || ""} onChange={e => setEditCompanyForm({...editCompanyForm, website: e.target.value})} placeholder="www.company.com" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">City</label>
+                  <input type="text" value={editCompanyForm.city || ""} onChange={e => setEditCompanyForm({...editCompanyForm, city: e.target.value})} placeholder="Enter city" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Country</label>
+                  <select value={COUNTRIES.includes(editCompanyForm.country || "") ? editCompanyForm.country || "" : "Other"} onChange={e => { if (e.target.value === "Other") { setCustomCountry(true); setEditCompanyForm({...editCompanyForm, country: ""}); } else { setCustomCountry(false); setEditCompanyForm({...editCompanyForm, country: e.target.value}); }}} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50">
+                    <option value="">Select country</option>
+                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  {customCountry && (
+                    <input type="text" value={editCompanyForm.country || ""} onChange={e => setEditCompanyForm({...editCompanyForm, country: e.target.value})} placeholder="Enter custom country" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Reg. Number</label>
+                  <input type="text" value={editCompanyForm.regNumber || ""} onChange={e => setEditCompanyForm({...editCompanyForm, regNumber: e.target.value})} placeholder="Business reg. number" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Address</label>
+                  <input type="text" value={editCompanyForm.address || ""} onChange={e => setEditCompanyForm({...editCompanyForm, address: e.target.value})} placeholder="Enter address" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 border-t border-gray-100">
+              <button onClick={() => setShowEditCompany(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-100">Cancel</button>
+              <button onClick={handleSaveCompany} disabled={companyLoading} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                {companyLoading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

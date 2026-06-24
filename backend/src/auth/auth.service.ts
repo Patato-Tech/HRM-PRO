@@ -190,6 +190,22 @@ export class AuthService {
         return { message: 'Password updated successfully' };
     }
 
+    async updateCompanyInfo(companyId: number, dto: any) {
+        return this.prisma.company.update({
+            where: { id: companyId },
+            data: {
+                name: dto.name,
+                industry: dto.industry,
+                address: dto.address,
+                city: dto.city,
+                country: dto.country,
+                phone: dto.phone,
+                website: dto.website,
+                companySize: dto.companySize,
+                regNumber: dto.regNumber,
+            },
+        });
+    }
     async getCompanyInfo(companyId: number) {
         const company = await this.prisma.company.findUnique({
             where: { id: companyId },
@@ -209,4 +225,6 @@ export class AuthService {
         return { status: (user as any).company?.status || 'unknown', companyName: (user as any).company?.name };
     }
 }
+
+
 

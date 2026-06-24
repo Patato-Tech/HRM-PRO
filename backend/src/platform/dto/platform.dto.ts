@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+﻿import { IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class PlatformLoginDto {
     @IsEmail()
@@ -25,6 +25,12 @@ export class CreateCompanyDto {
     planId?: string;
 
     @IsString()
+    @IsOptional() @IsString() city?: string;
+    @IsOptional() @IsString() country?: string;
+    @IsOptional() @IsString() companyPhone?: string;
+    @IsOptional() @IsString() website?: string;
+    @IsOptional() @IsString() companySize?: string;
+    @IsOptional() @IsString() regNumber?: string;
     adminName: string;
 
     @IsEmail()

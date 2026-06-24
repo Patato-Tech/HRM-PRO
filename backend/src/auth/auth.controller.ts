@@ -41,6 +41,11 @@ export class AuthController {
         return this.authService.getCompanyInfo(req.user.companyId);
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Put('company')
+    updateCompany(@Request() req, @Body() body: any) {
+        return this.authService.updateCompanyInfo(req.user.companyId, body);
+    }
     @Get('company-status')
     getCompanyStatus(@Query('email') email: string) {
         return this.authService.getCompanyStatusByEmail(email);
