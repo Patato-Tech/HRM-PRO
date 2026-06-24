@@ -1297,8 +1297,8 @@ export default function AttendancePage() {
                             <span
                               className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${(record.employee as any)?.customRole ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"}`}
                             >
-                              {(record.employee as any)?.customRole?.name ||
-                                record.employee?.user?.role?.replace("_", " ")}
+                                {(record.employee as any)?.customRole?.name || record.employee?.user?.role?.replace("_", " ")}
+
                             </span>
                           </div>
                         </div>
@@ -1476,8 +1476,8 @@ export default function AttendancePage() {
                             <span
                               className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${emp.customRole ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"}`}
                             >
-                              {emp.customRole?.name ||
-                                emp.user.role?.replace("_", " ")}
+                                {emp.customRole?.name || emp.user.role?.replace("_", " ")}
+
                             </span>
                           </div>
                         </div>
@@ -2109,6 +2109,7 @@ export default function AttendancePage() {
     </div>
   );
 }
+
 
 
 

@@ -230,6 +230,10 @@ export class AttendanceService {
         });
 
         const markedEmployeeIds = new Set(dateRecords.map(r => r.employeeId));
+        const approvedLeaves = await this.prisma.leave.findMany({
+            where: { companyId, status: 'approved', startDate: { lte: end }, endDate: { gte: start } },
+        });
+        const onLeaveEmployeeIds = new Set(approvedLeaves.map(l => l.employeeId));
         const absentRecords = allEmployees
             .filter(emp => !markedEmployeeIds.has(emp.id))
             .filter(emp => !selfExcludeId || emp.id !== selfExcludeId)
@@ -240,7 +244,7 @@ export class AttendanceService {
                 date: start,
                 checkIn: null,
                 checkOut: null,
-                status: 'absent',
+                status: onLeaveEmployeeIds.has(emp.id) ? 'on_leave' : 'absent',
                 createdAt: start,
                 employee: emp,
             }));
@@ -334,4 +338,5 @@ export class AttendanceService {
         });
     }
 }
+
 

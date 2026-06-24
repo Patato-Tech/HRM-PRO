@@ -714,7 +714,7 @@ export default function EmployeesPage() {
                         className={`text-xs px-2 py-0.5 rounded-full font-semibold ${(emp as any).customRole ? "bg-blue-100 text-blue-700" : roleColors[emp.user?.role] || "bg-gray-100 text-gray-600"}`}
                       >
                         {(emp as any).customRole?.name ||
-                          emp.user?.role?.replace(/_/g, " ") ||
+                          emp.customRole?.name || emp.user?.role?.replace(/_/g, " ") ||
                           "Employee"}
                       </span>
                     </td>
@@ -818,7 +818,7 @@ export default function EmployeesPage() {
                   className={`text-xs px-2 py-0.5 rounded-full font-semibold ${selectedEmployee.customRole ? "bg-blue-100 text-blue-700" : roleColors[selectedEmployee.user.role] || "bg-gray-100 text-gray-600"}`}
                 >
                   {selectedEmployee.customRole?.name ||
-                    selectedEmployee.user.role.replace(/_/g, " ")}
+                    {selectedEmployee.customRole?.name || selectedEmployee.user.role.replace(/_/g, " ")}
                 </span>
               </div>
             </div>
@@ -2089,6 +2089,7 @@ export default function EmployeesPage() {
     </div>
   );
 }
+
 
 
 

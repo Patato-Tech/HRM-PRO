@@ -1132,7 +1132,7 @@ export default function ReportsPage() {
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-600">{emp.employeeCode}</td>
                             <td className="px-6 py-4 text-sm text-gray-600">{emp.department?.name || 'Company Wide'}</td>
-                            <td className="px-6 py-4 text-sm text-gray-600">{emp.user?.role?.replace(/_/g, ' ')}</td>
+                            <td className="px-6 py-4 text-sm text-gray-600">{emp.customRole?.name || emp.user?.role?.replace(/_/g, ' ')}</td>
                             <td className="px-6 py-4">
                               <span className={"text-xs px-2.5 py-1 rounded-full font-semibold " + (emp.status === 'active' ? 'bg-green-100 text-green-700' : emp.status === 'sabbatical' ? 'bg-blue-100 text-blue-700' : emp.status === 'resigned' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700')}>
                                 {emp.status.charAt(0).toUpperCase() + emp.status.slice(1)}
@@ -1153,6 +1153,7 @@ export default function ReportsPage() {
     </div>
   );
 }
+
 
 
 
