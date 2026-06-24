@@ -1149,13 +1149,13 @@ export default function AttendancePage() {
                             <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
                               {(record.employee as any)?.department?.name}
                             </span>
-                          ) : (record.employee as any)?.customRole?.scope ===
-                            "all" ? (
-                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                              Company Wide
-                            </span>
                           ) : (
-                            <span className="text-xs text-gray-400">—</span>
+                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>
+
+
+
+
+
                           )}
                         </td>
                         <td className="px-6 py-4">
@@ -1311,14 +1311,14 @@ export default function AttendancePage() {
                           <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
                             {(record.employee as any)?.department?.name}
                           </span>
-                        ) : (record.employee as any)?.customRole?.scope ===
-                          "all" ? (
-                          <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                            Company Wide
-                          </span>
                         ) : (
-                          <span className="text-xs text-gray-400">—</span>
+                          <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Company Wide</span>
                         )}
+
+
+
+
+
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {new Date(record.date).toLocaleDateString()}
@@ -2109,6 +2109,7 @@ export default function AttendancePage() {
     </div>
   );
 }
+
 
 
 
