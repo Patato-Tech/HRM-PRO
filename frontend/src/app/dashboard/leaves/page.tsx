@@ -193,6 +193,7 @@ export default function LeavesPage() {
     if (!applyForm.startDate || !applyForm.endDate) errors.push("Please select start and end dates.");
     else if (applyForm.startDate > applyForm.endDate) errors.push("Start date cannot be after end date.");
     if (!applyForm.days || Number(applyForm.days) <= 0) errors.push("Number of days must be at least 1.");
+    if (applyForm.startDate && applyForm.startDate < new Date().toISOString().split("T")[0]) errors.push("Leave start date cannot be in the past.");
     if (errors.length > 0) { setError(errors.join(" | ")); return; }
     try {
       const token = getToken() || "";

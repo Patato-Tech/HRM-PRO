@@ -148,6 +148,8 @@ export default function PayrollPage() {
     if (calcNet(form) < 0) errors.push("Net salary cannot be negative. Please check deductions.");
     const existingPayroll = payrolls.find((p: any) => String(p.employee?.id) === String(form.employeeId) && p.month === Number(form.month) && p.year === Number(form.year));
     if (existingPayroll) errors.push("Payroll already exists for this employee for the selected month.");
+    const now = new Date();
+    if (Number(form.year) > now.getFullYear() || (Number(form.year) === now.getFullYear() && Number(form.month) > now.getMonth() + 1)) errors.push("Cannot process payroll for a future month.");
     if (errors.length > 0) { setError(errors.join(" | ")); return; }
     try {
       const token = getToken() || "";

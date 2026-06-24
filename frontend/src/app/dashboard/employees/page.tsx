@@ -204,11 +204,14 @@ export default function EmployeesPage() {
     setError("");
     const errors: string[] = [];
     if (!addForm.name.trim()) errors.push("Full name is required.");
+    const emailExists = employees.some((emp) => emp.user.email.toLowerCase() === addForm.email.trim().toLowerCase());
+    if (emailExists) errors.push("An employee with this email already exists.");
     if (!addForm.email.trim() || !addForm.email.includes("@")) errors.push("Valid email address is required.");
     if (!addForm.password) { errors.push("Password is required."); } else { const pwErrors = validatePassword(addForm.password); if (pwErrors.length > 0) errors.push("Password must have: " + pwErrors.join(", ")); }
     if (addForm.salary && (isNaN(Number(addForm.salary)) || Number(addForm.salary) < 0)) errors.push("Salary must be a positive number.");
     if (addForm.phone && !/^03[0-9]{9}$/.test(addForm.phone.replace(/[-\s]/g, ""))) errors.push("Phone must be a valid Pakistani number (03XXXXXXXXX).");
     if (addForm.cnic && !/^[0-9]{5}-[0-9]{7}-[0-9]$/.test(addForm.cnic)) errors.push("CNIC format must be XXXXX-XXXXXXX-X.");
+    if (addForm.joinDate && addForm.joinDate > new Date().toISOString().split("T")[0]) errors.push("Join date cannot be in the future.");
     if (errors.length > 0) { setError(errors.join(" | ")); return; }
     const selectedRole = roles.find((r: any) => String(r.id) === String(addForm.roleId));
     const isCompanyWide = selectedRole?.scope === "all";
