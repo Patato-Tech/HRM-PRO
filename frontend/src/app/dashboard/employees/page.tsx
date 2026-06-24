@@ -945,213 +945,109 @@ export default function EmployeesPage() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Add New Employee
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Fill in the details to create a new employee account
-                </p>
+                <h3 className="text-lg font-bold text-gray-900">Add New Employee</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Fill in the details to create a new employee account</p>
               </div>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setError("");
-                }}
-                className="text-gray-400 hover:text-gray-600 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-xl"
-              >
-                ✕
-              </button>
+              <button onClick={() => { setShowAddModal(false); setError(""); setFieldErrors({}); }} className="text-gray-400 hover:text-gray-600 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-xl">✕</button>
             </div>
-
-            <div className="p-6 space-y-5">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
-                  {error}
-                </div>
-              )}
-
-              {/* Section 1: Account Info */}
+            <div className="p-6 space-y-4">
+              {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{error}</div>}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xs font-bold">
-                    1
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">
-                    Account Information
-                  </p>
+                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xs font-bold">1</div>
+                  <p className="text-sm font-semibold text-gray-700">Account Information</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Full Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={addForm.name}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, name: e.target.value })
-                      }
-                      placeholder="Enter full name"
-                      onBlur={(e) => validateField("name", e.target.value)}
-                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.name ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`}
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Full Name <span className="text-red-500">*</span></label>
+                    <input type="text" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} onBlur={(e) => validateField("name", e.target.value)} placeholder="Enter full name"
+                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.name ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`} />
                     {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Email <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={addForm.email}
-                      onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
-                      placeholder="Enter email address"
-                      onBlur={(e) => validateField("email", e.target.value)}
-                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.email ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`}
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Email <span className="text-red-500">*</span></label>
+                    <input type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} onBlur={(e) => validateField("email", e.target.value)} placeholder="Enter email address"
+                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.email ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`} />
                     {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      value={addForm.password}
-                      onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
-                      placeholder="Enter password"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Password <span className="text-red-500">*</span></label>
+                    <input type="password" value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })} placeholder="Enter password"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors" />
                   </div>
-                  {addForm.password && (
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-500">Password strength</span>
-                        <span className="text-xs font-bold" style={{color: getPasswordStrength(addForm.password).color}}>{getPasswordStrength(addForm.password).label}</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
-                        <div className="h-1.5 rounded-full transition-all" style={{width: getPasswordStrength(addForm.password).width, background: getPasswordStrength(addForm.password).color}}></div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1">
-                        {[
-                          { label: "8+ characters", test: addForm.password.length >= 8 },
-                          { label: "Uppercase letter", test: /[A-Z]/.test(addForm.password) },
-                          { label: "Lowercase letter", test: /[a-z]/.test(addForm.password) },
-                          { label: "Number", test: /[0-9]/.test(addForm.password) },
-                          { label: "Special character", test: /[@#$!%*?&]/.test(addForm.password) },
-                        ].map((req, i) => (
-                          <div key={i} className="flex items-center gap-1.5">
-                            <span className={`text-xs font-bold ${req.test ? "text-green-500" : "text-gray-300"}`}>{req.test ? "✓" : "○"}</span>
-                            <span className={`text-xs ${req.test ? "text-green-600" : "text-gray-400"}`}>{req.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Phone
-                    </label>
-                    <input
-                      type="tel"
-                      value={addForm.phone}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, phone: e.target.value })
-                      }
-                      placeholder="Enter phone number"
-                      onBlur={(e) => validateField("phone", e.target.value)}
-                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.phone ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`}
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
+                    <input type="tel" value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} onBlur={(e) => validateField("phone", e.target.value)} placeholder="Enter phone number"
+                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.phone ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`} />
                     {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
+                  </div>
+                </div>
+                {addForm.password && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">Password strength</span>
+                      <span className="text-xs font-bold" style={{color: getPasswordStrength(addForm.password).color}}>{getPasswordStrength(addForm.password).label}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                      <div className="h-1.5 rounded-full transition-all" style={{width: getPasswordStrength(addForm.password).width, background: getPasswordStrength(addForm.password).color}}></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { label: "8+ characters", test: addForm.password.length >= 8 },
+                        { label: "Uppercase letter", test: /[A-Z]/.test(addForm.password) },
+                        { label: "Lowercase letter", test: /[a-z]/.test(addForm.password) },
+                        { label: "Number", test: /[0-9]/.test(addForm.password) },
+                        { label: "Special character", test: /[@#$!%*?&]/.test(addForm.password) },
+                      ].map((req, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <span className={`text-xs font-bold ${req.test ? "text-green-500" : "text-gray-300"}`}>{req.test ? "✓" : "○"}</span>
+                          <span className={`text-xs ${req.test ? "text-green-600" : "text-gray-400"}`}>{req.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Section 2: Job Details */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-xs font-bold">
-                    2
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">
-                    Job Details
-                  </p>
+                  <div className="w-6 h-6 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-xs font-bold">2</div>
+                  <p className="text-sm font-semibold text-gray-700">Job Details</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Designation
-                    </label>
-                    <input
-                      type="text"
-                      value={addForm.designation}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, designation: e.target.value })
-                      }
-                      placeholder="Enter designation"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Designation</label>
+                    <input type="text" value={addForm.designation} onChange={(e) => setAddForm({ ...addForm, designation: e.target.value })} placeholder="Enter designation"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Salary (PKR)
-                    </label>
-                    <input
-                      type="number"
-                      value={addForm.salary}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, salary: e.target.value })
-                      }
-                      placeholder="Enter salary"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Salary (PKR)</label>
+                    <input type="number" value={addForm.salary} onChange={(e) => setAddForm({ ...addForm, salary: e.target.value })} onBlur={(e) => validateField("salary", e.target.value)} placeholder="Enter salary"
+                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.salary ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`} />
+                    {fieldErrors.salary && <p className="text-xs text-red-500 mt-1">{fieldErrors.salary}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">
                       Department{" "}
-                      {!roles.find(
-                        (r: any) => String(r.id) === String(addForm.roleId),
-                      ) ||
-                      roles.find(
-                        (r: any) => String(r.id) === String(addForm.roleId),
-                      )?.scope === "own_department" ? (
+                      {!roles.find((r: any) => String(r.id) === String(addForm.roleId)) || roles.find((r: any) => String(r.id) === String(addForm.roleId))?.scope === "own_department" ? (
                         <span className="text-red-500">*</span>
                       ) : (
                         <span className="text-gray-400">(optional)</span>
                       )}
                     </label>
-                    <select
-                      value={addForm.departmentId}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, departmentId: e.target.value })
-                      }
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    >
+                    <select value={addForm.departmentId} onChange={(e) => setAddForm({ ...addForm, departmentId: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors">
                       <option value="">Select Department</option>
-                      {departments
-                        .filter((d) => d.status === "active")
-                        .map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
+                      {departments.filter((d) => d.status === "active").map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Employment Type
-                    </label>
-                    <select
-                      value={addForm.employmentType}
-                      onChange={(e) =>
-                        setAddForm({
-                          ...addForm,
-                          employmentType: e.target.value,
-                        })
-                      }
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    >
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Employment Type</label>
+                    <select value={addForm.employmentType} onChange={(e) => setAddForm({ ...addForm, employmentType: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors">
                       <option value="full_time">Full Time</option>
                       <option value="part_time">Part Time</option>
                       <option value="contract">Contract</option>
@@ -1159,82 +1055,38 @@ export default function EmployeesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Join Date
-                    </label>
-                    <input
-                      type="date"
-                      value={addForm.joinDate}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, joinDate: e.target.value })
-                      }
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Join Date</label>
+                    <input type="date" value={addForm.joinDate} onChange={(e) => setAddForm({ ...addForm, joinDate: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Custom Role{" "}
-                      <span className="text-gray-400 font-normal">
-                        (optional)
-                      </span>
-                    </label>
-                    <select
-                      value={addForm.roleId}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, roleId: e.target.value })
-                      }
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    >
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Custom Role <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <select value={addForm.roleId} onChange={(e) => setAddForm({ ...addForm, roleId: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors">
                       <option value="">No Custom Role</option>
                       {roles.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
+                        <option key={r.id} value={r.id}>{r.name}</option>
                       ))}
                     </select>
                   </div>
                 </div>
               </div>
-
-              {/* Section 3: Personal Info */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center text-xs font-bold">
-                    3
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">
-                    Personal Information{" "}
-                    <span className="text-gray-400 font-normal">
-                      (optional)
-                    </span>
-                  </p>
+                  <div className="w-6 h-6 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center text-xs font-bold">3</div>
+                  <p className="text-sm font-semibold text-gray-700">Personal Information <span className="text-gray-400 font-normal">(optional)</span></p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      CNIC
-                    </label>
-                    <input
-                      type="text"
-                      value={addForm.cnic}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, cnic: e.target.value })
-                      }
-                      placeholder="Enter CNIC number"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">CNIC</label>
+                    <input type="text" value={addForm.cnic} onChange={(e) => setAddForm({ ...addForm, cnic: e.target.value })} onBlur={(e) => validateField("cnic", e.target.value)} placeholder="Enter CNIC number"
+                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 text-gray-900 bg-gray-50 focus:bg-white transition-colors ${fieldErrors.cnic ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-blue-500"}`} />
+                    {fieldErrors.cnic && <p className="text-xs text-red-500 mt-1">{fieldErrors.cnic}</p>}
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      Gender
-                    </label>
-                    <select
-                      value={addForm.gender}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, gender: e.target.value })
-                      }
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors"
-                    >
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Gender</label>
+                    <select value={addForm.gender} onChange={(e) => setAddForm({ ...addForm, gender: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors">
                       <option value="">Select Gender</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -1244,26 +1096,9 @@ export default function EmployeesPage() {
                 </div>
               </div>
             </div>
-          </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex gap-3 p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setError("");
-                }}
-                className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAdd}
-                className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}
-              >
-                Add Employee
-              </button>
+            <div className="flex gap-3 p-6 border-t border-gray-100 rounded-b-2xl">
+              <button onClick={() => { setShowAddModal(false); setError(""); setFieldErrors({}); }} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={handleAdd} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>Add Employee</button>
             </div>
           </div>
         </div>
@@ -2181,29 +2016,5 @@ export default function EmployeesPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
