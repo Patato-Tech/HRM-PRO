@@ -1,4 +1,7 @@
 ﻿'use client';
+const INDUSTRIES = ['Technology','Finance','Healthcare','Education','Manufacturing','Retail','Construction','Transportation','Hospitality','Media','Real Estate','Agriculture','Other'];
+const COUNTRIES = ['Pakistan','United Arab Emirates','Saudi Arabia','United Kingdom','United States','Canada','Australia','Other'];
+const COMPANY_SIZES = ['1-10 employees','11-50 employees','51-200 employees','201-500 employees','500+ employees'];
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/withAuth';
@@ -41,7 +44,9 @@ export default function AdminDashboard() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', industry: '', address: '', planId: '', status: '' });
+  const [customIndustryAdmin, setCustomIndustryAdmin] = useState(false);
+  const [customCountryAdmin, setCustomCountryAdmin] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', industry: '', address: '', city: '', country: '', phone: '', website: '', companySize: '', regNumber: '', planId: '', status: '' });
   const [resetPassword, setResetPassword] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
@@ -532,19 +537,27 @@ export default function AdminDashboard() {
 
       {showEditModal && selectedCompany && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold text-gray-900">Edit Company</h3><button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-black text-gray-900">Edit Company</h3><button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button></div>
             {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{error}</div>}
-            <div className="space-y-3">
-              {[{ label: 'Company Name *', key: 'name', type: 'text' }, { label: 'Industry', key: 'industry', type: 'text' }, { label: 'Address', key: 'address', type: 'text' }].map(field => (
-                <div key={field.key}><label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label><input type={field.type} value={(editForm as any)[field.key]} onChange={e => setEditForm({ ...editForm, [field.key]: e.target.value })} className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" /></div>
-              ))}
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Plan</label><select value={editForm.planId} onChange={e => setEditForm({ ...editForm, planId: e.target.value })} className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"><option value="">No Plan</option>{PLANS.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label><select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Company Name *</label><input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" /></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Industry</label><select value={editForm.industry} onChange={e => { if (e.target.value === "Other") { setCustomIndustryAdmin(true); setEditForm({...editForm, industry: ""}); } else { setCustomIndustryAdmin(false); setEditForm({...editForm, industry: e.target.value}); }}} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"><option value="">Select</option>{INDUSTRIES.map((i: string) => <option key={i} value={i}>{i}</option>)}</select>{customIndustryAdmin && <input type="text" value={editForm.industry} onChange={e => setEditForm({...editForm, industry: e.target.value})} placeholder="Enter custom industry" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />}</div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Company Size</label><select value={editForm.companySize} onChange={e => setEditForm({...editForm, companySize: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"><option value="">Select</option>{COMPANY_SIZES.map((s: string) => <option key={s} value={s}>{s}</option>)}</select></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label><input type="tel" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} placeholder="03XXXXXXXXX" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" /></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Website</label><input type="text" value={editForm.website} onChange={e => setEditForm({...editForm, website: e.target.value})} placeholder="www.company.com" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" /></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">City</label><input type="text" value={editForm.city} onChange={e => setEditForm({...editForm, city: e.target.value})} placeholder="Enter city" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" /></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Country</label><select value={editForm.country} onChange={e => { if (e.target.value === "Other") { setCustomCountryAdmin(true); setEditForm({...editForm, country: ""}); } else { setCustomCountryAdmin(false); setEditForm({...editForm, country: e.target.value}); }}} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"><option value="">Select</option>{COUNTRIES.map((c: string) => <option key={c} value={c}>{c}</option>)}</select>{customCountryAdmin && <input type="text" value={editForm.country} onChange={e => setEditForm({...editForm, country: e.target.value})} placeholder="Enter custom country" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />}</div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Reg. Number</label><input type="text" value={editForm.regNumber} onChange={e => setEditForm({...editForm, regNumber: e.target.value})} placeholder="Business reg. no." className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" /></div>
+              <div className="col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Address</label><input type="text" value={editForm.address} onChange={e => setEditForm({...editForm, address: e.target.value})} placeholder="Enter address" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" /></div>
             </div>
-            <div className="flex gap-3 mt-5">
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Plan</label><select value={editForm.planId} onChange={e => setEditForm({...editForm, planId: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"><option value="">No Plan</option>{PLANS.map((p: string) => <option key={p} value={p}>{p}</option>)}</select></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Status</label><select value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"><option value="active">Active</option><option value="inactive">Inactive</option><option value="pending">Pending</option></select></div>
+            </div>
+            <div className="flex gap-3">
               <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-              <button onClick={handleEditCompany} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Save Changes</button>
+              <button onClick={handleEditCompany} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Save Changes</button>
             </div>
           </div>
         </div>

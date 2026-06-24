@@ -60,6 +60,12 @@ export class UpdateCompanyDto {
     @IsOptional()
     @IsString()
     planId?: string;
+    @IsOptional() @IsString() city?: string;
+    @IsOptional() @IsString() country?: string;
+    @IsOptional() @IsString() phone?: string;
+    @IsOptional() @IsString() website?: string;
+    @IsOptional() @IsString() companySize?: string;
+    @IsOptional() @IsString() regNumber?: string;
 }
 
 export class TransferEmployeeDto {
