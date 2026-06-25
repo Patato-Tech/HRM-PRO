@@ -46,8 +46,17 @@ export class AuthController {
     updateCompany(@Request() req, @Body() body: any) {
         return this.authService.updateCompanyInfo(req.user.companyId, body);
     }
+    @Post('forgot-password')
+    forgotPassword(@Body() body: { email: string }) {
+        return this.authService.forgotPassword(body.email);
+    }
+    @Post('reset-password')
+    resetPassword(@Body() body: { token: string; newPassword: string }) {
+        return this.authService.resetPassword(body.token, body.newPassword);
+    }
     @Get('company-status')
     getCompanyStatus(@Query('email') email: string) {
         return this.authService.getCompanyStatusByEmail(email);
     }
 }
+

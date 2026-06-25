@@ -206,6 +206,21 @@ export class AuthService {
             },
         });
     }
+    async forgotPassword(email: string) {
+        const user = await this.prisma.user.findFirst({ where: { email } });
+        if (!user) return { message: "If this email exists, a reset link will be sent." };
+        const resetToken = Math.random().toString(36).substring(2,15) + Math.random().toString(36).substring(2,15);
+        const resetExpiry = new Date(Date.now() + 3600000);
+        await this.prisma.user.update({ where: { id: user.id }, data: { resetToken, resetTokenExpiry: resetExpiry } });
+        return { message: "Password reset token generated.", resetToken, email: user.email };
+    }
+    async resetPassword(token: string, newPassword: string) {
+        const user = await this.prisma.user.findFirst({ where: { resetToken: token } });
+        if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) throw new Error("Invalid or expired reset token.");
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: hashedPassword, resetToken: null, resetTokenExpiry: null } });
+        return { message: "Password reset successfully." };
+    }
     async getCompanyInfo(companyId: number) {
         const company = await this.prisma.company.findUnique({
             where: { id: companyId },
