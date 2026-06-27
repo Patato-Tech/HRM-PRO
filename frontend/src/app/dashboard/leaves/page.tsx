@@ -648,7 +648,7 @@ export default function LeavesPage() {
                         <span
                           className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[leave.status] || "bg-gray-100 text-gray-600"}`}
                         >
-                          {leave.status}
+                          {leave.status ? leave.status.charAt(0).toUpperCase() + leave.status.slice(1) : "—"}
                         </span>
                       </td>
                       <td className="px-6 py-4">

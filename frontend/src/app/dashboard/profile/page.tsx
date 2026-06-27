@@ -591,7 +591,7 @@ export default function ProfilePage() {
                        {i === 0 && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">Latest</span>}
                      </div>
                      <div className="flex items-center gap-2">
-                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.status === "paid" || p.status === "PAID" ? "bg-green-100 text-green-700" : p.status === "approved" || p.status === "APPROVED" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>{p.status}</span>
+                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.status === "paid" || p.status === "PAID" ? "bg-green-100 text-green-700" : p.status === "approved" || p.status === "APPROVED" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>{p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : "—"}</span>
                        <button onClick={() => {
                          const win = window.open("", "_blank");
                          if (!win) return;

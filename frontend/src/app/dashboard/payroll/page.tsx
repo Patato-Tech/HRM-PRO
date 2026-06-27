@@ -576,7 +576,7 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                     <td className="px-6 py-4 text-sm font-bold text-gray-900">PKR {p.netSalary.toLocaleString()}</td>
                     <td className="px-6 py-4">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {p.status}
+                        {p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : "—"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -650,7 +650,7 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
                         <td className="px-4 py-3 text-sm text-red-500">PKR {(p.totalDeductions || p.deductions).toLocaleString()}</td>
                         <td className="px-4 py-3 text-sm font-bold text-gray-900">PKR {p.netSalary.toLocaleString()}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${STATUS_COLORS[p.status]}`}>{p.status}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${STATUS_COLORS[p.status]}`}>{p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : "—"}</span>
                         </td>
                       </tr>
                     ))}

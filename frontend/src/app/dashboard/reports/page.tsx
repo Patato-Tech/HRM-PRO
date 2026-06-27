@@ -285,7 +285,7 @@ export default function ReportsPage() {
                         </p>
                       </div>
                       <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {record.status}
+                        {record.status ? record.status.charAt(0).toUpperCase() + record.status.slice(1) : "—"}
                       </span>
                     </div>
                   ))
@@ -823,7 +823,7 @@ export default function ReportsPage() {
                             <td className="px-6 py-3 text-sm text-gray-600">{leave.days} days</td>
                             <td className="px-6 py-3">
                               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[leave.status] || 'bg-gray-100 text-gray-600'}`}>
-                                {leave.status}
+                                {leave.status ? leave.status.charAt(0).toUpperCase() + leave.status.slice(1) : "—"}
                               </span>
                             </td>
                           </tr>
@@ -917,7 +917,7 @@ export default function ReportsPage() {
                             <td className="px-6 py-3 text-sm font-bold text-gray-900">PKR {Number(p.netSalary).toLocaleString()}</td>
                             <td className="px-6 py-3">
                               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[p.status] || 'bg-gray-100 text-gray-600'}`}>
-                                {p.status}
+                                {p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : "—"}
                               </span>
                             </td>
                           </tr>

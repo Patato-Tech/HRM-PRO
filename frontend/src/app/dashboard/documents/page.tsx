@@ -57,6 +57,7 @@ export default function DocumentsPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [customDocType, setCustomDocType] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 
@@ -341,13 +342,13 @@ export default function DocumentsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Document Type *</label>
-                  <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
+                  <select value={customDocType ? "Other" : form.type} onChange={e => { if (e.target.value === "Other") { setCustomDocType(true); setForm({...form, type: ""}); } else { setCustomDocType(false); setForm({...form, type: e.target.value}); }}}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900">
                     {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
+                  {customDocType && <input type="text" value={form.type} onChange={e => setForm({...form, type: e.target.value})} placeholder="Enter custom document type" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Document Name *</label>
                   <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="e.g. National ID Card" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
                 </div>
