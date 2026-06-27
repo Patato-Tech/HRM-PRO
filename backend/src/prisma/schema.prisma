@@ -13,7 +13,8 @@ model PlatformAdmin {
   email        String   @unique
   passwordHash String
   role         String   @default("platform_admin")
-  createdAt    DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Company {
@@ -31,7 +32,8 @@ model Company {
   status              String               @default("active")
   planId              String?
   createdById         Int?
-  createdAt           DateTime             @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   users               User[]
   employees           Employee[]
   departments         Department[]
@@ -64,7 +66,8 @@ model User {
   resetToken           String?
   resetTokenExpiry     DateTime?
   sessionInvalidatedAt DateTime?
-  createdAt            DateTime            @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   company              Company             @relation(fields: [companyId], references: [id])
   employee             Employee?
   salaryHistories      SalaryHistory[]
@@ -84,7 +87,8 @@ model Department {
   name             String
   headId           Int?
   status           String            @default("active")
-  createdAt        DateTime          @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   company          Company           @relation(fields: [companyId], references: [id])
   employees        Employee[]
   shiftSchedules   ShiftSchedule[]
@@ -103,7 +107,8 @@ model Employee {
   salary              Float                @default(0)
   joinDate            DateTime             @default(now())
   status              String               @default("active")
-  createdAt           DateTime             @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   phone               String?
   cnic                String?
   gender              String?
@@ -154,7 +159,8 @@ model PublicHoliday {
   name      String
   startDate DateTime
   endDate   DateTime
-  createdAt DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   company   Company  @relation(fields: [companyId], references: [id])
 }
 
@@ -180,7 +186,8 @@ model DeductionRule {
   type             String // LATE_ARRIVAL | HALF_DAY | UNAPPROVED_LEAVE
   deductPercentage Float    @default(0)
   isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   company          Company  @relation(fields: [companyId], references: [id])
 
   @@unique([companyId, type])
@@ -194,7 +201,8 @@ model Attendance {
   checkIn    DateTime?
   checkOut   DateTime?
   status     String
-  createdAt  DateTime  @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   company    Company   @relation(fields: [companyId], references: [id])
   employee   Employee  @relation(fields: [employeeId], references: [id])
 }
@@ -210,7 +218,8 @@ model Leave {
   reason     String?
   status     String   @default("pending")
   approvedBy Int?
-  createdAt  DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   company    Company  @relation(fields: [companyId], references: [id])
   employee   Employee @relation(fields: [employeeId], references: [id])
 }
@@ -224,7 +233,8 @@ model LeaveBalance {
   used       Int      @default(0)
   remaining  Int      @default(0)
   year       Int
-  createdAt  DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   company    Company  @relation(fields: [companyId], references: [id])
   employee   Employee @relation(fields: [employeeId], references: [id])
 }
@@ -270,7 +280,8 @@ model SalaryHistory {
   type        String // "increment" | "decrement"
   reason      String?
   changedById Int
-  createdAt   DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   company   Company  @relation(fields: [companyId], references: [id])
   employee  Employee @relation(fields: [employeeId], references: [id])
@@ -367,7 +378,8 @@ model TrainingEnrollment {
   employeeId  Int
   status      String    @default("pending") // pending | completed | failed
   completedAt DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   company  Company         @relation(fields: [companyId], references: [id])
   program  TrainingProgram @relation(fields: [programId], references: [id])
