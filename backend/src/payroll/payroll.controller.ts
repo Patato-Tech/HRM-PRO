@@ -7,7 +7,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('payroll')
 export class PayrollController {
-    constructor(private payrollService: PayrollService) { }
+    constructor(private payrollService: PayrollService, private payrollScheduler: PayrollScheduler) { }
 
     @Get()
     findAll(@Request() req: any) {
@@ -91,3 +91,4 @@ export class PayrollController {
         return this.payrollService.delete(parseInt(id), Number(req.user.companyId), req.user);
     }
 }
+
