@@ -200,3 +200,21 @@ export const usePermissions = () => {
   };
 };
 
+export const canViewEmployees = (user: any) => hasPermission(user, "employees", "view");
+export const canCreateEmployee = (user: any) => hasPermission(user, "employees", "create");
+export const canEditEmployee = (user: any) => hasPermission(user, "employees", "edit_basic") || hasPermission(user, "employees", "edit_full");
+export const canDeleteEmployee = (user: any) => hasPermission(user, "employees", "delete");
+export const canViewSalary = (user: any) => hasPermission(user, "employees", "edit_salary") || user?.role === "COMPANY_ADMIN" || user?.role === "HR_MANAGER";
+export const canViewAttendance = (user: any) => hasPermission(user, "attendance", "view");
+export const canManageAttendance = (user: any) => hasPermission(user, "attendance", "manage");
+export const canViewLeaves = (user: any) => hasPermission(user, "leaves", "view");
+export const canApproveLeave = (user: any) => hasPermission(user, "leaves", "approve");
+export const canManageLeaves = (user: any) => hasPermission(user, "leaves", "manage");
+export const canViewPayroll = (user: any) => hasPermission(user, "payroll", "view");
+export const canViewPayrollSalary = (user: any) => hasPermission(user, "payroll", "view_salary");
+export const canProcessPayroll = (user: any) => hasPermission(user, "payroll", "process");
+export const canApprovePayroll = (user: any) => hasPermission(user, "payroll", "approve");
+export const canViewReports = (user: any) => hasPermission(user, "reports", "view");
+export const canViewDepartments = (user: any) => hasPermission(user, "departments", "view");
+export const canManageDocs = (user: any) => hasPermission(user, "documents", "upload");
+export const canDeleteDocs = (user: any) => hasPermission(user, "documents", "delete");

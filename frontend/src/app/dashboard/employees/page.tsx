@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, hasPermission, isCompanyAdmin } from "@/lib/withAuth";
+import { useAuth, hasPermission, isCompanyAdmin, canCreateEmployee, canEditEmployee, canDeleteEmployee, canViewSalary } from "@/lib/withAuth";
 import { apiCall, getToken } from "@/lib/api";
 
 interface Department {
@@ -2016,6 +2016,7 @@ export default function EmployeesPage() {
     </div>
   );
 }
+
 
 
 
