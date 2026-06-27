@@ -787,56 +787,52 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
 
             <div className="space-y-4">
               {[
-                { type: "LATE_ARRIVAL", label: "Late Arrival", icon: "⏰", desc: "Deduct % of daily salary per late arrival" },
-                { type: "HALF_DAY", label: "Half Day", icon: "🌓", desc: "Deduct 50% of daily salary automatically" },
-                { type: "UNAPPROVED_LEAVE", label: "Unapproved Leave", icon: "🌿", desc: "Deduct 1 day salary per unapproved leave day" },
+                { type: "LATE_ARRIVAL", label: "Late Arrival", icon: "⏰", link: "📅 Attendance", defaultPct: 50, color: "orange" },
+                { type: "HALF_DAY", label: "Half Day", icon: "🌓", link: "📅 Attendance", defaultPct: 50, color: "blue" },
+                { type: "UNAPPROVED_LEAVE", label: "Unapproved Leave", icon: "🌿", link: "🌿 Leaves", defaultPct: 100, color: "red" },
+                { type: "ABSENT", label: "Absent", icon: "❌", link: "📅 Attendance", defaultPct: 100, color: "red" },
               ].map(ruleType => {
                 const existing = deductionRules.find(r => r.type === ruleType.type);
                 const isActive = existing?.isActive || false;
-                const percentage = existing?.deductPercentage || (ruleType.type === "LATE_ARRIVAL" ? 50 : ruleType.type === "HALF_DAY" ? 50 : 100);
+                const percentage = existing?.deductPercentage ?? ruleType.defaultPct;
                 return (
-                  <div key={ruleType.type} className={`rounded-xl p-4 border-2 transition-all ${isActive ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-gray-50"}`}>
-                    <div className="flex items-center justify-between">
+                  <div key={ruleType.type} className={["rounded-2xl p-4 border-2 transition-all", isActive ? (ruleType.color === "orange" ? "border-orange-200 bg-orange-50" : ruleType.color === "blue" ? "border-blue-200 bg-blue-50" : "border-red-200 bg-red-50") : "border-gray-100 bg-white"].join(" ")}>
+                    <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{ruleType.icon}</span>
+                        <div className={["w-10 h-10 rounded-xl flex items-center justify-center text-xl", isActive ? "bg-white shadow-sm" : "bg-gray-100"].join(" ")}>{ruleType.icon}</div>
                         <div>
-                          <p className="font-semibold text-gray-900">{ruleType.label}</p>
-                          <p className="text-xs text-gray-400">{ruleType.desc}</p>
+                          <p className="font-black text-gray-900 text-sm">{ruleType.label}</p>
+                          <span className="text-xs text-blue-500 font-medium">{ruleType.link}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {ruleType.type === "LATE_ARRIVAL" && (
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs text-gray-500">Deduct %:</label>
-                            <input type="number" value={percentage} min="1" max="100"
-                              onChange={e => {
-                                const newRules = deductionRules.filter(r => r.type !== ruleType.type);
-                                setDeductionRules([...newRules, { type: ruleType.type, deductPercentage: Number(e.target.value), isActive }]);
-                              }}
-                              className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                          </div>
-                        )}
-                        <button onClick={() => {
-                          const newRules = deductionRules.filter(r => r.type !== ruleType.type);
-                          setDeductionRules([...newRules, { type: ruleType.type, deductPercentage: percentage, isActive: !isActive }]);
-                        }} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isActive ? "bg-blue-600" : "bg-gray-200"}`}>
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isActive ? "translate-x-6" : "translate-x-1"}`} />
-                        </button>
-                      </div>
+                      <button onClick={() => { const nr = deductionRules.filter(r => r.type !== ruleType.type); setDeductionRules([...nr, { type: ruleType.type, deductPercentage: percentage, isActive: !isActive }]); }} className={["relative inline-flex h-6 w-11 items-center rounded-full transition-colors", isActive ? "bg-blue-600" : "bg-gray-200"].join(" ")}>
+                        <span className={["inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform", isActive ? "translate-x-6" : "translate-x-1"].join(" ")} />
+                      </button>
                     </div>
+                    {isActive && (
+                      <div className="mt-3 bg-white rounded-xl p-3 border border-gray-100">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-gray-600">Deduction %</label>
+                          <div className="flex items-center gap-2">
+                            <input type="number" value={percentage} min="1" max="100" onChange={e => { const nr = deductionRules.filter(r => r.type !== ruleType.type); setDeductionRules([...nr, { type: ruleType.type, deductPercentage: Number(e.target.value), isActive }]); }} className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold" />
+                            <span className="text-sm font-bold text-gray-500">%</span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
+                          <div className="h-1.5 rounded-full transition-all" style={{width: percentage + "%", background: "linear-gradient(135deg,#1d4ed8,#3b82f6)"}}></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-            </div>
-
-            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-              <p className="text-xs text-yellow-700 font-semibold mb-1">ℹ️ How deductions work:</p>
-              <p className="text-xs text-yellow-600">These rules automatically apply when creating payroll. The system checks attendance records for the selected month and calculates deductions accordingly.</p>
+              <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                <p className="text-xs text-yellow-700 font-semibold">ℹ️ Checks attendance (late/absent/half-day) and rejected leaves. Per day salary = Basic ÷ 26.</p>
+              </div>
             </div>
           </div>
         </div>
       )}
-      {/* ADD MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6">
