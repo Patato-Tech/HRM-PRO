@@ -195,9 +195,9 @@ export default function AttendancePage() {
         );
         setMissingCheckouts(missing);
       } catch {}
-      setEmployees(empData);
-      setRecords(recordsData);
-      setDepartments(deptData || []);
+      const isOwnDeptAtt = user?.customRoleScope === "own_department" && user?.departmentId;
+      setEmployees(isOwnDeptAtt ? (empData || []).filter((e: any) => String(e.departmentId) === String(user.departmentId)) : (empData || []));
+      setRecords(isOwnDeptAtt ? (recordsData || []).filter((r: any) => String(r.employee?.departmentId) === String(user.departmentId)) : (recordsData || []));
       // Fetch own attendance for custom role users
       if (user?.employeeId) {
         apiCall(`/attendance/employee/${user.employeeId}`, {}, token)

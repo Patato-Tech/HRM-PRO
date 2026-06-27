@@ -143,7 +143,9 @@ export default function LeavesPage() {
     try {
       if (isPlainEmployee && user?.employeeId) {
           const empData = await apiCall("/employees", {}, token);
-          if (Array.isArray(empData)) setEmployees(empData);
+          const isOwnDeptLv = user?.customRoleScope === "own_department" && user?.departmentId;
+          const filteredLvEmps = isOwnDeptLv ? (empData || []).filter((e: any) => String(e.departmentId) === String(user.departmentId)) : (empData || []);
+          if (Array.isArray(empData)) setEmployees(filteredLvEmps);
         const data = await apiCall(
           `/leaves/employee/${user.employeeId}`,
           {},
@@ -168,8 +170,6 @@ export default function LeavesPage() {
           apiCall("/employees", {}, token),
         ];
         const results = await Promise.allSettled(promises);
-        if (results[0].status === "fulfilled") setLeaves(results[0].value);
-        if (results[1].status === "fulfilled")
           setPendingLeaves(results[1].value);
         if (results[2].status === "fulfilled") setEmployees(results[2].value);
       }
