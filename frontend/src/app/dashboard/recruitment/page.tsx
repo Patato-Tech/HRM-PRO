@@ -87,7 +87,8 @@ export default function RecruitmentPage() {
         apiCall('/recruitment/jobs', {}, token),
         apiCall('/departments', {}, token),
       ]);
-      setJobs(jobsData || []);
+      const isOwnDeptRec = user?.customRoleScope === "own_department" && user?.departmentId;
+      setJobs(isOwnDeptRec ? (jobsData || []).filter((j) => String(j.departmentId) === String(user.departmentId)) : (jobsData || []));
       setDepartments(deptsData || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }

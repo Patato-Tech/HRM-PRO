@@ -86,8 +86,9 @@ export default function PerformancePage() {
         apiCall('/employees', {}, token),
         apiCall('/departments', {}, token),
       ]);
-      setReviews(reviewsData || []);
-      setEmployees(empsData || []);
+      const isOwnDeptPerf = user?.customRoleScope === "own_department" && user?.departmentId;
+      setReviews(isOwnDeptPerf ? (reviewsData || []).filter((r) => String(r.employee?.departmentId) === String(user.departmentId)) : (reviewsData || []));
+      setEmployees(isOwnDeptPerf ? (empsData || []).filter((e) => String(e.departmentId) === String(user.departmentId)) : (empsData || []));
       setDepartments(deptsData || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }

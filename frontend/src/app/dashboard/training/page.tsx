@@ -75,7 +75,8 @@ export default function TrainingPage() {
         apiCall('/departments', {}, token),
       ]);
       setPrograms(progsData || []);
-      setEmployees(empsData || []);
+      const isOwnDeptTrn = user?.customRoleScope === "own_department" && user?.departmentId;
+      setEmployees(isOwnDeptTrn ? (empsData || []).filter((e) => String(e.departmentId) === String(user.departmentId)) : (empsData || []));
       setDepartments(deptsData || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
