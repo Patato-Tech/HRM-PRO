@@ -190,6 +190,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span>⚙️</span><span>Company Settings</span>
               </a>
             )}
+            <button onClick={toggleDarkMode} className="dd-item w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all" style={{color:"rgba(255,255,255,0.7)"}}>
+              <span>{darkMode ? "☀️" : "🌙"}</span><span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
+            </button>
             <div style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
               <button onClick={() => { setProfileOpen(false); logout(); }}
                 className="dd-logout w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-400 transition-all">

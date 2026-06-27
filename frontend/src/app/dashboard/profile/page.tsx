@@ -66,6 +66,8 @@ export default function ProfilePage() {
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [picUploading, setPicUploading] = useState(false);
+
+
   const [showEditCompany, setShowEditCompany] = useState(false);
   const [customIndustry, setCustomIndustry] = useState(false);
   const [customCountry, setCustomCountry] = useState(false);
@@ -95,6 +97,8 @@ export default function ProfilePage() {
     if (!authLoading && !user) router.replace('/');
     if (user) {
       setEditName(user.name || '');
+      const savedPic = localStorage.getItem('user_profile_pic');
+      if (savedPic) setProfilePic(savedPic);
       const pic = localStorage.getItem('user_profile_pic');
       if (pic) setProfilePic(pic);
       fetchEmployeeInfo();
@@ -136,6 +140,21 @@ export default function ProfilePage() {
     };
     reader.readAsDataURL(file);
   };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const fetchCompanyInfo = async () => {
     if (!user) return;
     try {
@@ -234,9 +253,14 @@ export default function ProfilePage() {
       <div className="rounded-2xl overflow-hidden" style={{background:"linear-gradient(135deg,#0f172a,#1e293b)",boxShadow:"0 8px 30px rgba(0,0,0,0.15)"}}>
         <div className="p-6">
           <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl font-black flex-shrink-0 shadow-lg"
-              style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
-              {user.name?.charAt(0)?.toUpperCase() || "?"}
+            <div className="relative flex-shrink-0">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                {profilePic ? <img src={profilePic} alt="Profile" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white text-3xl font-black">{user.name?.charAt(0)?.toUpperCase() || "?"}</div>}
+              </div>
+              <label className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full cursor-pointer flex items-center justify-center text-sm shadow-lg" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                {picUploading ? "⏳" : "📷"}
+                <input type="file" accept="image/*" onChange={handleProfilePicUpload} className="hidden" />
+              </label>
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-black text-white">{user.name}</h1>
