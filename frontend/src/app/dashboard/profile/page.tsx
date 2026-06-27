@@ -466,7 +466,7 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between">
             <h2 className="font-black text-gray-900 text-lg">Company Information</h2>
             <div className="flex items-center gap-2">
-              <span className={companyInfo?.status === "active" ? "text-xs px-3 py-1 rounded-full font-bold bg-green-100 text-green-700" : "text-xs px-3 py-1 rounded-full font-bold bg-yellow-100 text-yellow-700"}>{companyInfo?.status || "—"}</span>
+              <span className={companyInfo?.status === "active" ? "text-xs px-3 py-1 rounded-full font-bold bg-green-100 text-green-700" : "text-xs px-3 py-1 rounded-full font-bold bg-yellow-100 text-yellow-700"}>{companyInfo?.status ? companyInfo.status.charAt(0).toUpperCase() + companyInfo.status.slice(1) : "—"}</span>
               <button onClick={() => { setEditCompanyForm({name: companyInfo?.name||"", industry: companyInfo?.industry||"", address: companyInfo?.address||"", city: companyInfo?.city||"", country: companyInfo?.country||"", phone: companyInfo?.phone||"", website: companyInfo?.website||"", companySize: companyInfo?.companySize||"", regNumber: companyInfo?.regNumber||""}); setShowEditCompany(true); }} className="text-xs font-bold text-white px-3 py-1.5 rounded-xl" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Edit</button>
             </div>
           </div>
@@ -796,6 +796,7 @@ export default function ProfilePage() {
     </div>
   );
 }
+
 
 
 

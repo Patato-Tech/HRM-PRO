@@ -1162,7 +1162,7 @@ export default function AttendancePage() {
                           <span
                             className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || "bg-gray-100 text-gray-600"}`}
                           >
-                            {record.status.replace("_", " ")}
+                            {record.status.replace("_", " ").charAt(0).toUpperCase() + record.status.replace("_", " ").slice(1)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
@@ -1327,7 +1327,7 @@ export default function AttendancePage() {
                         <span
                           className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[record.status] || "bg-gray-100 text-gray-600"}`}
                         >
-                          {record.status.replace("_", " ")}
+                          {record.status.replace("_", " ").charAt(0).toUpperCase() + record.status.replace("_", " ").slice(1)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
@@ -2109,6 +2109,7 @@ export default function AttendancePage() {
     </div>
   );
 }
+
 
 
 
