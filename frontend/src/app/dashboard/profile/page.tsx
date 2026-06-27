@@ -64,6 +64,8 @@ export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth(false);
   const [activeTab, setActiveTab] = useState<TabKey>('info');
   const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [picUploading, setPicUploading] = useState(false);
   const [showEditCompany, setShowEditCompany] = useState(false);
   const [customIndustry, setCustomIndustry] = useState(false);
   const [customCountry, setCustomCountry] = useState(false);
@@ -93,6 +95,8 @@ export default function ProfilePage() {
     if (!authLoading && !user) router.replace('/');
     if (user) {
       setEditName(user.name || '');
+      const pic = localStorage.getItem('user_profile_pic');
+      if (pic) setProfilePic(pic);
       fetchEmployeeInfo();
       fetchCompanyInfo();
       setEditDesignation(user.designation || '');
@@ -117,6 +121,21 @@ export default function ProfilePage() {
     }
   }, [activeTab, user]);
 
+  const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('Image must be under 2MB'); return; }
+    setPicUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      localStorage.setItem('user_profile_pic', base64);
+      setProfilePic(base64);
+      window.dispatchEvent(new Event('profile_pic_updated'));
+      setPicUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
   const fetchCompanyInfo = async () => {
     if (!user) return;
     try {
@@ -796,6 +815,7 @@ export default function ProfilePage() {
     </div>
   );
 }
+
 
 
 

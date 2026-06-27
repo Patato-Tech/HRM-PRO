@@ -24,6 +24,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  useEffect(() => {
+    const saved = localStorage.getItem('dark_mode');
+    if (saved === 'true') { setDarkMode(true); document.documentElement.setAttribute('data-theme', 'dark'); }
+    const pic = localStorage.getItem('user_profile_pic');
+    if (pic) setProfilePic(pic);
+  }, []);
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    localStorage.setItem('dark_mode', String(next));
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+  };
   const [activeModules, setActiveModules] = useState<Record<string, boolean>>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -236,3 +250,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
+
