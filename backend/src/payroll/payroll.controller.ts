@@ -1,5 +1,6 @@
 ﻿import { Controller, Get, Post, Put, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
+import { PayrollScheduler } from './payroll.scheduler';
 import { CreatePayrollDto, UpdatePayrollDto } from './dto/payroll.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -69,6 +70,12 @@ export class PayrollController {
         return this.payrollService.update(parseInt(id), dto, Number(req.user.companyId), req.user);
     }
 
+    @Post('auto-generate')
+    async autoGenerate(@Request() req: any) {
+        if (req.user.role !== 'COMPANY_ADMIN') throw new Error('Only Company Admin can trigger auto payroll');
+        await this.payrollScheduler.autoGeneratePayroll();
+        return { message: 'Payroll auto-generation triggered successfully' };
+    }
     @Put(':id/approve')
     approve(@Param('id') id: string, @Request() req: any) {
         return this.payrollService.approve(parseInt(id), Number(req.user.companyId), req.user);

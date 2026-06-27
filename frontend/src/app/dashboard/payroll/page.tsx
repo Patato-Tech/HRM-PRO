@@ -68,6 +68,7 @@ export default function PayrollPage() {
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear());
   const [monthPayrolls, setMonthPayrolls] = useState<PayrollRecord[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [deptFilter, setDeptFilter] = useState('all');
   const [departments, setDepartments] = useState<any[]>([]);
   const slipRef = useRef<HTMLDivElement>(null);
@@ -221,6 +222,15 @@ export default function PayrollPage() {
     }
   }, [activeTab]);
 
+  const handleAutoGenerate = async () => {
+    setAutoGenLoading(true);
+    try {
+      await apiCall("/payroll/auto-generate", { method: "POST" }, getToken() || "");
+      fetchData();
+      showSuccessMsg("Payroll auto-generated successfully!");
+    } catch (e: any) { setError(e?.message || "Failed to auto-generate payroll"); }
+    finally { setAutoGenLoading(false); }
+  };
   const handleBulkProcess = async () => {
     setBulkLoading(true);
     try {
@@ -675,7 +685,7 @@ td{padding:7px 12px;font-size:11px;border-bottom:1px solid #f3f4f6}
       {activeTab === 'process' && canProcess && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-semibold text-gray-900 mb-4">⚡ Bulk Process Payroll</h2>
+            <div className="flex items-center justify-between mb-4"><h2 className="font-semibold text-gray-900">⚡ Bulk Process Payroll</h2>{isCompanyAdmin(user?.role || "") && <button onClick={handleAutoGenerate} disabled={autoGenLoading} className="text-white text-xs px-4 py-2 rounded-xl font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#059669,#10b981)"}}>{autoGenLoading ? "Generating..." : "🤖 Auto Generate Last Month"}</button>}</div>
             <div className="bg-yellow-50 rounded-xl p-3 mb-4">
               <p className="text-sm text-yellow-700">This will create payroll records for <strong>{employees.filter((emp: any) => !payrolls.some((p: any) => (String(p.employee?.id) === String(emp.id) || String(p.employeeId) === String(emp.id)) && Number(p.month) === Number(monthFilter) && Number(p.year) === Number(yearFilter))).length}</strong> remaining employees for {MONTHS[monthFilter - 1]} {yearFilter}.</p>
             </div>
