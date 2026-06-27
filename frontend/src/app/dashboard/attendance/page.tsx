@@ -251,7 +251,8 @@ export default function AttendancePage() {
     const token = getToken() || "";
     try {
       const data = await apiCall(`/attendance/date/${selectedDate}`, {}, token);
-      setRecords(data);
+      const isOwnDeptDate = user?.customRoleScope === "own_department" && user?.departmentId;
+      setRecords(isOwnDeptDate ? (data || []).filter((r) => String(r.employee?.departmentId) === String(user.departmentId)) : (data || []));
     } catch (err) {
       console.error(err);
     }
