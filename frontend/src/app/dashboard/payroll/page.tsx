@@ -88,9 +88,9 @@ export default function PayrollPage() {
         apiCall('/employees', {}, token),
         apiCall('/departments', {}, token),
       ]);
-      setPayrolls(payrollData || []);
-      setEmployees(empData || []);
-      setDepartments(deptData || []);
+      const isOwnDeptPay = user?.customRoleScope === "own_department" && user?.departmentId;
+      setPayrolls(isOwnDeptPay ? (payrollData || []).filter((r: any) => String(r.employee?.departmentId) === String(user.departmentId)) : (payrollData || []));
+      setEmployees(isOwnDeptPay ? (empData || []).filter((e: any) => String(e.departmentId) === String(user.departmentId)) : (empData || []));
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };

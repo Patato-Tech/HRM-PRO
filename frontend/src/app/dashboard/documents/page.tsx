@@ -86,9 +86,9 @@ export default function DocumentsPage() {
         apiCall('/employees', {}, token),
         apiCall('/departments', {}, token),
       ]);
-      setDocuments(docsData || []);
-      setEmployees(empsData || []);
-      setDepartments(deptsData || []);
+      const isOwnDeptDoc = user?.customRoleScope === "own_department" && user?.departmentId;
+      setDocuments(isOwnDeptDoc ? (docsData || []).filter((d: any) => String(d.employee?.departmentId) === String(user.departmentId)) : (docsData || []));
+      setEmployees(isOwnDeptDoc ? (empsData || []).filter((e: any) => String(e.departmentId) === String(user.departmentId)) : (empsData || []));
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };

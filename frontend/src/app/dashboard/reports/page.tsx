@@ -182,7 +182,7 @@ export default function ReportsPage() {
   // Fetch employees for attendance report
   useEffect(() => {
     if (!token) return;
-    apiCall('/employees', {}, token).then(data => setEmployees(data || [])).catch(() => {});
+    apiCall('/employees', {}, token).then(data => { const isOwnDeptRep = user?.customRoleScope === 'own_department' && user?.departmentId; setEmployees(isOwnDeptRep ? (data || []).filter((e: any) => String(e.departmentId) === String(user.departmentId)) : (data || [])); }).catch(() => {});
   }, [token]);
 
   // Monthly attendance report fetch
