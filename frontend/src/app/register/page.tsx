@@ -65,7 +65,7 @@ function RegisterForm() {
           const data = await res.json();
           if (data.status === 'active') { setApproved(true); if (pollingRef.current) clearInterval(pollingRef.current); }
         } catch {}
-      }, 30000);
+      }, 5000);
     }
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [submitted, registeredEmail, approved]);
@@ -127,12 +127,13 @@ function RegisterForm() {
     if (!agreed) { setError("Please agree to the terms and conditions."); return; }
     setLoading(true); setError('');
     try {
-      await apiCall('/auth/register', {
+      await apiCall('/platform/register', {
         method: 'POST',
         body: JSON.stringify({
           companyName: form.companyName, industry: form.industry, address: form.address,
-          name: form.adminName, email: form.adminEmail, password: form.adminPassword,
-          role: 'COMPANY_ADMIN',
+          city: form.city, country: form.country, companyPhone: form.companyPhone,
+          website: form.website, companySize: form.companySize, regNumber: form.regNumber,
+          adminName: form.adminName, adminEmail: form.adminEmail, adminPassword: form.adminPassword,
         }),
       });
       setSubmitted(true);
@@ -162,7 +163,7 @@ function RegisterForm() {
               <p className="text-gray-500 text-sm mb-6">Under review. Platform admin will activate your account shortly.</p>
               <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6">
                 <p className="text-yellow-700 text-sm font-semibold">⏳ Pending approval</p>
-                <p className="text-yellow-600 text-xs mt-1">Page auto-updates every 30 seconds.</p>
+                <p className="text-yellow-600 text-xs mt-1">Page auto-updates every 5 seconds.</p>
               </div>
               <button onClick={() => router.push('/')} className="w-full py-3.5 rounded-2xl text-sm font-bold text-white" style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)'}}>Go to Login</button>
             </>
@@ -521,5 +522,7 @@ function RegisterForm() {
 export default function RegisterPage() {
   return <Suspense><RegisterForm /></Suspense>;
 }
+
+
 
 

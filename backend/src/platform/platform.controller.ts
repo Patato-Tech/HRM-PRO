@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+﻿import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { PlatformService } from './platform.service';
 import { PlatformLoginDto, UpdateCompanyDto } from './dto/platform.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -56,3 +56,4 @@ export class PlatformController {
         return this.platformService.resetCompanyAdminPassword(parseInt(id), body.newPassword);
     }
 }
+
