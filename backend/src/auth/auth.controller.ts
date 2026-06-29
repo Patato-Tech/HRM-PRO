@@ -50,6 +50,10 @@ export class AuthController {
     forgotPassword(@Body() body: { email: string }) {
         return this.authService.sendForgotPasswordOTP(body.email);
     }
+    @Post('send-verification-otp')
+    sendVerificationOTP(@Body() body: { email: string }) {
+        return this.authService.sendVerificationOTP(body.email);
+    }
     @Post('verify-otp')
     verifyOTP(@Body() body: { email: string; otp: string; newPassword: string }) {
         return this.authService.verifyForgotPasswordOTP(body.email, body.otp, body.newPassword);
@@ -68,6 +72,7 @@ export class AuthController {
         return this.authService.getCompanyStatusByEmail(email);
     }
 }
+
 
 
 

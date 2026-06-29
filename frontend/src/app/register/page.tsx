@@ -3,6 +3,17 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiCall } from '@/lib/api';
 
+const CITIES_BY_COUNTRY: Record<string, string[]> = {
+  "Pakistan": ["Karachi","Lahore","Islamabad","Rawalpindi","Faisalabad","Multan","Peshawar","Quetta","Sialkot","Gujranwala","Hyderabad","Abbottabad","Bahawalpur","Sargodha","Sahiwal","Other"],
+  "United States": ["New York","Los Angeles","Chicago","Houston","Phoenix","Dallas","San Diego","San Jose","Austin","Other"],
+  "United Kingdom": ["London","Birmingham","Manchester","Leeds","Glasgow","Liverpool","Bristol","Sheffield","Other"],
+  "United Arab Emirates": ["Dubai","Abu Dhabi","Sharjah","Ajman","Ras Al Khaimah","Fujairah","Other"],
+  "Saudi Arabia": ["Riyadh","Jeddah","Mecca","Medina","Dammam","Khobar","Tabuk","Other"],
+  "India": ["Mumbai","Delhi","Bangalore","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Other"],
+  "Canada": ["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa","Other"],
+  "Australia": ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Other"],
+};
+
 const validatePassword = (pw: string) => {
   const errors: string[] = [];
   if (pw.length < 8) errors.push("at least 8 characters");
@@ -132,7 +143,7 @@ function RegisterForm() {
     if (!form.adminEmail.includes('@')) { setOtpError('Enter a valid email first'); return; }
     setOtpLoading(true); setOtpError('');
     try {
-      await apiCall('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: form.adminEmail }) });
+      await apiCall('/auth/send-verification-otp', { method: 'POST', body: JSON.stringify({ email: form.adminEmail }) });
       setEmailOtpSent(true);
     } catch (e: any) { setOtpError(e?.message || 'Failed to send OTP'); }
     finally { setOtpLoading(false); }
@@ -352,7 +363,7 @@ function RegisterForm() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
-                  <input type="text" value={form.city} onChange={e => setForm({...form, city: e.target.value})} placeholder="Enter city" className={inputClass("city")} />
+                  {(() => { const cities = (CITIES_BY_COUNTRY as any)[form.country] || []; const isOther = form.city !== "" && !cities.filter((c: string) => c !== "Other").includes(form.city); return cities.length > 0 ? (<><select value={isOther ? "Other" : form.city} onChange={e => { if (e.target.value === "Other") { setForm({...form, city: "CUSTOM_"}); } else { setForm({...form, city: e.target.value}); }}} className={inputClass("city")}><option value="">Select city</option>{cities.map((c: string) => <option key={c} value={c}>{c}</option>)}</select>{(isOther || form.city === "CUSTOM_") && <input type="text" value={form.city === "CUSTOM_" ? "" : form.city} onChange={e => setForm({...form, city: e.target.value || "CUSTOM_"})} placeholder="Enter your city name" className={inputClass("city") + " mt-2"} />}</>) : (<input type="text" value={form.city} onChange={e => setForm({...form, city: e.target.value})} placeholder="Enter city name" className={inputClass("city")} />); })()}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Country</label>

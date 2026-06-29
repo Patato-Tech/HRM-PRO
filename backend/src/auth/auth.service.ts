@@ -251,6 +251,12 @@ export class AuthService {
         return { message: 'Account activated successfully' };
     }
 
+    async sendVerificationOTP(email: string) {
+        const name = email.split("@")[0];
+        await this.otpService.sendOTP(email, name, "Email Verification");
+        return { message: "Verification OTP sent to your email" };
+    }
+
     async sendForgotPasswordOTP(email: string) {
         const user = await this.prisma.user.findFirst({ where: { email } });
         const name = user ? user.name : email.split("@")[0];
@@ -274,4 +280,5 @@ export class AuthService {
         return { message: 'Password reset successfully' };
     }
 }
+
 
