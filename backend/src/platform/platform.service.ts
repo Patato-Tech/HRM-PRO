@@ -70,7 +70,11 @@ export class PlatformService {
 
         try {
             const admin = await this.prisma.user.findFirst({ where: { companyId: id, role: "COMPANY_ADMIN" } });
-            if (admin) await this.emailService.sendCompanyApproved(admin.email, admin.name, company.name);
+            if (admin) {
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                await this.prisma.oTP.create({ data: { email: admin.email, otp, purpose: "Account Activation", expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } });
+                await this.emailService.sendActivationEmail(admin.email, admin.name, company.name, "Check your registration details", otp);
+            }
         } catch (e) { console.error("Approval email failed:", e.message); }
         return { message: `${company.name} approved and activated` };
     }
@@ -118,4 +122,5 @@ export class PlatformService {
         return { message: `Password reset for ${companyAdmin.name} (${companyAdmin.email})` };
     }
 }
+
 

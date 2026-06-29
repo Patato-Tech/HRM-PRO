@@ -266,7 +266,7 @@ export class AuthService {
 
 
     async verifyEmailOTP(email: string, otp: string) {
-        const valid = await this.otpService.verifyOTP(email, otp, 'Password Reset');
+        const valid = await this.otpService.verifyOTP(email, otp, 'Email Verification');
         if (!valid) throw new Error('Invalid or expired OTP');
         return { message: 'Email verified successfully' };
     }
