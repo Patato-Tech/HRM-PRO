@@ -125,6 +125,8 @@ export class EmployeesService {
         const count = await this.prisma.employee.count({ where: { companyId } });
         const employeeCode = `EMP${String(count + 1).padStart(3, '0')}`;
 
+        const existingUser = await this.prisma.user.findFirst({ where: { email: dto.email } });
+        if (existingUser) throw new BadRequestException('An employee with this email already exists');
         const newUser = await this.prisma.user.create({
             data: {
                 name: dto.name,
