@@ -37,6 +37,11 @@ function RegisterForm() {
   const [submitted, setSubmitted] = useState(false);
   const [approved, setApproved] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailOtp, setEmailOtp] = useState('');
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
   const [animIn, setAnimIn] = useState(false);
   const [step, setStep] = useState(1);
   const [showPw, setShowPw] = useState(false);
@@ -123,6 +128,26 @@ function RegisterForm() {
     setStep(step + 1);
   };
 
+  const sendEmailOtp = async () => {
+    if (!form.adminEmail.includes('@')) { setOtpError('Enter a valid email first'); return; }
+    setOtpLoading(true); setOtpError('');
+    try {
+      await apiCall('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: form.adminEmail }) });
+      setEmailOtpSent(true);
+    } catch (e: any) { setOtpError(e?.message || 'Failed to send OTP'); }
+    finally { setOtpLoading(false); }
+  };
+  const verifyEmailOtp = async () => {
+    if (!emailOtp || emailOtp.length !== 6) { setOtpError('Enter the 6-digit OTP'); return; }
+    setOtpLoading(true); setOtpError('');
+    try {
+      await apiCall('/auth/verify-email-otp', { method: 'POST', body: JSON.stringify({ email: form.adminEmail, otp: emailOtp }) });
+      setEmailVerified(true);
+      setEmailOtpSent(false);
+      setOtpError('');
+    } catch (e: any) { setOtpError('Invalid or expired OTP'); }
+    finally { setOtpLoading(false); }
+  };
   const handleSubmit = async () => {
     if (!agreed) { setError("Please agree to the terms and conditions."); return; }
     setLoading(true); setError('');
@@ -397,7 +422,21 @@ function RegisterForm() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address <span className="text-red-500">*</span></label>
-                <input type="email" value={form.adminEmail} onChange={e => setForm({...form, adminEmail: e.target.value})} onBlur={e => validateField("adminEmail", e.target.value)} placeholder="Enter email address" className={inputClass("adminEmail")} />
+                <div className="flex gap-2">
+                <input type="email" value={form.adminEmail} onChange={e => { setForm({...form, adminEmail: e.target.value}); setEmailVerified(false); setEmailOtpSent(false); }} onBlur={e => validateField("adminEmail", e.target.value)} placeholder="Enter email address" className={inputClass("adminEmail") + " flex-1"} />
+                {emailVerified ? (
+                  <span className="flex items-center gap-1 text-green-600 text-sm font-bold px-3 bg-green-50 rounded-xl border border-green-200">✅ Verified</span>
+                ) : (
+                  <button type="button" onClick={sendEmailOtp} disabled={otpLoading || !form.adminEmail.includes("@")} className="px-4 py-2 text-sm font-bold text-white rounded-xl disabled:opacity-50 whitespace-nowrap" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>{otpLoading ? "..." : emailOtpSent ? "Resend" : "Verify"}</button>
+                )}
+              </div>
+              {emailOtpSent && !emailVerified && (
+                <div className="mt-2 space-y-2">
+                  <input type="text" value={emailOtp} onChange={e => setEmailOtp(e.target.value)} placeholder="Enter 6-digit OTP" maxLength={6} className="w-full border-2 border-blue-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 text-center font-bold tracking-widest focus:outline-none focus:border-blue-500" />
+                  <button type="button" onClick={verifyEmailOtp} disabled={otpLoading} className="w-full py-2 text-sm font-bold text-white rounded-xl disabled:opacity-50" style={{background:"linear-gradient(135deg,#059669,#10b981)"}}>{otpLoading ? "Verifying..." : "Confirm OTP"}</button>
+                </div>
+              )}
+              {otpError && <p className="text-xs text-red-500 mt-1">{otpError}</p>}
                 {fieldErrors.adminEmail && <p className="text-xs text-red-500 mt-1">{fieldErrors.adminEmail}</p>}
               </div>
               <div>

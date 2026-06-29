@@ -1,0 +1,12 @@
+﻿const fs = require('fs');
+const file = 'C:/Users/aghaa/Desktop/HRM PRO/frontend/src/app/register/page.tsx';
+let content = fs.readFileSync(file, 'utf8');
+
+// Add verify button after email input
+content = content.replace(
+  '<input type="email" value={form.adminEmail} onChange={e => setForm({...form, adminEmail: e.target.value})} onBlur={e => validateField("adminEmail", e.target.value)} placeholder="Enter email address" className={inputClass("adminEmail")} />',
+  '<div className="flex gap-2">\n                <input type="email" value={form.adminEmail} onChange={e => { setForm({...form, adminEmail: e.target.value}); setEmailVerified(false); setEmailOtpSent(false); }} onBlur={e => validateField("adminEmail", e.target.value)} placeholder="Enter email address" className={inputClass("adminEmail") + " flex-1"} />\n                {emailVerified ? (\n                  <span className="flex items-center gap-1 text-green-600 text-sm font-bold px-3 bg-green-50 rounded-xl border border-green-200">✅ Verified</span>\n                ) : (\n                  <button type="button" onClick={sendEmailOtp} disabled={otpLoading || !form.adminEmail.includes("@")} className="px-4 py-2 text-sm font-bold text-white rounded-xl disabled:opacity-50 whitespace-nowrap" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>{otpLoading ? "..." : emailOtpSent ? "Resend" : "Verify"}</button>\n                )}\n              </div>\n              {emailOtpSent && !emailVerified && (\n                <div className="mt-2 space-y-2">\n                  <input type="text" value={emailOtp} onChange={e => setEmailOtp(e.target.value)} placeholder="Enter 6-digit OTP" maxLength={6} className="w-full border-2 border-blue-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 text-center font-bold tracking-widest focus:outline-none focus:border-blue-500" />\n                  <button type="button" onClick={verifyEmailOtp} disabled={otpLoading} className="w-full py-2 text-sm font-bold text-white rounded-xl disabled:opacity-50" style={{background:"linear-gradient(135deg,#059669,#10b981)"}}>{otpLoading ? "Verifying..." : "Confirm OTP"}</button>\n                </div>\n              )}\n              {otpError && <p className="text-xs text-red-500 mt-1">{otpError}</p>}'
+);
+
+fs.writeFileSync(file, content, 'utf8');
+console.log('Step 3 done!');

@@ -240,14 +240,20 @@ export class AuthService {
             include: { company: { select: { status: true, name: true } } }
         });
         if (!user) return { status: 'unknown' };
-        return { status: (user as any).company?.status || 'unknown', companyName: (user as any).company?.name };
+        return { status: (user as any).company?.status || "unknown", companyName: (user as any).company?.name };
     }
-
     async sendForgotPasswordOTP(email: string) {
         const user = await this.prisma.user.findFirst({ where: { email } });
-        if (!user) throw new Error('No account found with this email');
-        await this.otpService.sendOTP(email, user.name, 'Password Reset');
-        return { message: 'OTP sent to your email' };
+        const name = user ? user.name : email.split("@")[0];
+        await this.otpService.sendOTP(email, name, "Password Reset");
+        return { message: "OTP sent to your email" };
+    }
+
+
+    async verifyEmailOTP(email: string, otp: string) {
+        const valid = await this.otpService.verifyOTP(email, otp, 'Password Reset');
+        if (!valid) throw new Error('Invalid or expired OTP');
+        return { message: 'Email verified successfully' };
     }
 
     async verifyForgotPasswordOTP(email: string, otp: string, newPassword: string) {
@@ -259,3 +265,4 @@ export class AuthService {
         return { message: 'Password reset successfully' };
     }
 }
+

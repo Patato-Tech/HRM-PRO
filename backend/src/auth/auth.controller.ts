@@ -54,10 +54,15 @@ export class AuthController {
     verifyOTP(@Body() body: { email: string; otp: string; newPassword: string }) {
         return this.authService.verifyForgotPasswordOTP(body.email, body.otp, body.newPassword);
     }
+    @Post('verify-email-otp')
+    verifyEmailOTP(@Body() body: { email: string; otp: string }) {
+        return this.authService.verifyEmailOTP(body.email, body.otp);
+    }
     @Get('company-status')
     getCompanyStatus(@Query('email') email: string) {
         return this.authService.getCompanyStatusByEmail(email);
     }
 }
+
 
 
