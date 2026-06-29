@@ -6,11 +6,12 @@ import * as bcrypt from 'bcryptjs';
 import { checkPermission, getEmployeeScopeFilter, canViewSalary, isSelfOperation } from '../auth/rbac.util';
 import { EmailService } from '../email/email.service';
 
+
 const SAFE_USER_SELECT = { id: true, name: true, email: true, role: true, isActive: true };
 
 @Injectable()
 export class EmployeesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(private prisma: PrismaService, private emailService: EmailService) { }
 
     async findAll(companyId: number, user: any) {
         const isAdmin = user.role === 'COMPANY_ADMIN';
@@ -294,5 +295,42 @@ export class EmployeesService {
         await this.prisma.user.delete({ where: { id: employee.userId } });
         return { message: 'Employee deleted successfully' };
     }
-}
 
+    async bulkImport(employees: any[], companyId: number, user: any) {
+        if (user.role !== 'COMPANY_ADMIN') throw new Error('Only Company Admin can bulk import');
+        const results: { success: number; skipped: number; errors: string[] } = { success: 0, skipped: 0, errors: [] };
+        const bcrypt = require('bcryptjs');
+        for (const emp of employees) {
+            try {
+                if (!emp.email || !emp.name || !emp.password) {
+                    results.errors.push((emp.email || 'Unknown') + ': Missing required fields');
+                    results.skipped++; continue;
+                }
+                const existing = await this.prisma.user.findFirst({ where: { email: emp.email } });
+                if (existing) {
+                    results.errors.push(emp.email + ': Email already exists');
+                    results.skipped++; continue;
+                }
+                const hashedPassword = await bcrypt.hash(emp.password, 10);
+                const count = await this.prisma.employee.count({ where: { companyId } });
+                const employeeCode = 'EMP' + String(count + 1).padStart(3, '0');
+                const newUser = await this.prisma.user.create({
+                    data: { name: emp.name, email: emp.email, passwordHash: hashedPassword, role: 'EMPLOYEE', companyId },
+                });
+                const deptId = emp.departmentId ? Number(emp.departmentId) : null;
+                await this.prisma.employee.create({
+                    data: { companyId, userId: newUser.id, employeeCode, designation: emp.designation || '', departmentId: deptId, salary: Number(emp.salary || 0) },
+                });
+                try {
+                    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
+                    await this.emailService.sendWelcome(emp.email, emp.name, company?.name || 'HRMPro', 'EMPLOYEE', emp.password);
+                } catch (e) { console.error('Welcome email failed:', e.message); }
+                results.success++;
+            } catch (e: any) {
+                results.errors.push(emp.email + ': ' + e.message);
+                results.skipped++;
+            }
+        }
+        return results;
+    }
+}

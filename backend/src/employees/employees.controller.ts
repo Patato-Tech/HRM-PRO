@@ -53,8 +53,20 @@ export class EmployeesController {
         return this.employeesService.deactivate(parseInt(id), Number(req.user.companyId), req.user);
     }
 
+    @Post('bulk-import')
+    bulkImport(@Body() body: { employees: any[] }, @Request() req: any) {
+        return this.employeesService.bulkImport(body.employees, Number(req.user.companyId), req.user);
+    }
+
+
+
+
+
+
     @Delete(':id')
     remove(@Param('id') id: string, @Request() req: any) {
         return this.employeesService.remove(parseInt(id), Number(req.user.companyId), req.user);
     }
 }
+
+

@@ -80,6 +80,10 @@ export default function EmployeesPage() {
   const [error, setError] = useState("");
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importRows, setImportRows] = useState<any[]>([]);
@@ -209,6 +213,35 @@ export default function EmployeesPage() {
     setLoading(false);
   };
 
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.split('\n').filter(l => l.trim());
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const data = lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim());
+        const obj: any = {};
+        headers.forEach((h, i) => obj[h] = vals[i] || '');
+        return obj;
+      });
+      setImportData(data);
+    };
+    reader.readAsText(file);
+  };
+  const handleBulkImport = async () => {
+    if (!importData.length) return;
+    setImportLoading(true);
+    try {
+      const token = getToken() || '';
+      const result = await apiCall('/employees/bulk-import', { method: 'POST', body: JSON.stringify({ employees: importData }) }, token);
+      setImportResult(result);
+      fetchData();
+    } catch (e: any) { setError(e.message); }
+    finally { setImportLoading(false); }
+  };
   const showSuccessMsg = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(""), 3000);
@@ -942,6 +975,61 @@ export default function EmployeesPage() {
       )}
 
       {/* ADD MODAL */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="text-lg font-black text-gray-900">📥 Bulk Import Employees</h3>
+              <button onClick={() => { setShowImportModal(false); setImportData([]); setImportResult(null); }} className="text-gray-400 hover:text-gray-600 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              {!importResult ? (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-sm font-bold text-blue-800 mb-2">CSV Format Required:</p>
+                    <p className="text-xs text-blue-600 font-mono">name,email,password,designation,salary,departmentId</p>
+                    <p className="text-xs text-blue-500 mt-1">Example: John Doe,john@co.com,Pass@123,Developer,50000,1</p>
+                  </div>
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
+                    <p className="text-gray-500 text-sm mb-3">Upload your CSV file</p>
+                    <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" id="csv-upload" />
+                    <label htmlFor="csv-upload" className="cursor-pointer text-white px-4 py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#7c3aed,#8b5cf6)"}}>Choose CSV File</label>
+                  </div>
+                  {importData.length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                      <p className="text-sm font-bold text-green-800">✅ {importData.length} employees ready to import</p>
+                      <div className="mt-2 max-h-32 overflow-y-auto">
+                        {importData.slice(0,5).map((emp, i) => <p key={i} className="text-xs text-green-600">{emp.name} — {emp.email}</p>)}
+                        {importData.length > 5 && <p className="text-xs text-green-500">+{importData.length - 5} more...</p>}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={() => { setShowImportModal(false); setImportData([]); }} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium">Cancel</button>
+                    <button onClick={handleBulkImport} disabled={importLoading || !importData.length} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#7c3aed,#8b5cf6)"}}>{importLoading ? "Importing..." : "Import Employees"}</button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                    <p className="text-2xl mb-2">🎉</p>
+                    <p className="font-bold text-green-800">Import Complete!</p>
+                    <p className="text-sm text-green-600 mt-1">✅ {importResult.success} imported successfully</p>
+                    {importResult.skipped > 0 && <p className="text-sm text-yellow-600">⚠️ {importResult.skipped} skipped</p>}
+                  </div>
+                  {importResult.errors?.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 max-h-32 overflow-y-auto">
+                      <p className="text-xs font-bold text-red-700 mb-1">Errors:</p>
+                      {importResult.errors.map((e: string, i: number) => <p key={i} className="text-xs text-red-600">{e}</p>)}
+                    </div>
+                  )}
+                  <button onClick={() => { setShowImportModal(false); setImportData([]); setImportResult(null); }} className="w-full text-white py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>Done</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
