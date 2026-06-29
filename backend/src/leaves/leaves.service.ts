@@ -5,7 +5,7 @@ import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
 
 @Injectable()
 export class LeavesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(private prisma: PrismaService, private emailService: EmailService) { }
 
     async findAll(companyId: number, actorDeptId?: number | null, customRoleScope?: string | null) {
         const where: any = { companyId };

@@ -141,7 +141,7 @@ export class EmployeesService {
         const deptId = dto.departmentId ? Number(dto.departmentId) : null;
         const roleId = dto.roleId ? Number(dto.roleId) : null;
 
-        return this.prisma.employee.create({
+        const employee = await this.prisma.employee.create({
             data: { companyId, userId: newUser.id, employeeCode, designation: dto.designation, departmentId: deptId, salary, roleId },
             include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
         });
