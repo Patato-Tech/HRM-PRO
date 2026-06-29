@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import * as bcrypt from 'bcryptjs';
 import { checkPermission, getEmployeeScopeFilter, canViewSalary, isSelfOperation } from '../auth/rbac.util';
+import { EmailService } from '../email/email.service';
 
 const SAFE_USER_SELECT = { id: true, name: true, email: true, role: true, isActive: true };
 
