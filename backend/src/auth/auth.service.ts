@@ -3,14 +3,17 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
+import { EmailService } from '../email/email.service';
+import { OtpService } from '../email/otp.service';
 
 @Injectable()
 export class AuthService {
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
+        private emailService: EmailService,
+        private otpService: OtpService,
     ) { }
-
     async register(dto: RegisterDto) {
         if (dto.role === 'PLATFORM_ADMIN') {
             const existing = await this.prisma.platformAdmin.findUnique({ where: { email: dto.email } });
@@ -239,7 +242,20 @@ export class AuthService {
         if (!user) return { status: 'unknown' };
         return { status: (user as any).company?.status || 'unknown', companyName: (user as any).company?.name };
     }
+
+    async sendForgotPasswordOTP(email: string) {
+        const user = await this.prisma.user.findFirst({ where: { email } });
+        if (!user) throw new Error('No account found with this email');
+        await this.otpService.sendOTP(email, user.name, 'Password Reset');
+        return { message: 'OTP sent to your email' };
+    }
+
+    async verifyForgotPasswordOTP(email: string, otp: string, newPassword: string) {
+        const valid = await this.otpService.verifyOTP(email, otp, 'Password Reset');
+        if (!valid) throw new Error('Invalid or expired OTP');
+        const hash = await bcrypt.hash(newPassword, 10);
+        const user = await this.prisma.user.findFirst({ where: { email } });
+        if (user) await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } });
+        return { message: 'Password reset successfully' };
+    }
 }
-
-
-

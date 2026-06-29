@@ -16,6 +16,8 @@ export default function LoginPage() {
   const [showResetPw, setShowResetPw] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -63,8 +65,9 @@ export default function LoginPage() {
     if (!forgotEmail.trim() || !forgotEmail.includes('@')) { setForgotError('Please enter a valid email.'); return; }
     setForgotLoading(true); setForgotError('');
     try {
-      const data = await apiCall('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: forgotEmail }) });
-      setResetToken(data.resetToken || '');
+      await apiCall('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: forgotEmail }) });
+      setOtpSent(true);
+      setForgotSuccess('OTP sent to your email! Check your inbox.');
       setShowForgotPw(false);
       setShowResetPw(true);
     } catch (e) { setForgotError('Failed. Please check your email.'); }
@@ -75,7 +78,7 @@ export default function LoginPage() {
     if (newPassword !== confirmNewPassword) { setForgotError('Passwords do not match.'); return; }
     setForgotLoading(true); setForgotError('');
     try {
-      await apiCall('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token: resetToken, newPassword }) });
+      await apiCall('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email: forgotEmail, otp, newPassword }) });
       setShowResetPw(false);
       setForgotSuccess('Password reset! You can now login.');
     } catch (e) { setForgotError('Failed to reset password. Token may be expired.'); }
@@ -277,16 +280,36 @@ export default function LoginPage() {
               <h3 className="text-xl font-black text-gray-900">Forgot Password</h3>
               <button onClick={() => setShowForgotPw(false)} className="text-gray-400 hover:text-gray-600 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">x</button>
             </div>
-            <p className="text-sm text-gray-500 mb-5">Enter your email and we will generate a password reset token.</p>
+            <p className="text-sm text-gray-500 mb-5">Enter your email to receive a 6-digit OTP for password reset.</p>
             {forgotError && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{forgotError}</div>}
             <div className="mb-5">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
               <input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="Enter your email" className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500 bg-gray-50" />
             </div>
+            {otpSent && (
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Enter OTP</label>
+                <input type="text" value={otp} onChange={e => setOtp(e.target.value)} placeholder="Enter 6-digit OTP" maxLength={6} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500 bg-gray-50 text-center text-2xl font-bold tracking-widest" />
+                <p className="text-xs text-gray-400 mt-1 text-center">Check your email inbox</p>
+              </div>
+            )}
+            {otpSent && (
+              <div className="mb-5 space-y-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                  <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter new password" className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500 bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                  <input type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500 bg-gray-50" />
+                </div>
+                <button onClick={handleResetPassword} disabled={forgotLoading || !otp || !newPassword || newPassword !== confirmNewPassword} className="w-full text-white py-3 rounded-2xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#059669,#10b981)"}}>{forgotLoading ? "Resetting..." : "Reset Password"}</button>
+              </div>
+            )}
             <div className="flex gap-3">
               <button onClick={() => setShowForgotPw(false)} className="flex-1 border-2 border-gray-200 text-gray-700 py-3 rounded-2xl text-sm font-medium">Cancel</button>
               <button onClick={handleForgotPassword} disabled={forgotLoading} className="flex-1 text-white py-3 rounded-2xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
-                {forgotLoading ? "Processing..." : "Get Reset Token"}
+                {forgotLoading ? "Sending..." : otpSent ? "Resend OTP" : "Send OTP"}
               </button>
             </div>
           </div>

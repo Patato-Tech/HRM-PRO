@@ -8,6 +8,7 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { LeavesModule } from './leaves/leaves.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { PlatformModule } from './platform/platform.module';
+import { EmailModule } from './email/email.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -20,6 +21,7 @@ import { DocumentsModule } from './documents/documents.module';
   imports: [
     ScheduleModule.forRoot(),
     PrismaModule,
+    EmailModule,
     AuthModule,
     EmployeesModule,
     DepartmentsModule,
@@ -41,3 +43,4 @@ import { DocumentsModule } from './documents/documents.module';
   ],
 })
 export class AppModule { }
+

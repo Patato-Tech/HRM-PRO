@@ -3,10 +3,11 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformLoginDto, UpdateCompanyDto } from './dto/platform.dto';
 import * as bcrypt from 'bcryptjs';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class PlatformService {
-    constructor(private prisma: PrismaService, private jwtService: JwtService) { }
+    constructor(private prisma: PrismaService, private jwtService: JwtService, private emailService: EmailService) { }
 
     async login(dto: PlatformLoginDto) {
         const admin = await this.prisma.platformAdmin.findUnique({ where: { email: dto.email } });
@@ -112,3 +113,4 @@ export class PlatformService {
         return { message: `Password reset for ${companyAdmin.name} (${companyAdmin.email})` };
     }
 }
+

@@ -48,15 +48,16 @@ export class AuthController {
     }
     @Post('forgot-password')
     forgotPassword(@Body() body: { email: string }) {
-        return this.authService.forgotPassword(body.email);
+        return this.authService.sendForgotPasswordOTP(body.email);
     }
-    @Post('reset-password')
-    resetPassword(@Body() body: { token: string; newPassword: string }) {
-        return this.authService.resetPassword(body.token, body.newPassword);
+    @Post('verify-otp')
+    verifyOTP(@Body() body: { email: string; otp: string; newPassword: string }) {
+        return this.authService.verifyForgotPasswordOTP(body.email, body.otp, body.newPassword);
     }
     @Get('company-status')
     getCompanyStatus(@Query('email') email: string) {
         return this.authService.getCompanyStatusByEmail(email);
     }
 }
+
 

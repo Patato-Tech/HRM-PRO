@@ -1,4 +1,5 @@
-﻿import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+﻿import { EmailService } from '../email/email.service';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
 
@@ -228,3 +229,4 @@ export class LeavesService {
         });
     }
 }
+
