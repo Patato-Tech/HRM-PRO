@@ -84,6 +84,7 @@ export class AuthService {
         const user = await this.prisma.user.findFirst({ where: { email: dto.email } });
         if (!user) throw new UnauthorizedException('Invalid credentials');
         if (!user.isActive) throw new UnauthorizedException('Your account is deactivated');
+        if (!(user as any).isActivated) throw new UnauthorizedException(JSON.stringify({ code: "ACCOUNT_NOT_ACTIVATED", email: user.email }));
 
         const company = await this.prisma.company.findUnique({ where: { id: user.companyId } });
         if (company && company.status === 'pending') {
@@ -242,6 +243,14 @@ export class AuthService {
         if (!user) return { status: 'unknown' };
         return { status: (user as any).company?.status || "unknown", companyName: (user as any).company?.name };
     }
+    async activateAccount(email: string, otp: string) {
+        const valid = await this.otpService.verifyOTP(email, otp, 'Account Activation');
+        if (!valid) throw new Error('Invalid or expired OTP');
+        const user = await this.prisma.user.findFirst({ where: { email } });
+        if (user) await this.prisma.user.update({ where: { id: user.id }, data: { isActivated: true } });
+        return { message: 'Account activated successfully' };
+    }
+
     async sendForgotPasswordOTP(email: string) {
         const user = await this.prisma.user.findFirst({ where: { email } });
         const name = user ? user.name : email.split("@")[0];

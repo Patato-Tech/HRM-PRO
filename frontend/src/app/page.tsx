@@ -17,6 +17,11 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [showActivation, setShowActivation] = useState(false);
+  const [activationEmail, setActivationEmail] = useState('');
+  const [activationOtp, setActivationOtp] = useState('');
+  const [activationLoading, setActivationLoading] = useState(false);
+  const [activationError, setActivationError] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -311,6 +316,28 @@ export default function LoginPage() {
               <button onClick={handleForgotPassword} disabled={forgotLoading} className="flex-1 text-white py-3 rounded-2xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
                 {forgotLoading ? "Sending..." : otpSent ? "Resend OTP" : "Send OTP"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showActivation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">🔐</div>
+              <h3 className="text-2xl font-black text-gray-900">Activate Your Account</h3>
+              <p className="text-sm text-gray-500 mt-2">Enter the 6-digit OTP sent to your email to activate your account.</p>
+              <p className="text-sm font-semibold text-blue-600 mt-1">{activationEmail}</p>
+            </div>
+            {activationError && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 mb-4 text-sm">{activationError}</div>}
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Activation OTP</label>
+              <input type="text" value={activationOtp} onChange={e => setActivationOtp(e.target.value)} placeholder="Enter 6-digit OTP" maxLength={6} className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500 bg-gray-50 text-center text-2xl font-bold tracking-widest" />
+              <p className="text-xs text-gray-400 mt-1 text-center">Check your welcome email for the OTP</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowActivation(false)} className="flex-1 border-2 border-gray-200 text-gray-700 py-3 rounded-2xl text-sm font-medium">Cancel</button>
+              <button onClick={handleActivateAccount} disabled={activationLoading} className="flex-1 text-white py-3 rounded-2xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>{activationLoading ? "Activating..." : "Activate Account"}</button>
             </div>
           </div>
         </div>

@@ -63,6 +63,8 @@ model User {
   passwordHash         String
   role                 String
   isActive             Boolean             @default(true)
+  isActivated          Boolean             @default(false)
+
   resetToken           String?
   resetTokenExpiry     DateTime?
   sessionInvalidatedAt DateTime?
