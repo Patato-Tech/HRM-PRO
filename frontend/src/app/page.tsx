@@ -60,12 +60,23 @@ export default function LoginPage() {
       localStorage.setItem('user_customRoleScope', data.user.customRoleScope || '');
       router.replace('/dashboard');
     } catch (err: any) {
-      const msg = err.message || 'Invalid credentials';
-      const p = getErrorPopup(msg);
-      if (p) setPopup(p); else setError(msg);
+      const msg = err.message || "Invalid credentials";
+      try { const parsed = JSON.parse(msg); if (parsed.code === "ACCOUNT_NOT_ACTIVATED") { setActivationEmail(parsed.email); setShowActivation(true); setLoading(false); return; } } catch {}
+      const p = getErrorPopup(msg); if (p) setPopup(p); else setError(msg);
     } finally { setLoading(false); }
   };
 
+  const handleActivateAccount = async () => {
+    if (!activationOtp || activationOtp.length !== 6) { setActivationError('Enter the 6-digit OTP from your email'); return; }
+    setActivationLoading(true); setActivationError('');
+    try {
+      await apiCall('/auth/activate-account', { method: 'POST', body: JSON.stringify({ email: activationEmail, otp: activationOtp }) });
+      setShowActivation(false);
+      setActivationOtp('');
+      setError('✅ Account activated! Please login now.');
+    } catch (e) { setActivationError('Invalid or expired OTP. Check your email.'); }
+    finally { setActivationLoading(false); }
+  };
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim() || !forgotEmail.includes('@')) { setForgotError('Please enter a valid email.'); return; }
     setForgotLoading(true); setForgotError('');
