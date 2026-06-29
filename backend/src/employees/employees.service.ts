@@ -1,4 +1,4 @@
-﻿import { App } from 'supertest/types';
+import { App } from 'supertest/types';
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
@@ -145,6 +145,8 @@ export class EmployeesService {
             data: { companyId, userId: newUser.id, employeeCode, designation: dto.designation, departmentId: deptId, salary, roleId },
             include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
         });
+        try { const co = await this.prisma.company.findUnique({ where: { id: companyId } }); await this.emailService.sendWelcome(dto.email, dto.name, co ? co.name : "HRMPro", "EMPLOYEE", dto.password); } catch (ex) { console.error("Welcome email failed:", ex.message); }
+        return employee;
     }
 
     async update(id: number, dto: UpdateEmployeeDto, companyId: number, user: any) {

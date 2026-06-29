@@ -1,4 +1,4 @@
-﻿import { EmailService } from '../email/email.service';
+import { EmailService } from '../email/email.service';
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeaveDto, CreateLeaveBalanceDto } from './dto/leave.dto';
@@ -170,6 +170,7 @@ export class LeavesService {
                 });
             }
         }
+        try { const ea = await this.prisma.employee.findFirst({ where: { id: leave.employeeId }, include: { user: true } }); if (ea) await this.emailService.sendLeaveStatus(ea.user.email, ea.user.name, "Approved", leave.leaveType, new Date(leave.startDate).toDateString() + " - " + new Date(leave.endDate).toDateString()); } catch (ex) { console.error("Leave email failed:", ex.message); }
 
         return updated;
     }
@@ -177,10 +178,15 @@ export class LeavesService {
     async reject(id: number, companyId: number) {
         const leave = await this.prisma.leave.findFirst({ where: { id, companyId } });
         if (!leave) throw new NotFoundException('Leave not found');
-        return this.prisma.leave.update({
+        const rej = await this.prisma.leave.update({
             where: { id },
             data: { status: 'rejected' },
         });
+        try {
+            const er = await this.prisma.employee.findFirst({ where: { id: leave.employeeId }, include: { user: true } });
+            if (er) await this.emailService.sendLeaveStatus(er.user.email, er.user.name, "Rejected", leave.leaveType, new Date(leave.startDate).toDateString() + " - " + new Date(leave.endDate).toDateString());
+        } catch (ex) { console.error("Leave email failed:", ex.message); }
+        return rej;
     }
 
     async cancel(id: number, companyId: number, employeeId: number) {
