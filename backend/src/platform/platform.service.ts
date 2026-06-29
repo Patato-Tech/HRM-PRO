@@ -5,6 +5,7 @@ import { PlatformLoginDto, UpdateCompanyDto } from './dto/platform.dto';
 import * as bcrypt from 'bcryptjs';
 import { EmailService } from '../email/email.service';
 
+
 @Injectable()
 export class PlatformService {
     constructor(private prisma: PrismaService, private jwtService: JwtService, private emailService: EmailService) { }
@@ -67,6 +68,10 @@ export class PlatformService {
         if (company.status !== 'pending') throw new BadRequestException('Company is not pending');
         await this.prisma.company.update({ where: { id }, data: { status: 'active' } });
 
+        try {
+            const admin = await this.prisma.user.findFirst({ where: { companyId: id, role: "COMPANY_ADMIN" } });
+            if (admin) await this.emailService.sendCompanyApproved(admin.email, admin.name, company.name);
+        } catch (e) { console.error("Approval email failed:", e.message); }
         return { message: `${company.name} approved and activated` };
     }
 
