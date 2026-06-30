@@ -131,6 +131,46 @@ export default function ProfilePage() {
         .finally(() => setPayrollLoading(false));
     }
   }, [activeTab, user]);
+  const handleDocUpload = async () => {
+    setDocUploadError('');
+    if (docUploadFiles.length === 0) { setDocUploadError('Please select at least one file'); return; }
+    if (!docUploadName.trim()) { setDocUploadError('Document name is required'); return; }
+    if (!user?.employeeId) { setDocUploadError('Unable to identify your employee record'); return; }
+    setDocUploadLoading(true);
+    try {
+      const token = getToken() || '';
+      for (let i = 0; i < docUploadFiles.length; i++) {
+        const f = docUploadFiles[i];
+        const docName = docUploadFiles.length > 1 ? `${docUploadName} (${i + 1})` : docUploadName;
+        const formData = new FormData();
+        formData.append('file', f);
+        formData.append('employeeId', String(user.employeeId));
+        formData.append('type', docUploadType);
+        formData.append('name', docName);
+        formData.append('expiryDate', docUploadExpiry);
+        formData.append('notes', '');
+        const response = await fetch('http://localhost:5001/documents', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+          body: formData,
+        });
+        if (!response.ok) throw new Error(`Upload failed for ${f.name}`);
+      }
+      setShowDocUploadModal(false);
+      setDocUploadFiles([]);
+      setDocUploadName('');
+      setDocUploadExpiry('');
+      setDocUploadType('CNIC');
+      setDocsLoading(true);
+      const data = await apiCall(`/documents?employeeId=${user.employeeId}`, {}, token);
+      setDocuments((data || []).filter((d: any) => String(d.employeeId) === String(user.employeeId)));
+      setDocsLoading(false);
+    } catch (err: any) {
+      setDocUploadError(err.message || 'Upload failed');
+    } finally {
+      setDocUploadLoading(false);
+    }
+  };
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
