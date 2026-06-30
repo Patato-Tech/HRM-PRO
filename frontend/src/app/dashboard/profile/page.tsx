@@ -89,6 +89,13 @@ export default function ProfilePage() {
   const [salaryLoading, setSalaryLoading] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [showDocUploadModal, setShowDocUploadModal] = useState(false);
+  const [docUploadFiles, setDocUploadFiles] = useState<File[]>([]);
+  const [docUploadType, setDocUploadType] = useState('CNIC');
+  const [docUploadName, setDocUploadName] = useState('');
+  const [docUploadExpiry, setDocUploadExpiry] = useState('');
+  const [docUploadError, setDocUploadError] = useState('');
+  const [docUploadLoading, setDocUploadLoading] = useState(false);
   const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
@@ -677,9 +684,15 @@ export default function ProfilePage() {
       )}
       {activeTab === "documents" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">📄 My Documents</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Your uploaded documents</p>
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-gray-900">📄 My Documents</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Your uploaded documents</p>
+            </div>
+            <button onClick={() => { setShowDocUploadModal(true); setDocUploadError(""); }}
+              className="text-white px-4 py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+              + Upload Document
+            </button>
           </div>
           {docsLoading ? (
             <div className="flex items-center justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
@@ -687,7 +700,11 @@ export default function ProfilePage() {
             <div className="text-center py-12">
               <p className="text-3xl mb-2">📄</p>
               <p className="text-gray-500 font-medium">No documents uploaded yet</p>
-              <p className="text-gray-400 text-xs mt-1">Contact HR to upload your documents</p>
+              <p className="text-gray-400 text-xs mt-1 mb-4">Upload your CNIC, degree, or other documents</p>
+              <button onClick={() => { setShowDocUploadModal(true); setDocUploadError(""); }}
+                className="text-white px-5 py-2.5 rounded-xl text-sm font-bold" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                + Upload Document
+              </button>
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
@@ -839,6 +856,7 @@ export default function ProfilePage() {
     </div>
   );
 }
+
 
 
 
