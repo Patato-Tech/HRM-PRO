@@ -55,6 +55,9 @@ export default function DashboardPage() {
   const [todayAttendance, setTodayAttendance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deptInactive, setDeptInactive] = useState(false);
+  const [myTodayAttendance, setMyTodayAttendance] = useState<any>(null);
+  const [myRecentLeaves, setMyRecentLeaves] = useState<any[]>([]);
+  const [myLeaveBalance, setMyLeaveBalance] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) fetchAll();
@@ -71,11 +74,22 @@ export default function DashboardPage() {
         const employeeId = localStorage.getItem("user_employeeId");
         const departmentId = localStorage.getItem("user_departmentId");
         if (employeeId) {
-          const [ownAttendance, ownLeaves] = await Promise.allSettled([
+          const [ownAttendance, ownLeaves, ownBalance] = await Promise.allSettled([
             apiCall(`/attendance/employee/${employeeId}`, {}, token),
             apiCall(`/leaves/employee/${employeeId}`, {}, token),
+            apiCall(`/leaves/balance/${employeeId}`, {}, token),
           ]);
-          // No company stats for plain employees
+          if (ownAttendance.status === "fulfilled") {
+            const todayStr = new Date().toISOString().split("T")[0];
+            const todayRec = (ownAttendance.value || []).find((r: any) => r.date && r.date.split("T")[0] === todayStr);
+            setMyTodayAttendance(todayRec || null);
+          }
+          if (ownLeaves.status === "fulfilled") {
+            setMyRecentLeaves((ownLeaves.value || []).slice(0, 5));
+          }
+          if (ownBalance.status === "fulfilled") {
+            setMyLeaveBalance(ownBalance.value || []);
+        }
         }
         if (departmentId) {
           try {
@@ -369,6 +383,65 @@ export default function DashboardPage() {
       </div>
 
       </>)}
+      {isPlainEmployee && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-1 rounded-2xl p-5 relative overflow-hidden" style={{background: myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? "linear-gradient(135deg,#059669,#10b981)" : myTodayAttendance?.checkIn ? "linear-gradient(135deg,#1d4ed8,#3b82f6)" : "linear-gradient(135deg,#64748b,#94a3b8)", boxShadow:"0 8px 30px rgba(0,0,0,0.1)"}}>
+            <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-10" style={{background:"white",transform:"translate(30%,-30%)"}} />
+            <p className="text-xs font-bold uppercase tracking-widest text-white opacity-80 mb-3">Today's Attendance</p>
+            {myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? (
+              <>
+                <p className="text-2xl font-black text-white mb-1">✅ Completed</p>
+                <p className="text-xs text-white opacity-80">In: {new Date(myTodayAttendance.checkIn).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} • Out: {new Date(myTodayAttendance.checkOut).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</p>
+              </>
+            ) : myTodayAttendance?.checkIn ? (
+              <>
+                <p className="text-2xl font-black text-white mb-1">🚪 Checked In</p>
+                <p className="text-xs text-white opacity-80">In: {new Date(myTodayAttendance.checkIn).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} — don't forget to check out</p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-black text-white mb-1">⏰ Not Checked In</p>
+                <p className="text-xs text-white opacity-80">Mark your attendance for today</p>
+              </>
+            )}
+            <a href="/dashboard/attendance" className="inline-block mt-4 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors">Go to Attendance →</a>
+          </div>
+          <div className="lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100" style={{boxShadow:"0 4px 20px rgba(0,0,0,0.05)"}}>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Leave Balance</p>
+            {myLeaveBalance.length === 0 ? (
+              <p className="text-sm text-gray-400">No leave balance found</p>
+            ) : (
+              <div className="space-y-2">
+                {myLeaveBalance.slice(0, 4).map((b: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <p className="text-xs text-gray-600 font-medium">{b.leaveType}</p>
+                    <p className="text-sm font-black text-gray-900">{b.remaining}<span className="text-xs text-gray-400 font-normal">/{b.total}</span></p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <a href="/dashboard/leaves" className="inline-block mt-4 text-blue-600 hover:text-blue-700 text-xs font-bold">Apply for Leave →</a>
+          </div>
+          <div className="lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100" style={{boxShadow:"0 4px 20px rgba(0,0,0,0.05)"}}>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Recent Leave Requests</p>
+            {myRecentLeaves.length === 0 ? (
+              <p className="text-sm text-gray-400">No leave requests yet</p>
+            ) : (
+              <div className="space-y-2">
+                {myRecentLeaves.map((l: any) => (
+                  <div key={l.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700">{l.leaveType}</p>
+                      <p className="text-[11px] text-gray-400">{new Date(l.startDate).toLocaleDateString()} - {new Date(l.endDate).toLocaleDateString()}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${l.status === 'approved' ? 'bg-green-100 text-green-700' : l.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{l.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl p-5 border border-gray-100" style={{boxShadow:"0 4px 20px rgba(0,0,0,0.05)"}}>
         <h2 className="font-black text-gray-900 text-lg mb-4">Quick Actions</h2>
@@ -392,6 +465,8 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
 
 
 
