@@ -893,6 +893,58 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+      {showDocUploadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">Upload Document</h3>
+              <button onClick={() => setShowDocUploadModal(false)} className="text-gray-400 hover:text-gray-600 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              {docUploadError && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{docUploadError}</div>}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Document Type</label>
+                <select value={docUploadType} onChange={(e) => setDocUploadType(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50">
+                  <option value="CNIC">CNIC</option>
+                  <option value="Degree">Degree</option>
+                  <option value="Contract">Contract</option>
+                  <option value="Experience Letter">Experience Letter</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Document Name <span className="text-red-500">*</span></label>
+                <input type="text" value={docUploadName} onChange={(e) => setDocUploadName(e.target.value)} placeholder="e.g. My CNIC Copy"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Expiry Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input type="date" value={docUploadExpiry} onChange={(e) => setDocUploadExpiry(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Files <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">(you can select multiple)</span></label>
+                <input type="file" multiple onChange={(e) => setDocUploadFiles(e.target.files ? Array.from(e.target.files) : [])}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-gray-50" />
+                {docUploadFiles.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {docUploadFiles.map((f, i) => (
+                      <p key={i} className="text-xs text-gray-400">📎 {f.name}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 border-t border-gray-100">
+              <button onClick={() => setShowDocUploadModal(false)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-100">Cancel</button>
+              <button onClick={handleDocUpload} disabled={docUploadLoading} className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>
+                {docUploadLoading ? "Uploading..." : "Upload"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
