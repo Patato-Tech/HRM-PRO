@@ -86,6 +86,7 @@ export default function EmployeesPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importResults, setImportResults] = useState<{
     success: number;
+    failedRows?: { name: string; email: string; reason: string }[];
     failed: number;
   } | null>(null);
   const [importProgress, setImportProgress] = useState(0);
@@ -1585,6 +1586,14 @@ export default function EmployeesPage() {
                       ❌ {importResults.failed} records failed
                     </p>
                   )}
+                  {importResults.failedRows && importResults.failedRows.length > 0 && (
+                    <div className="mt-4 max-w-md mx-auto text-left bg-red-50 border border-red-200 rounded-xl p-4 max-h-48 overflow-y-auto">
+                      <p className="text-xs font-bold text-red-700 mb-2">Failed Rows:</p>
+                      {importResults.failedRows.map((fr, i) => (
+                        <p key={i} className="text-xs text-red-600 mb-1">{fr.name} ({fr.email}) — {fr.reason}</p>
+                      ))}
+                    </div>
+                  )}
                   <button
                     onClick={() => {
                       setShowImportModal(false);
@@ -1641,6 +1650,7 @@ export default function EmployeesPage() {
                       <p>• Gender — male, female, other</p>
                       <p>• EmploymentType — full_time, part_time, contract, intern</p>
                       <p>• CustomRole — must exist in Roles page (optional)</p>
+                      <p>• JoinDate — format YYYY-MM-DD, any past or future date (optional, defaults to today)</p>
                     </div>
                     <div className="mt-3">
                       <p className="text-xs font-semibold text-blue-700">
@@ -1663,7 +1673,7 @@ export default function EmployeesPage() {
                     <button
                       onClick={() => {
                         const csv =
-                          "Name,Email,Password,Designation,Department,Salary,Phone,CNIC,Gender,EmploymentType,CustomRole\nSam Smith,sam@company.com,pass123,Developer,Hardware Department,50000,03001234567,12345-1234567-1,male,full_time,";
+                          "Name,Email,Password,Designation,Department,Salary,Phone,CNIC,Gender,EmploymentType,CustomRole,JoinDate\nSam Smith,sam@company.com,pass123,Developer,Hardware Department,50000,03001234567,12345-1234567-1,male,full_time,,2026-01-15";
                         const blob = new Blob([csv], { type: "text/csv" });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
@@ -1733,6 +1743,7 @@ export default function EmployeesPage() {
                               gender: cols[8] || "",
                               employmentType: cols[9] || "full_time",
                               customRole: cols[10] || "",
+                              joinDate: cols[11] || "",
                               selected: true,
                               error: "",
                             };
@@ -1962,6 +1973,7 @@ export default function EmployeesPage() {
                         );
                         let success = 0;
                         let failed = 0;
+                        const failedRows: { name: string; email: string; reason: string }[] = [];
                         for (let i = 0; i < selectedRows.length; i++) {
                           const row = selectedRows[i];
                           setImportProgress(
@@ -1990,17 +2002,19 @@ export default function EmployeesPage() {
                                   gender: row.gender || null,
                                   employmentType: row.employmentType || "full_time",
                                   ...(row.customRole ? { customRoleName: row.customRole } : {}),
+                                  ...(row.joinDate ? { joinDate: row.joinDate } : {}),
                                 }),
                               },
                               token,
                             );
                             success++;
-                          } catch {
+                          } catch (err: any) {
                             failed++;
+                            failedRows.push({ name: row.name, email: row.email, reason: err?.message || "Unknown error" });
                           }
                         }
                         setImportLoading(false);
-                        setImportResults({ success, failed });
+                        setImportResults({ success, failed, failedRows });
                       }}
                       className="flex-1 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}
                     >
@@ -2018,6 +2032,7 @@ export default function EmployeesPage() {
     </div>
   );
 }
+
 
 
 
