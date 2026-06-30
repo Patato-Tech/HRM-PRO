@@ -1632,17 +1632,26 @@ export default function EmployeesPage() {
               ) : importRows.length === 0 ? (
                 /* Upload Screen */
                 <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-5">
+                    {[
+                      { n: "1", t: "Download", d: "Get the template", icon: "⬇️" },
+                      { n: "2", t: "Open", d: "Keep the headers", icon: "📊" },
+                      { n: "3", t: "Fill in", d: "One row per person", icon: "✍️" },
+                      { n: "4", t: "Upload", d: "Drop it below", icon: "📤" },
+                      { n: "5", t: "Review", d: "Fix red rows, import", icon: "✅" },
+                    ].map((step) => (
+                      <div key={step.n} className="relative bg-white rounded-2xl border border-gray-100 p-3 text-center" style={{boxShadow:"0 2px 10px rgba(0,0,0,0.04)"}}>
+                        <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full text-white text-xs font-black flex items-center justify-center" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>{step.n}</div>
+                        <div className="text-xl mb-1">{step.icon}</div>
+                        <p className="text-xs font-bold text-gray-800">{step.t}</p>
+                        <p className="text-[10px] text-gray-400 leading-tight">{step.d}</p>
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 mb-5 border border-blue-100">
-                    <p className="text-sm font-black text-blue-800 mb-3">📋 How to Import Employees</p>
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-start gap-2"><span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0">1</span><p className="text-xs text-blue-700">Download the CSV template using the button below</p></div>
-                      <div className="flex items-start gap-2"><span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0">2</span><p className="text-xs text-blue-700">Open in Excel or Google Sheets — do NOT change column headers</p></div>
-                      <div className="flex items-start gap-2"><span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0">3</span><p className="text-xs text-blue-700">Fill in employee details row by row starting from row 2</p></div>
-                      <div className="flex items-start gap-2"><span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0">4</span><p className="text-xs text-blue-700">Save as CSV format then upload the file here</p></div>
-                      <div className="flex items-start gap-2"><span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0">5</span><p className="text-xs text-blue-700">Review the data, fix any errors shown in red, then click Import</p></div>
-                    </div>
                     <p className="text-xs font-bold text-blue-800 mb-1">📄 Column Reference:</p>
-                    <p className="text-xs text-blue-700 font-mono bg-white rounded-lg px-3 py-2 border border-blue-100 mb-3">Name, Email, Password, Designation, Department, Salary, Phone, CNIC, Gender, EmploymentType, CustomRole</p>
+                    <p className="text-xs text-blue-700 font-mono bg-white rounded-lg px-3 py-2 border border-blue-100 mb-3">Name, Email, Password, Designation, Department, Salary, Phone, CNIC, Gender, EmploymentType, CustomRole, JoinDate</p>
                     <div className="grid grid-cols-2 gap-1 text-xs text-blue-600">
                       <p>• Name, Email, Password — required</p>
                       <p>• Department — optional (blank = Company Wide)</p>
@@ -1687,9 +1696,9 @@ export default function EmployeesPage() {
                     </button>
                   </div>
 
-                  <div className="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center hover:border-blue-300 transition-colors">
-                    <div className="text-4xl mb-3">📂</div>
-                    <p className="text-gray-700 font-semibold mb-1">
+                  <div className="border-2 border-dashed border-blue-200 rounded-2xl p-10 text-center transition-all hover:border-blue-400 hover:bg-blue-50/30" style={{background:"linear-gradient(135deg,#fafbff,#f5f7ff)"}}>
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl flex items-center justify-center text-3xl" style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)"}}>📂</div>
+                    <p className="text-gray-800 font-bold mb-1">
                       Upload your CSV file
                     </p>
                     <p className="text-gray-400 text-sm mb-4">
