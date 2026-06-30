@@ -1714,6 +1714,11 @@ export default function EmployeesPage() {
                             }
                             cols.push(current.trim());
 
+                            const csvEmail = (cols[1] || "").trim().toLowerCase();
+                            const csvDuplicateCount = lines.slice(1).filter((l2) => {
+                              const c2 = l2.split(",");
+                              return (c2[1] || "").trim().toLowerCase() === csvEmail;
+                            }).length;
                             const row: any = {
                               id: idx,
                               name: cols[0] || "",
@@ -1739,6 +1744,7 @@ export default function EmployeesPage() {
                               row.error = "Password min 6 chars";
                             else if (existingEmails.includes(row.email.toLowerCase()))
                               row.error = "Email already exists";
+                            else if (csvDuplicateCount > 1) row.error = "Duplicate email within this CSV file";
 
                             else if (row.customRole) {
                               const roleExists = (roles || []).some((r: any) => r.name.toLowerCase() === row.customRole.toLowerCase());
@@ -2012,6 +2018,7 @@ export default function EmployeesPage() {
     </div>
   );
 }
+
 
 
 
