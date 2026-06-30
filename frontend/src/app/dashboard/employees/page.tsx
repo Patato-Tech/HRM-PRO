@@ -117,7 +117,7 @@ export default function EmployeesPage() {
     if (name === "phone" && value && !/^03[0-9]{9}$/.test(value.replace(/[-\s]/g, ""))) err = "Format: 03XXXXXXXXX";
     if (name === "cnic" && value && !/^[0-9]{5}-[0-9]{7}-[0-9]$/.test(value)) err = "Format: XXXXX-XXXXXXX-X";
     if (name === "salary" && value && (isNaN(Number(value)) || Number(value) < 0)) err = "Must be positive number";
-    if (name === "joinDate" && value && value > new Date().toISOString().split("T")[0]) err = "Cannot be in the future";
+    
     setFieldErrors(prev => ({ ...prev, [name]: err }));
   };
   const [addForm, setAddForm] = useState({
@@ -225,18 +225,18 @@ export default function EmployeesPage() {
     if (addForm.salary && (isNaN(Number(addForm.salary)) || Number(addForm.salary) < 0)) errors.push("Salary must be a positive number.");
     if (addForm.phone && !/^03[0-9]{9}$/.test(addForm.phone.replace(/[-\s]/g, ""))) errors.push("Phone must be a valid Pakistani number (03XXXXXXXXX).");
     if (addForm.cnic && !/^[0-9]{5}-[0-9]{7}-[0-9]$/.test(addForm.cnic)) errors.push("CNIC format must be XXXXX-XXXXXXX-X.");
-    if (addForm.joinDate && addForm.joinDate > new Date().toISOString().split("T")[0]) errors.push("Join date cannot be in the future.");
+
     if (errors.length > 0) { setError(errors.join(" | ")); return; }
     const selectedRole = roles.find((r: any) => String(r.id) === String(addForm.roleId));
     const isCompanyWide = selectedRole?.scope === "all";
-    const isDeptRequired =
+    const isDeptRequired = selectedRole?.scope === "own_department";
       !selectedRole || selectedRole.scope === "own_department";
     if (!addForm.name || !addForm.email || !addForm.password) {
       setError("Name, email and password are required");
-      return;
-    }
     if (isDeptRequired && !addForm.departmentId) {
       setError("Department is required for this role");
+      return;
+    }
       return;
     }
     try {
@@ -879,7 +879,7 @@ export default function EmployeesPage() {
                 },
                 {
                   label: "Department",
-                  value: selectedEmployee.department?.name || "—",
+                  value: selectedEmployee.department?.name || "Company Wide",
                 },
                 ...(!hideSalary
                   ? [
@@ -1030,11 +1030,7 @@ export default function EmployeesPage() {
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">
                       Department{" "}
-                      {!roles.find((r: any) => String(r.id) === String(addForm.roleId)) || roles.find((r: any) => String(r.id) === String(addForm.roleId))?.scope === "own_department" ? (
-                        <span className="text-red-500">*</span>
-                      ) : (
-                        <span className="text-gray-400">(optional)</span>
-                      )}
+                      <span className="text-gray-400 font-normal">(optional)</span>
                     </label>
                     <select value={addForm.departmentId} onChange={(e) => setAddForm({ ...addForm, departmentId: e.target.value })}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-gray-50 focus:bg-white transition-colors">
@@ -1132,7 +1128,7 @@ export default function EmployeesPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Department</label>
                   <select value={editForm.departmentId} onChange={(e) => setEditForm({...editForm, departmentId: e.target.value})}
                     className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50">
-                    <option value="">No Department</option>
+                    <option value="">Company Wide</option>
                     {departments.filter((d) => d.status === "active").map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
@@ -2016,6 +2012,10 @@ export default function EmployeesPage() {
     </div>
   );
 }
+
+
+
+
 
 
 
