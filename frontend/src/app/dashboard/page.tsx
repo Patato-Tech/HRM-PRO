@@ -58,9 +58,13 @@ export default function DashboardPage() {
   const [myTodayAttendance, setMyTodayAttendance] = useState<any>(null);
   const [myRecentLeaves, setMyRecentLeaves] = useState<any[]>([]);
   const [myLeaveBalance, setMyLeaveBalance] = useState<any[]>([]);
-
   useEffect(() => {
     if (user) fetchAll();
+  }, [user]);
+  useEffect(() => {
+    const handler = () => { if (user) fetchAll(); };
+    window.addEventListener("focus", handler);
+    return () => window.removeEventListener("focus", handler);
   }, [user]);
 
   const fetchAll = async () => {
@@ -80,15 +84,15 @@ export default function DashboardPage() {
             apiCall(`/leaves/balance/${employeeId}`, {}, token),
           ]);
           if (ownAttendance.status === "fulfilled") {
-            const todayStr = new Date().toISOString().split("T")[0];
-            const todayRec = (ownAttendance.value || []).find((r: any) => r.date && r.date.split("T")[0] === todayStr);
+            const now = new Date();
+            const todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+            const todayRec = (ownAttendance.value || []).find((r: any) => { if (!r.date) return false; const d = new Date(r.date); const recStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); return recStr === todayStr; });
             setMyTodayAttendance(todayRec || null);
           }
           if (ownLeaves.status === "fulfilled") {
             setMyRecentLeaves((ownLeaves.value || []).slice(0, 5));
           }
           if (ownBalance.status === "fulfilled") {
-            setMyLeaveBalance(ownBalance.value || []);
         }
         }
         if (departmentId) {
