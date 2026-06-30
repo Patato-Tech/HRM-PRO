@@ -421,7 +421,7 @@ export default function DocumentsPage() {
             <div className="space-y-3">
               <div className="bg-blue-50 rounded-xl p-4">
                 <p className="font-bold text-gray-900">{selectedDoc.employee?.user?.name}</p>
-                <p className="text-sm text-gray-500">{selectedDoc.employee?.department?.name || 'No Department'}</p>
+                <p className="text-sm text-gray-500">{selectedDoc.employee?.department?.name || 'Company Wide'}</p>
               </div>
               {[
                 { label: 'Document Name', value: selectedDoc.name },
@@ -517,6 +517,7 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
 
 
 

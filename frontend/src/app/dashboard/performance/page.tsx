@@ -384,7 +384,7 @@ export default function PerformancePage() {
             </div>
             <div className="bg-blue-50 rounded-xl p-4 mb-4">
               <p className="font-bold text-gray-900">{selectedReview.employee?.user?.name}</p>
-              <p className="text-sm text-gray-500">{selectedReview.employee?.department?.name || 'No Department'}</p>
+              <p className="text-sm text-gray-500">{selectedReview.employee?.department?.name || 'Company Wide'}</p>
               <div className="flex items-center gap-3 mt-2">
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full capitalize">{selectedReview.period}</span>
                 <span className="text-xs text-gray-500">{new Date(selectedReview.reviewDate).toLocaleDateString()}</span>
@@ -454,5 +454,6 @@ export default function PerformancePage() {
     </div>
   );
 }
+
 
 

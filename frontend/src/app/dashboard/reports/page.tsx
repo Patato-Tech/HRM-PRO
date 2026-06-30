@@ -1080,7 +1080,7 @@ export default function ReportsPage() {
                         emp.user?.name || '-',
                         emp.user?.email || '-',
                         emp.employeeCode,
-                        emp.department?.name || '-',
+                        emp.department?.name || 'Company Wide',
                         emp.customRole?.name || emp.user?.role?.replace(/_/g, ' ') || '-',
                         emp.status.charAt(0).toUpperCase() + emp.status.slice(1),
                         new Date(emp.joinDate).toLocaleDateString()
@@ -1157,6 +1157,7 @@ export default function ReportsPage() {
     </div>
   );
 }
+
 
 
 
