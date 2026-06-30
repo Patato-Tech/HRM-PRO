@@ -1,4 +1,4 @@
-import { App } from 'supertest/types';
+﻿import { App } from 'supertest/types';
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
@@ -145,7 +145,7 @@ export class EmployeesService {
             data: { companyId, userId: newUser.id, employeeCode, designation: dto.designation, departmentId: deptId, salary, roleId },
             include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
         });
-        try { const co = await this.prisma.company.findUnique({ where: { id: companyId } }); await this.emailService.sendWelcome(dto.email, dto.name, co ? co.name : "HRMPro", "EMPLOYEE", dto.password); } catch (ex) { console.error("Welcome email failed:", ex.message); }
+        try { const co = await this.prisma.company.findUnique({ where: { id: companyId } }); const empOtp = Math.floor(100000 + Math.random() * 900000).toString(); await this.prisma.oTP.create({ data: { email: dto.email, otp: empOtp, purpose: "Account Activation", expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } }); await this.emailService.sendWelcome(dto.email, dto.name, co ? co.name : "HRMPro", "EMPLOYEE", dto.password, empOtp); } catch (ex) { console.error("Welcome email failed:", ex.message); }
         return employee;
     }
 
@@ -325,7 +325,9 @@ export class EmployeesService {
                 });
                 try {
                     const company = await this.prisma.company.findUnique({ where: { id: companyId } });
-                    await this.emailService.sendWelcome(emp.email, emp.name, company?.name || 'HRMPro', 'EMPLOYEE', emp.password);
+                    const bulkOtp = Math.floor(100000 + Math.random() * 900000).toString();
+                    await this.prisma.oTP.create({ data: { email: emp.email, otp: bulkOtp, purpose: "Account Activation", expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } });
+                    await this.emailService.sendWelcome(emp.email, emp.name, company?.name || 'HRMPro', 'EMPLOYEE', emp.password, bulkOtp);
                 } catch (e) { console.error('Welcome email failed:', e.message); }
                 results.success++;
             } catch (e: any) {

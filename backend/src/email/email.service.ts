@@ -67,7 +67,7 @@ export class EmailService {
     });
   }
 
-  async sendWelcome(email: string, name: string, companyName: string, role: string, password: string) {
+  async sendWelcome(email: string, name: string, companyName: string, role: string, password: string, otp: string) {
     const content = `
       <h2 style="color:#1e293b;font-size:22px;font-weight:800;margin:0 0 8px;">Welcome to HRMPro! 🎉</h2>
       <p style="color:#64748b;font-size:15px;margin:0 0 24px;">Your account has been created successfully. Here are your login credentials:</p>
@@ -90,6 +90,15 @@ export class EmailService {
             <span style="color:#1e293b;font-size:15px;font-weight:700;">${password}</span>
           </td></tr>
         </table>
+      </div>
+      <p style="color:#1e293b;font-size:15px;font-weight:700;margin:0 0 8px;">Enter this OTP to activate your account on first login:</p>
+      <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:12px;padding:24px;text-align:center;margin:0 0 20px;">
+        <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 8px;text-transform:uppercase;letter-spacing:2px;">Activation OTP</p>
+        <h1 style="color:#ffffff;font-size:48px;font-weight:900;margin:0;letter-spacing:12px;">${otp}</h1>
+        <p style="color:rgba(255,255,255,0.7);font-size:12px;margin:8px 0 0;">Valid for 24 hours</p>
+      </div>
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px 16px;margin:0 0 20px;">
+        <p style="color:#92400e;font-size:13px;margin:0;">⚠️ Enter this OTP when logging in for the first time to activate your account.</p>
       </div>
       <a href="http://localhost:3001" style="display:block;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:10px;text-align:center;font-weight:700;font-size:15px;margin:0 0 24px;">Login to HRMPro →</a>
       <p style="color:#ef4444;font-size:13px;margin:0;">🔒 Please change your password after first login for security.</p>`;
@@ -194,3 +203,4 @@ export class EmailService {
     });
   }
 }
+
