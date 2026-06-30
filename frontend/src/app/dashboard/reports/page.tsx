@@ -985,7 +985,7 @@ export default function ReportsPage() {
                   {activeTab === 'joiners' ? '🟢 List of Joiners' : activeTab === 'leavers' ? '🔴 List of Leavers' : '👤 Current Employees'}
                 </h2>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {activeTab === 'joiners' && (<>
+                  {(activeTab === 'joiners' || activeTab === 'leavers') && (<>
                     <div>
                       <label className="text-xs text-gray-500 mb-1 block">From Date</label>
                       <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
@@ -1062,6 +1062,8 @@ export default function ReportsPage() {
                     if (activeTab === 'joiners' && dateFrom) filtered = filtered.filter((e) => new Date(e.joinDate) >= new Date(dateFrom));
                     if (activeTab === 'joiners' && dateTo) filtered = filtered.filter((e) => new Date(e.joinDate) <= new Date(dateTo));
                     const title = activeTab === 'joiners' ? 'Joiners Report' : activeTab === 'leavers' ? 'Leavers Report' : 'Current Employees Report';
+                    if (activeTab === 'leavers' && dateFrom) filtered = filtered.filter((e) => new Date(e.updatedAt) >= new Date(dateFrom));
+                    if (activeTab === 'leavers' && dateTo) filtered = filtered.filter((e) => new Date(e.updatedAt) <= new Date(dateTo));
                     const { default: jsPDF } = await import('jspdf');
                     const { default: autoTable } = await import('jspdf-autotable');
                     const doc = new jsPDF();
@@ -1114,6 +1116,8 @@ export default function ReportsPage() {
                         if (roleFilter.length > 0) filtered = filtered.filter((e) => roleFilter.includes(e.customRole?.name || e.user?.role || ""));
                         if (activeTab === 'joiners' && dateFrom) filtered = filtered.filter((e) => new Date(e.joinDate) >= new Date(dateFrom));
                         if (activeTab === 'joiners' && dateTo) filtered = filtered.filter((e) => new Date(e.joinDate) <= new Date(dateTo));
+                        if (activeTab === 'leavers' && dateFrom) filtered = filtered.filter((e) => new Date(e.updatedAt) >= new Date(dateFrom));
+                        if (activeTab === 'leavers' && dateTo) filtered = filtered.filter((e) => new Date(e.updatedAt) <= new Date(dateTo));
                         if (filtered.length === 0) return (
                           <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">No employees found.</td></tr>
                         );
@@ -1153,6 +1157,9 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+
+
 
 
 
