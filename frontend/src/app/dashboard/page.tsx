@@ -389,56 +389,101 @@ export default function DashboardPage() {
       </>)}
       {isPlainEmployee && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-1 rounded-2xl p-5 relative overflow-hidden" style={{background: myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? "linear-gradient(135deg,#059669,#10b981)" : myTodayAttendance?.checkIn ? "linear-gradient(135deg,#1d4ed8,#3b82f6)" : "linear-gradient(135deg,#64748b,#94a3b8)", boxShadow:"0 8px 30px rgba(0,0,0,0.1)"}}>
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-10" style={{background:"white",transform:"translate(30%,-30%)"}} />
-            <p className="text-xs font-bold uppercase tracking-widest text-white opacity-80 mb-3">Today's Attendance</p>
-            {myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? (
-              <>
-                <p className="text-2xl font-black text-white mb-1">✅ Completed</p>
-                <p className="text-xs text-white opacity-80">In: {new Date(myTodayAttendance.checkIn).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} • Out: {new Date(myTodayAttendance.checkOut).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</p>
-              </>
-            ) : myTodayAttendance?.checkIn ? (
-              <>
-                <p className="text-2xl font-black text-white mb-1">🚪 Checked In</p>
-                <p className="text-xs text-white opacity-80">In: {new Date(myTodayAttendance.checkIn).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} — don't forget to check out</p>
-              </>
-            ) : (
-              <>
-                <p className="text-2xl font-black text-white mb-1">⏰ Not Checked In</p>
-                <p className="text-xs text-white opacity-80">Mark your attendance for today</p>
-              </>
-            )}
-            <a href="/dashboard/attendance" className="inline-block mt-4 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors">Go to Attendance →</a>
-          </div>
-          <div className="lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100" style={{boxShadow:"0 4px 20px rgba(0,0,0,0.05)"}}>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Leave Balance</p>
-            {myLeaveBalance.length === 0 ? (
-              <p className="text-sm text-gray-400">No leave balance found</p>
-            ) : (
-              <div className="space-y-2">
-                {myLeaveBalance.slice(0, 4).map((b: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <p className="text-xs text-gray-600 font-medium">{b.leaveType}</p>
-                    <p className="text-sm font-black text-gray-900">{b.remaining}<span className="text-xs text-gray-400 font-normal">/{b.total}</span></p>
+          <div className="lg:col-span-1 rounded-3xl p-6 relative overflow-hidden" style={{background: myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? "linear-gradient(135deg,#047857,#10b981,#34d399)" : myTodayAttendance?.checkIn ? "linear-gradient(135deg,#1e40af,#3b82f6,#60a5fa)" : "linear-gradient(135deg,#334155,#475569,#64748b)", boxShadow: myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? "0 12px 40px rgba(16,185,129,0.35)" : myTodayAttendance?.checkIn ? "0 12px 40px rgba(59,130,246,0.35)" : "0 12px 40px rgba(51,65,85,0.25)"}}>
+            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10" style={{background:"radial-gradient(circle,white,transparent)"}} />
+            <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-5" style={{background:"radial-gradient(circle,white,transparent)"}} />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-white opacity-70 whitespace-nowrap">Today's Attendance</p>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{background:"rgba(255,255,255,0.15)",backdropFilter:"blur(8px)"}}>
+                  {myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? "🎉" : myTodayAttendance?.checkIn ? "⏳" : "👋"}
+                </div>
+              </div>
+              {myTodayAttendance?.checkIn && myTodayAttendance?.checkOut ? (
+                <>
+                  <p className="text-3xl font-black text-white mb-1 tracking-tight">Completed</p>
+                  <p className="text-xs text-white opacity-80 mb-5">Great work today! 🚀</p>
+                  <div className="flex gap-2 mb-5">
+                    <div className="flex-1 rounded-2xl p-3" style={{background:"rgba(255,255,255,0.15)",backdropFilter:"blur(8px)"}}>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-white opacity-70 mb-0.5">Check In</p>
+                      <p className="text-sm font-black text-white">{new Date(myTodayAttendance.checkIn).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</p>
+                    </div>
+                    <div className="flex-1 rounded-2xl p-3" style={{background:"rgba(255,255,255,0.15)",backdropFilter:"blur(8px)"}}>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-white opacity-70 mb-0.5">Check Out</p>
+                      <p className="text-sm font-black text-white">{new Date(myTodayAttendance.checkOut).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</p>
+                    </div>
                   </div>
-                ))}
+                </>
+              ) : myTodayAttendance?.checkIn ? (
+                <>
+                  <p className="text-3xl font-black text-white mb-1 tracking-tight">Checked In</p>
+                  <p className="text-xs text-white opacity-80 mb-5">Since {new Date(myTodayAttendance.checkIn).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} — don't forget to check out</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-3xl font-black text-white mb-1 tracking-tight">Not Checked In</p>
+                  <p className="text-xs text-white opacity-80 mb-5">Mark your attendance to start the day</p>
+                </>
+              )}
+              <a href="/dashboard/attendance" className="inline-flex items-center gap-1.5 bg-white text-gray-900 hover:bg-white/90 text-xs font-black px-4 py-2.5 rounded-2xl transition-all hover:gap-2.5">
+                Go to Attendance <span>→</span>
+              </a>
+            </div>
+          </div>
+          <div className="lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 relative overflow-hidden" style={{boxShadow:"0 4px 24px rgba(0,0,0,0.06)"}}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 whitespace-nowrap">Leave Balance</p>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{background:"linear-gradient(135deg,#fef3c7,#fde68a)"}}>🌿</div>
+            </div>
+            {myLeaveBalance.length === 0 ? (
+              <div className="py-6 text-center">
+                <p className="text-3xl mb-2 opacity-30">📋</p>
+                <p className="text-sm text-gray-400">No leave balance found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {myLeaveBalance.slice(0, 4).map((b: any, i: number) => {
+                  const pct = b.total > 0 ? Math.round((b.remaining / b.total) * 100) : 0;
+                  return (
+                    <div key={i}>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-gray-600 font-bold">{b.leaveType}</p>
+                        <p className="text-xs font-black text-gray-900">{b.remaining}<span className="text-gray-400 font-medium">/{b.total}</span></p>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div className="h-1.5 rounded-full transition-all" style={{width: pct + "%", background:"linear-gradient(90deg,#f59e0b,#fbbf24)"}} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-            <a href="/dashboard/leaves" className="inline-block mt-4 text-blue-600 hover:text-blue-700 text-xs font-bold">Apply for Leave →</a>
+            <a href="/dashboard/leaves" className="inline-flex items-center gap-1.5 mt-5 text-amber-600 hover:text-amber-700 text-xs font-black hover:gap-2.5 transition-all">
+              Apply for Leave <span>→</span>
+            </a>
           </div>
-          <div className="lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100" style={{boxShadow:"0 4px 20px rgba(0,0,0,0.05)"}}>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Recent Leave Requests</p>
+          <div className="lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 relative overflow-hidden" style={{boxShadow:"0 4px 24px rgba(0,0,0,0.06)"}}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 whitespace-nowrap">Recent Leave Requests</p>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{background:"linear-gradient(135deg,#dbeafe,#bfdbfe)"}}>📝</div>
+            </div>
             {myRecentLeaves.length === 0 ? (
-              <p className="text-sm text-gray-400">No leave requests yet</p>
+              <div className="py-6 text-center">
+                <p className="text-3xl mb-2 opacity-30">🗂️</p>
+                <p className="text-sm text-gray-400">No leave requests yet</p>
+              </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {myRecentLeaves.map((l: any) => (
-                  <div key={l.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-700">{l.leaveType}</p>
+                  <div key={l.id} className="flex items-center gap-3 rounded-2xl p-2.5 hover:bg-gray-50 transition-colors">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0" style={{background: l.status === 'approved' ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : l.status === 'rejected' ? 'linear-gradient(135deg,#fee2e2,#fecaca)' : 'linear-gradient(135deg,#fef3c7,#fde68a)'}}>
+                      {l.status === 'approved' ? '✅' : l.status === 'rejected' ? '❌' : '⏳'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{l.leaveType}</p>
                       <p className="text-[11px] text-gray-400">{new Date(l.startDate).toLocaleDateString()} - {new Date(l.endDate).toLocaleDateString()}</p>
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${l.status === 'approved' ? 'bg-green-100 text-green-700' : l.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{l.status}</span>
+                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-black flex-shrink-0 ${l.status === 'approved' ? 'bg-green-100 text-green-700' : l.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{l.status}</span>
                   </div>
                 ))}
               </div>
