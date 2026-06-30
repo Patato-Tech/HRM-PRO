@@ -799,20 +799,19 @@ export default function AttendancePage() {
                   🌿 You are on approved leave today
                 </div>
               ) : !todayRecord?.checkIn ? (
-                <>
-                  <button
-                    onClick={handleCheckIn}
-                    disabled={checkInLoading}
-                    className="text-white px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
-                    style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 4px 12px rgba(16,185,129,0.3)"}}>
-                    {checkInLoading ? "Checking in..." : "✅ Check In"}
-                  </button>
-                  <button onClick={handleCheckOut} disabled={checkOutLoading}
-                    className="text-white px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
-                    style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
-                    {checkOutLoading ? "Checking out..." : "🚪 Check Out"}
-                  </button>
-                </>
+                <button
+                  onClick={handleCheckIn}
+                  disabled={checkInLoading}
+                  className="text-white px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
+                  style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 4px 12px rgba(16,185,129,0.3)"}}>
+                  {checkInLoading ? "Checking in..." : "✅ Check In"}
+                </button>
+              ) : !todayRecord?.checkOut ? (
+                <button onClick={handleCheckOut} disabled={checkOutLoading}
+                  className="text-white px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50"
+                  style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",boxShadow:"0 4px 12px rgba(59,130,246,0.3)"}}>
+                  {checkOutLoading ? "Checking out..." : "🚪 Check Out"}
+                </button>
               ) : (
                 <div
                   className={`text-xs px-3 py-2 rounded-xl font-medium flex items-center gap-2 ${todayRecord?.status === "half_day" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}
