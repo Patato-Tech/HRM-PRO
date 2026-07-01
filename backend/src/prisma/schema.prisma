@@ -65,6 +65,9 @@ model User {
   isActive             Boolean             @default(true)
   isActivated          Boolean             @default(false)
 
+  phone                String?
+  designation          String?
+  cnic                 String?
   resetToken           String?
   resetTokenExpiry     DateTime?
   sessionInvalidatedAt DateTime?

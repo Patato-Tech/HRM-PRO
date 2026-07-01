@@ -25,7 +25,7 @@ export class AuthController {
 
     @UseGuards(JwtAuthGuard)
     @Put('profile')
-    updateProfile(@Request() req, @Body() body: { name: string }) {
+    updateProfile(@Request() req, @Body() body: { name: string; designation?: string; phone?: string; cnic?: string }) {
         return this.authService.updateProfile(req.user.userId, body.name);
     }
 

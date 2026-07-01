@@ -90,6 +90,9 @@ export default function ProfilePage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [showDocUploadModal, setShowDocUploadModal] = useState(false);
+  const [fullProfile, setFullProfile] = useState<any>(null);
+  const [editPhone, setEditPhone] = useState('');
+  const [editCnic, setEditCnic] = useState('');
   const [docUploadFiles, setDocUploadFiles] = useState<File[]>([]);
   const [docUploadType, setDocUploadType] = useState('CNIC');
   const [docUploadName, setDocUploadName] = useState('');
@@ -104,6 +107,7 @@ export default function ProfilePage() {
     if (!authLoading && !user) router.replace('/');
     if (user) {
       setEditName(user.name || '');
+      apiCall('/auth/profile', {}, getToken() || '').then(data => { setFullProfile(data); setEditPhone(data?.phone || ''); setEditCnic(data?.cnic || ''); }).catch(() => {});
       const savedPic = localStorage.getItem('user_profile_pic');
       if (savedPic) setProfilePic(savedPic);
       const pic = localStorage.getItem('user_profile_pic');
@@ -391,6 +395,16 @@ export default function ProfilePage() {
                 <label className="text-xs font-semibold text-gray-500 block mb-1">Role</label>
                 <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{roleName}</div>
               </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">📞 Phone</label>
+                <input type="text" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="03XXXXXXXXX"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">🪪 CNIC</label>
+                <input type="text" value={editCnic} onChange={e => setEditCnic(e.target.value)} placeholder="XXXXX-XXXXXXX-X"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white" />
+              </div>
               {employeeInfo && <>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 block mb-1">Department</label>
@@ -417,20 +431,20 @@ export default function ProfilePage() {
               )}
             </div>
             {/* Personal Info */}
-            {employeeInfo && (employeeInfo.phone || employeeInfo.cnic || employeeInfo.gender || employeeInfo.employmentType) && (
+            {(employeeInfo?.phone || employeeInfo?.cnic || employeeInfo?.gender || employeeInfo?.employmentType || user?.phone || user?.cnic) && (
               <div className="border-t border-gray-100 pt-4 mt-2">
                 <p className="text-xs font-bold text-gray-500 uppercase mb-3">Personal Information</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {employeeInfo.phone && (
+                  {(employeeInfo?.phone || user?.phone || fullProfile?.phone) && (
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">📞 Phone</label>
-                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo.phone}</div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo?.phone || user?.phone || fullProfile?.phone}</div>
                     </div>
                   )}
-                  {employeeInfo.cnic && (
+                  {(employeeInfo?.cnic || user?.cnic || fullProfile?.cnic) && (
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">🪪 CNIC</label>
-                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo.cnic}</div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{employeeInfo?.cnic || user?.cnic || fullProfile?.cnic}</div>
                     </div>
                   )}
                   {employeeInfo.gender && (
@@ -948,6 +962,15 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 

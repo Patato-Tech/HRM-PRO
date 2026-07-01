@@ -49,7 +49,7 @@ export class PlatformService {
         companyName: string; industry?: string; address?: string;
         city?: string; country?: string; companyPhone?: string;
         website?: string; companySize?: string; regNumber?: string;
-        adminName: string; adminEmail: string; adminPassword: string;
+        adminName: string; adminEmail: string; adminPassword: string; adminPhone?: string; adminDesignation?: string; adminCnic?: string;
     }) {
         const existingUser = await this.prisma.user.findFirst({ where: { email: dto.adminEmail } });
         if (existingUser) throw new BadRequestException('An account with this email already exists');
@@ -58,7 +58,7 @@ export class PlatformService {
         });
         const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
         await this.prisma.user.create({
-            data: { name: dto.adminName, email: dto.adminEmail, passwordHash: hashedPassword, role: 'COMPANY_ADMIN', companyId: company.id },
+            data: { name: dto.adminName, email: dto.adminEmail, passwordHash: hashedPassword, role: 'COMPANY_ADMIN', companyId: company.id, phone: dto.adminPhone || null, designation: dto.adminDesignation || null, cnic: dto.adminCnic || null },
         });
         return { message: 'Registration submitted. Pending approval by platform administrator.' };
     }

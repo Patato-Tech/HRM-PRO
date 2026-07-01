@@ -145,7 +145,7 @@ export class AuthService {
         const iat = tokenIat;
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
-            select: { id: true, name: true, email: true, role: true, companyId: true, isActive: true, createdAt: true, sessionInvalidatedAt: true },
+            select: { id: true, name: true, email: true, role: true, companyId: true, isActive: true, createdAt: true, sessionInvalidatedAt: true, phone: true, designation: true, cnic: true },
         });
         if (!user) throw new UnauthorizedException('User not found');
         if (!user.isActive) throw new UnauthorizedException('Your account is deactivated');
@@ -280,5 +280,6 @@ export class AuthService {
         return { message: 'Password reset successfully' };
     }
 }
+
 
 

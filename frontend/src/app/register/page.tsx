@@ -169,7 +169,7 @@ function RegisterForm() {
           companyName: form.companyName, industry: form.industry, address: form.address,
           city: form.city, country: form.country, companyPhone: form.companyPhone,
           website: form.website, companySize: form.companySize, regNumber: form.regNumber,
-          adminName: form.adminName, adminEmail: form.adminEmail, adminPassword: form.adminPassword,
+          adminName: form.adminName, adminEmail: form.adminEmail, adminPassword: form.adminPassword, adminPhone: form.adminPhone, adminDesignation: form.adminDesignation, adminCnic: form.adminCnic,
         }),
       });
       setSubmitted(true);
@@ -572,6 +572,7 @@ function RegisterForm() {
 export default function RegisterPage() {
   return <Suspense><RegisterForm /></Suspense>;
 }
+
 
 
 
