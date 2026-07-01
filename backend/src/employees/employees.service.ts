@@ -142,7 +142,7 @@ export class EmployeesService {
         const roleId = dto.roleId ? Number(dto.roleId) : null;
 
         const employee = await this.prisma.employee.create({
-            data: { companyId, userId: newUser.id, employeeCode, designation: dto.designation, departmentId: deptId, salary, roleId },
+            data: { companyId, userId: newUser.id, employeeCode, designation: dto.designation, departmentId: deptId, salary, roleId, joinDate: dto.joinDate ? new Date(dto.joinDate) : new Date() },
             include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
         });
         try { const co = await this.prisma.company.findUnique({ where: { id: companyId } }); const empOtp = Math.floor(100000 + Math.random() * 900000).toString(); await this.prisma.oTP.create({ data: { email: dto.email, otp: empOtp, purpose: "Account Activation", expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } }); await this.emailService.sendWelcome(dto.email, dto.name, co ? co.name : "HRMPro", "EMPLOYEE", dto.password, empOtp); } catch (ex) { console.error("Welcome email failed:", ex.message); }
@@ -321,7 +321,7 @@ export class EmployeesService {
                 });
                 const deptId = emp.departmentId ? Number(emp.departmentId) : null;
                 await this.prisma.employee.create({
-                    data: { companyId, userId: newUser.id, employeeCode, designation: emp.designation || '', departmentId: deptId, salary: Number(emp.salary || 0) },
+                    data: { companyId, userId: newUser.id, employeeCode, designation: emp.designation || "", departmentId: deptId, salary: Number(emp.salary || 0), joinDate: emp.joinDate ? new Date(emp.joinDate) : new Date() },
                 });
                 try {
                     const company = await this.prisma.company.findUnique({ where: { id: companyId } });
