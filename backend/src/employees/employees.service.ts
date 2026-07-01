@@ -189,6 +189,10 @@ export class EmployeesService {
                 salary: canEditSalary ? dto.salary : undefined,
                 status: canEditFull ? dto.status : undefined,
                 roleId: isAdmin ? updateRoleId : undefined,
+                phone: canEditFull ? (dto.phone || null) : undefined,
+                cnic: canEditFull ? (dto.cnic || null) : undefined,
+                gender: canEditFull ? (dto.gender || null) : undefined,
+                employmentType: canEditFull ? (dto.employmentType || undefined) : undefined,
             },
             include: { user: { select: SAFE_USER_SELECT }, department: true, customRole: true },
         });

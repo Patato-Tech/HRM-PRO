@@ -395,16 +395,16 @@ export default function ProfilePage() {
                 <label className="text-xs font-semibold text-gray-500 block mb-1">Role</label>
                 <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium">{roleName}</div>
               </div>
-              <div>
+              {isAdmin && <div>
                 <label className="text-xs font-semibold text-gray-500 block mb-1">📞 Phone</label>
                 <input type="text" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="03XXXXXXXXX"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white" />
-              </div>
-              <div>
+              </div>}
+              {isAdmin && <div>
                 <label className="text-xs font-semibold text-gray-500 block mb-1">🪪 CNIC</label>
                 <input type="text" value={editCnic} onChange={e => setEditCnic(e.target.value)} placeholder="XXXXX-XXXXXXX-X"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white" />
-              </div>
+              </div>}
               {employeeInfo && <>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 block mb-1">Department</label>
