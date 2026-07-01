@@ -1,4 +1,4 @@
-{
+﻿{
     "name": "backend",
     "version": "0.0.1",
     "description": "",
@@ -6,7 +6,7 @@
     "private": true,
     "license": "UNLICENSED",
     "scripts": {
-        "build": "nest build",
+        "build": "prisma generate --schema=src/prisma/schema.prisma && nest build",
         "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
         "start": "nest start",
         "start:dev": "nest start --watch",
@@ -89,3 +89,4 @@
         "seed": "ts-node src/prisma/seed.ts"
     }
 }
+
