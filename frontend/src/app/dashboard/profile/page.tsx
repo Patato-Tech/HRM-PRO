@@ -153,7 +153,7 @@ export default function ProfilePage() {
         formData.append('name', docName);
         formData.append('expiryDate', docUploadExpiry);
         formData.append('notes', '');
-        const response = await fetch('http://localhost:5001/documents', {
+        const response = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001")}/documents`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token },
           body: formData,
@@ -472,7 +472,7 @@ export default function ProfilePage() {
                 <button onClick={async () => {
                   try {
                     const token = (typeof window !== "undefined" ? localStorage.getItem("token") : "") || "";
-                    await fetch(`http://localhost:5001/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ designation: editDesignation, phone: editPhone, cnic: editCnic }) });
+                    await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001")}/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ designation: editDesignation, phone: editPhone, cnic: editCnic }) });
                     if (typeof window !== "undefined") localStorage.setItem("user_designation", editDesignation);
                     setFullProfile((prev: any) => ({ ...prev, phone: editPhone, cnic: editCnic, designation: editDesignation }));
                     setToast("Profile updated!");

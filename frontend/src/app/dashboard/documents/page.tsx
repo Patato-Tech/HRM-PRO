@@ -110,7 +110,7 @@ export default function DocumentsPage() {
         formData.append('name', form.name);
         formData.append('expiryDate', form.expiryDate);
         formData.append('notes', form.notes);
-        const response = await fetch('http://localhost:5001/documents', {
+        const response = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001")}/documents`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token },
           body: formData,

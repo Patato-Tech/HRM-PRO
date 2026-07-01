@@ -77,7 +77,7 @@ function RegisterForm() {
     if (submitted && registeredEmail && !approved) {
       pollingRef.current = setInterval(async () => {
         try {
-          const res = await fetch(`http://localhost:5001/auth/company-status?email=${encodeURIComponent(registeredEmail)}`);
+          const res = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001")}/auth/company-status?email=${encodeURIComponent(registeredEmail)}`);
           const data = await res.json();
           if (data.status === 'active') { setApproved(true); if (pollingRef.current) clearInterval(pollingRef.current); }
         } catch {}
