@@ -472,12 +472,13 @@ export default function ProfilePage() {
                 <button onClick={async () => {
                   try {
                     const token = (typeof window !== "undefined" ? localStorage.getItem("token") : "") || "";
-                    await fetch(`http://localhost:5001/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ designation: editDesignation }) });
+                    await fetch(`http://localhost:5001/auth/profile`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ designation: editDesignation, phone: editPhone, cnic: editCnic }) });
                     if (typeof window !== "undefined") localStorage.setItem("user_designation", editDesignation);
-                    setToast("Designation updated!");
+                    setFullProfile((prev: any) => ({ ...prev, phone: editPhone, cnic: editCnic, designation: editDesignation }));
+                    setToast("Profile updated!");
                     setTimeout(() => setToast(""), 3000);
                   } catch (e) { console.error(e); }
-                }} disabled={editDesignation === (user.designation || "")}
+                }} disabled={editDesignation === (user.designation || "") && editPhone === (fullProfile?.phone || "") && editCnic === (fullProfile?.cnic || "")}
                 className="flex-1 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-50" style={{background:"linear-gradient(135deg,#059669,#10b981)",boxShadow:"0 4px 12px rgba(16,185,129,0.3)"}}>
                 Save Designation
                 </button>
