@@ -450,7 +450,7 @@ export default function ProfilePage() {
                   {employeeInfo.gender && (
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">👤 Gender</label>
-                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium capitalize">{employeeInfo.gender}</div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 font-medium capitalize">{employeeInfo.gender.charAt(0).toUpperCase() + employeeInfo.gender.slice(1)}</div>
                     </div>
                   )}
                   {employeeInfo.employmentType && (
@@ -963,6 +963,7 @@ export default function ProfilePage() {
     </div>
   );
 }
+
 
 
 
