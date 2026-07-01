@@ -252,7 +252,7 @@ export default function AttendancePage() {
     try {
       const data = await apiCall(`/attendance/date/${selectedDate}`, {}, token);
       const isOwnDeptDate = user?.customRoleScope === "own_department" && user?.departmentId;
-      setRecords(isOwnDeptDate ? (data || []).filter((r) => String(r.employee?.departmentId) === String(user.departmentId)) : (data || []));
+      setRecords(isOwnDeptDate ? (data || []).filter((r: any) => String(r.employee?.departmentId) === String(user.departmentId)) : (data || []));
     } catch (err) {
       console.error(err);
     }
@@ -2109,6 +2109,7 @@ export default function AttendancePage() {
     </div>
   );
 }
+
 
 
 
