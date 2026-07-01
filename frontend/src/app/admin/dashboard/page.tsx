@@ -164,7 +164,7 @@ export default function AdminDashboard() {
 
   const openEditModal = (company: Company) => {
     setSelectedCompany(company);
-    setEditForm({ name: company.name, industry: company.industry || '', address: company.address || '', planId: company.planId || '', status: company.status });
+    setEditForm({ name: company.name, industry: company.industry || "", address: company.address || "", city: (company as any).city || "", country: (company as any).country || "", phone: (company as any).phone || "", website: (company as any).website || "", companySize: (company as any).companySize || "", regNumber: (company as any).regNumber || "", planId: company.planId || "", status: company.status });
     setShowEditModal(true); setError('');
   };
 
