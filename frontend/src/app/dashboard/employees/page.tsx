@@ -143,6 +143,10 @@ export default function EmployeesPage() {
     salary: "",
     status: "",
     roleId: "",
+    phone: "",
+    cnic: "",
+    gender: "",
+    employmentType: "full_time",
   });
 
   // ✅ Reset-password modal state
@@ -279,6 +283,10 @@ export default function EmployeesPage() {
 
   const handleEdit = async () => {
     setError("");
+    const editErrors: string[] = [];
+    if (editForm.phone && !/^03[0-9]{9}$/.test(editForm.phone.replace(/[-\s]/g, ""))) editErrors.push("Phone must be a valid Pakistani number (03XXXXXXXXX).");
+    if (editForm.cnic && !/^[0-9]{5}-[0-9]{7}-[0-9]$/.test(editForm.cnic)) editErrors.push("CNIC format must be XXXXX-XXXXXXX-X.");
+    if (editErrors.length > 0) { setError(editErrors.join(" | ")); return; }
     if (!selectedEmployee) return;
     try {
       const token = getToken() || "";
@@ -292,6 +300,10 @@ export default function EmployeesPage() {
             departmentId: editForm.departmentId || null,
             status: editForm.status,
             roleId: editForm.roleId || null,
+            phone: editForm.phone || null,
+            cnic: editForm.cnic || null,
+            gender: editForm.gender || null,
+            employmentType: editForm.employmentType || "full_time",
           }),
         },
         token,
@@ -446,6 +458,10 @@ export default function EmployeesPage() {
       salary: emp.salary != null ? emp.salary.toString() : "",
       status: emp.status,
       roleId: (emp as any).customRole?.id?.toString() || "",
+      phone: (emp as any).phone || "",
+      cnic: (emp as any).cnic || "",
+      gender: (emp as any).gender || "",
+      employmentType: (emp as any).employmentType || "full_time",
     });
     setShowEditModal(true);
     setError("");
@@ -899,6 +915,10 @@ export default function EmployeesPage() {
                     selectedEmployee.joinDate,
                   ).toLocaleDateString(),
                 },
+                ...((selectedEmployee as any).phone ? [{ label: "Phone", value: (selectedEmployee as any).phone }] : []),
+                ...((selectedEmployee as any).cnic ? [{ label: "CNIC", value: (selectedEmployee as any).cnic }] : []),
+                ...((selectedEmployee as any).gender ? [{ label: "Gender", value: (selectedEmployee as any).gender.charAt(0).toUpperCase() + (selectedEmployee as any).gender.slice(1) }] : []),
+                ...((selectedEmployee as any).employmentType ? [{ label: "Employment Type", value: (selectedEmployee as any).employmentType.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) }] : []),
               ].map((item: any, i) => (
                 <div key={i} className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-500 mb-1">{item.label}</p>
@@ -1155,6 +1175,36 @@ export default function EmployeesPage() {
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone</label>
+                <input type="tel" value={editForm.phone} onChange={(e) => setEditForm({...editForm, phone: e.target.value})} placeholder="03XXXXXXXXX"
+                  className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">CNIC</label>
+                <input type="text" value={editForm.cnic} onChange={(e) => setEditForm({...editForm, cnic: e.target.value})} placeholder="XXXXX-XXXXXXX-X"
+                  className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Gender</label>
+                <select value={editForm.gender} onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                  className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50">
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Employment Type</label>
+                <select value={editForm.employmentType} onChange={(e) => setEditForm({...editForm, employmentType: e.target.value})}
+                  className="w-full border-2 border-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-gray-900 bg-gray-50">
+                  <option value="full_time">Full Time</option>
+                  <option value="part_time">Part Time</option>
+                  <option value="contract">Contract</option>
+                  <option value="intern">Intern</option>
                 </select>
               </div>
             </div>
